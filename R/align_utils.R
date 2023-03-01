@@ -83,7 +83,6 @@ rms <- function(a, b, weights, std) {
 }
 
 scale_smooth <- function(query_values, smooth_x, smooth_y) {
-
   suppressWarnings(f <- approx(
     x = smooth_x,
     y = smooth_y,

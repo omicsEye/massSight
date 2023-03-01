@@ -62,7 +62,7 @@ auto_align <-
       )
 
     results_list <-
-      coarse_results(
+      find_isolated_compounds(
         df1,
         df2,
         rt_lower = rt_lower,

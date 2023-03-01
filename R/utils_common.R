@@ -1,4 +1,3 @@
-
 #' @export
 #' @title Load Data
 #' @description This function will load LC-MS data from a file.

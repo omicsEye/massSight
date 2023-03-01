@@ -76,4 +76,12 @@ Alignment is performed using `auto_align()`, and scaling is performed using `aut
 
 ## Visualization {#visualization}
 
+```{r, eval = F}
+final_plots(
+  res$results_df_complete,
+  res$smooth_for_plot,
+  res$adjusted_df
+)
+```
+
 ## Example of Real world applications {#example-of-real-world-applications}

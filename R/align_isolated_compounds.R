@@ -1,4 +1,4 @@
-matchPPA <-
+align_isolated_compounds <-
   function(df1,
            df2,
            rt_minus = -.5,
@@ -28,7 +28,7 @@ matchPPA <-
           dplyr::filter(
             # RT > df1[row, "RT"] + rt_minus &
             #   RT < df1[row, "RT"] + rt_plus &
-              MZ > df1[row, "MZ"] + mz_minus * df1[row, "MZ"] / 1e6 &
+            MZ > df1[row, "MZ"] + mz_minus * df1[row, "MZ"] / 1e6 &
               MZ < df1[row, "MZ"] + mz_plus * df1[row, "MZ"] / 1e6
           )
         if (nrow(df2_filter) == 0) {
