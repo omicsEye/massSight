@@ -1,0 +1,26 @@
+Package: massSight
+Title: Batch Alignment and Scaling for LC-MS Data
+Version: 0.0.0.9000
+Authors@R: 
+    person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+    person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: What the package does (one paragraph).
+License: MIT + file LICENSE
+Depends: 
+    R (>= 2.10)
+Imports: 
+    dplyr,
+    GauPro,
+    omicsArt,
+    openxlsx,
+    pracma,
+    purrr,
+    readxl,
+    stringr,
+    xlsx
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3

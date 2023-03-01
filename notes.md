@@ -1,0 +1,4 @@
+- documentation
+- make modules instead of one long function
+- for each step we need to do viz (replicating plots in pptx - ggplot object + pdf + png)
+- write a module that includes retention order as well
