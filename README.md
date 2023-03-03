@@ -88,7 +88,7 @@ aligned_df <- auto_align(user_df1, user_df2)
 ## Visualization
 
 ``` r
-final_plots(
+massSight::final_plotsfinal_plots(
   aligned_df$results_df_complete,
   aligned_df$smooth_for_plot,
   aligned_df$adjusted_df

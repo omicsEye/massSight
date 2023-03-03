@@ -50,16 +50,12 @@ auto_align <-
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     df1 <- df1 |>
-      dplyr::mutate(
-        MZ = round(MZ, 4),
-        RT = round(RT, 2)
-      )
+      dplyr::mutate(MZ = round(MZ, 4),
+                    RT = round(RT, 2))
 
     df2 <- df2 |>
-      dplyr::mutate(
-        MZ = round(MZ, 4),
-        RT = round(RT, 2)
-      )
+      dplyr::mutate(MZ = round(MZ, 4),
+                    RT = round(RT, 2))
 
     results_list <-
       find_isolated_compounds(
@@ -100,9 +96,11 @@ auto_align <-
       "Numbers of matched/kept features: ",
       nrow(results_df_complete)
     ))
-    return(list(
-      "results_df_complete" = results_df_complete,
-      "adjusted_df" = adjusted_df,
-      "smooth_for_plot" = smooth_for_plot
-    ))
+    return(
+      list(
+        "results_df_complete" = results_df_complete,
+        "adjusted_df" = adjusted_df,
+        "smooth_for_plot" = smooth_for_plot
+      )
+    )
   }

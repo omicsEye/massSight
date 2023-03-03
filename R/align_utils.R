@@ -10,7 +10,7 @@ dedup <- function(cols, item) {
 
 mad_based_outlier <- function(points, thresh = 5) {
   points <- points[[1]]
-  diff <- sqrt((points - median(points))^2)
+  diff <- sqrt((points - median(points)) ^ 2)
   med_abs_deviation <- median(diff)
   if (med_abs_deviation == 0) {
     mod_z_score <- rep(0, length(diff))
@@ -57,7 +57,7 @@ rms <- function(a, b, weights, std) {
   if (std[1] == 0) {
     rt_contribution <- abs(rt_difference)
   } else {
-    rt_contribution <- (rt_difference / std[1])**2
+    rt_contribution <- (rt_difference / std[1]) ** 2
   }
 
   # convert to mzs to ppm to score
@@ -65,20 +65,18 @@ rms <- function(a, b, weights, std) {
   if (std[2] == 0) {
     mz_contribution <- abs(ppm_difference)
   } else {
-    mz_contribution <- (ppm_difference / std[2])^2
+    mz_contribution <- (ppm_difference / std[2]) ^ 2
   }
 
   int_difference <- log10(a$Intensity) - log10(b$Intensity)
   if (std[3] == 0) {
     int_contribution <- abs(int_difference)
   } else {
-    int_contribution <- (int_difference / std[3])^2
+    int_contribution <- (int_difference / std[3]) ^ 2
   }
   score <-
-    calculate_mean(
-      c(rt_contribution, mz_contribution, int_contribution),
-      weights
-    )
+    calculate_mean(c(rt_contribution, mz_contribution, int_contribution),
+                   weights)
   return(score)
 }
 

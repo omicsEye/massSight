@@ -16,7 +16,7 @@ get_vectors <- function(df, rt_sim, mz_sim) {
       diff_down_rt <- df_rt[row + 1, "RT"] - rt
       diff_up_rt <- rt - df_rt[row - 1, "RT"]
       if (diff_down_rt >= rt_sim &
-        diff_up_rt >= rt_sim) {
+          diff_up_rt >= rt_sim) {
         rt_metabolites <- c(rt_metabolites, df_rt[row, "Compound_ID"])
       }
     }
@@ -32,7 +32,7 @@ get_vectors <- function(df, rt_sim, mz_sim) {
       diff_down_mz <- df_mz[row + 1, "MZ"] - mz
       diff_up_mz <- mz - df_mz[row - 1, "MZ"]
       if (diff_down_mz > mz_sim * mz / 1e6 &
-        diff_up_mz > mz_sim * mz / 1e6) {
+          diff_up_mz > mz_sim * mz / 1e6) {
         mz_metabolites <- c(mz_metabolites, df_mz[row, "Compound_ID"])
       }
     }

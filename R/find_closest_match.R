@@ -26,28 +26,26 @@ find_closest_match <-
     }
 
     if (cutoffs[3] > 0) {
-      cutoffs_2 <- 10.00000**cutoffs[3]
+      cutoffs_2 <- 10.00000 ** cutoffs[3]
       int_hits <-
         database$Intensity < (rt_mz_int$Intensity * cutoffs_2) &
-          database$Intensity > (rt_mz_int$Intensity / cutoffs_2)
+        database$Intensity > (rt_mz_int$Intensity / cutoffs_2)
     } else {
       int_hits <- rep(TRUE, nrow(database))
     }
     hits <-
       database[rt_hits &
-        mz_hits & int_hits, c("RT", "MZ", "Intensity")]
+                 mz_hits & int_hits, c("RT", "MZ", "Intensity")]
     hits_index <- database_index[rt_hits & mz_hits & int_hits]
     if (nrow(hits) == 0) {
       return(NULL)
     }
     hits_results <- c()
     for (i in 1:nrow(hits)) {
-      score <- rms(
-        rt_mz_int,
-        hits[i, ],
-        weights,
-        stds
-      )
+      score <- rms(rt_mz_int,
+                   hits[i,],
+                   weights,
+                   stds)
       hits_results <- c(hits_results, score)
     }
     return(hits_index[hits_results == min(hits_results)])

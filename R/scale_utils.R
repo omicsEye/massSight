@@ -39,7 +39,7 @@ verify_df <-
     error <- c()
     error_flag <- FALSE
     if (!(0 <= pool_missing_p &
-      pool_missing_p <= 100)) {
+          pool_missing_p <= 100)) {
       error <- error %>%
         append(
           paste(
@@ -100,7 +100,7 @@ verify_df <-
       sum()
 
     if (prefa_sum == 0 &
-      prefb_sum == 0) {
+        prefb_sum == 0) {
       error <- error %>%
         append(
           paste(
@@ -132,10 +132,8 @@ get_norm_indices <-
   function(sample_inj, pool_inj, pool_names, ref_use) {
     pool_use_indx <- c()
     pool_names_unique <- pool_names %>% unique()
-    sample_ref_tibble <- dplyr::tibble(
-      sample_inj,
-      ref_use
-    )
+    sample_ref_tibble <- dplyr::tibble(sample_inj,
+                                       ref_use)
 
     purrr::walk(sample_ref_tibble, function(row) {
       if (!(is.null(row$ref_use)) & row$ref_use %in% pool_names_unique) {
@@ -152,10 +150,8 @@ check_prefs <- function(sample_info,
                         pref_to_use,
                         prefs_to_remove) {
   sample_information |>
-    dplyr::mutate(Broad_name = case_when(
-      Broad_name %in% prefs_to_remove ~ "do not use",
-      T ~ Broad_name
-    ))
+    dplyr::mutate(Broad_name = case_when(Broad_name %in% prefs_to_remove ~ "do not use",
+                                         T ~ Broad_name))
   prefs_information <- sample_information |>
     filter(stringr::str_detect(Collaborator_ID, pref_to_use))
   # TODO add error

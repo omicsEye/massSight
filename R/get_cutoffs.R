@@ -14,12 +14,10 @@ get_cutoffs <-
       !mad_based_outlier(data_mz) &
       !mad_based_outlier(data_int)
 
-    data_int <- replace(data_int, data_int %in% c(Inf, -Inf), NA)
-    cutoffs <- c(
-      sd(data_rt[not_outliers, ]),
-      sd(data_mz[not_outliers, ]),
-      sd(data_int[not_outliers, ])
-    )
+    data_int <- replace(data_int, data_int %in% c(Inf,-Inf), NA)
+    cutoffs <- c(sd(data_rt[not_outliers,]),
+                 sd(data_mz[not_outliers,]),
+                 sd(data_int[not_outliers,]))
 
     # TODO Fix below
     # rt_outliers <- df1[mad_based_outlier(data_rt)] |>
@@ -30,8 +28,6 @@ get_cutoffs <-
     #   rownames()
     # outliers <- c(rt_outliers, mz_outliers, int_outliers)
     outliers <- "tmp"
-    return(list(
-      "cutoffs" = cutoffs,
-      "outliers" = outliers
-    ))
+    return(list("cutoffs" = cutoffs,
+                "outliers" = outliers))
   }
