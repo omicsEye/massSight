@@ -120,6 +120,7 @@ qc_plots <-
     return(plots)
   }
 
+#' @export
 final_plots <-
   function(results,
            smooth = NULL,

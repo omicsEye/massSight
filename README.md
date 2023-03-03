@@ -14,7 +14,6 @@ metabolomics data.
 ## Contents
 
 - [Description](#description)
-- [Dev Instructions](#dev-instructions)
 - [Requirements](#requirements)
 - [Installation](#installation)
   - [Input Files](#input-files-format)
@@ -23,17 +22,15 @@ metabolomics data.
 - [Visualization](#visualization)
 - [Example of real world
   applications](#example-of-real-world-applications)
+- [Dev Instructions](#dev-instructions)
 
 ## Description
 
-## Dev Instructions
+## Requirements
 
-### Installation
+## Installation
 
-1.  Clone/pull `massSight`
-2.  Open the R project `massSight.Rproj`
-3.  Build package using `devtools::build()`
-4.  Install package using `devtools::install()`
+    devtools::install_github("omicsEye/massSight")
 
 ### Usage/Testing
 
@@ -44,19 +41,13 @@ library(massSight)
 
 # example 1 inputs (small input for test)
 View (df1_small)
-View(df2_samll)
+View(df2_small)
 aligned_df <- auto_align(df1_small, df2_small)
 
 
 # example 2 inputs (small input for test)
 aligned_df <- auto_align(df1, df2)
 ```
-
-## Requirements
-
-## Installation
-
-    devtools::install_github("omicsEye/massSight")
 
 ### Input files format
 
@@ -67,10 +58,26 @@ environment using `read_csv` or `read_table`. Then run `auto_align` on
 the created data objects.
 
 ``` r
-# read inputs as dataframe in R
-user_df1 <- readr::read_csv("/path-to-file/profile1.tsv")
-user_df2 <- readr::read_csv("/path-to-file/profile2.tsv")
+# read inputs as data frame in R
+user_df1 <- read.delim(
+  "/path-to-file/profile1.tsv",
+  sep = '\t',
+  header = T,
+  fill = F,
+  comment.char = "" ,
+  check.names = F,
+  row.names = 1
+)
 
+user_df1 <- read.delim(
+  "/path-to-file/profile2.tsv",
+  sep = '\t',
+  header = T,
+  fill = F,
+  comment.char = "" ,
+  check.names = F,
+  row.names = 1
+)
 
 # run alignment function to combine two datasets
 aligned_df <- auto_align(user_df1, user_df2)
@@ -82,10 +89,19 @@ aligned_df <- auto_align(user_df1, user_df2)
 
 ``` r
 final_plots(
-  res$results_df_complete,
-  res$smooth_for_plot,
-  res$adjusted_df
+  aligned_df$results_df_complete,
+  aligned_df$smooth_for_plot,
+  aligned_df$adjusted_df
 )
 ```
 
 ## Example of Real world applications
+
+## Dev Instructions
+
+### Installation
+
+1.  Clone/pull `massSight`
+2.  Open the R project `massSight.Rproj`
+3.  Build package using `devtools::build()`
+4.  Install package using `devtools::install()`
