@@ -1,36 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>/404.html</loc>
+    <loc>https://omicseye.github.io/massSight/404.html</loc>
   </url>
   <url>
-    <loc>/CONTRIBUTING.html</loc>
+    <loc>https://omicseye.github.io/massSight/CONTRIBUTING.html</loc>
   </url>
   <url>
-    <loc>/LICENSE.html</loc>
+    <loc>https://omicseye.github.io/massSight/LICENSE.html</loc>
   </url>
   <url>
-    <loc>/authors.html</loc>
+    <loc>https://omicseye.github.io/massSight/authors.html</loc>
   </url>
   <url>
-    <loc>/index.html</loc>
+    <loc>https://omicseye.github.io/massSight/index.html</loc>
   </url>
   <url>
-    <loc>/notes.html</loc>
+    <loc>https://omicseye.github.io/massSight/notes.html</loc>
   </url>
   <url>
-    <loc>/reference/auto_align.html</loc>
+    <loc>https://omicseye.github.io/massSight/reference/auto_align.html</loc>
   </url>
   <url>
-    <loc>/reference/auto_scale.html</loc>
+    <loc>https://omicseye.github.io/massSight/reference/auto_scale.html</loc>
   </url>
   <url>
-    <loc>/reference/cluster.html</loc>
+    <loc>https://omicseye.github.io/massSight/reference/cluster.html</loc>
   </url>
   <url>
-    <loc>/reference/index.html</loc>
+    <loc>https://omicseye.github.io/massSight/reference/index.html</loc>
   </url>
   <url>
-    <loc>/reference/load_data.html</loc>
+    <loc>https://omicseye.github.io/massSight/reference/load_data.html</loc>
   </url>
 </urlset>
