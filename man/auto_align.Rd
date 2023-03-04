@@ -14,8 +14,8 @@ auto_align(
   rt_smooth = 0.2,
   mz_smooth = 0.2,
   minimum_intensity = 1000,
-  rt_simplification = 0.5,
-  mz_simplification = 15,
+  rt_iso_threshold = 0.5,
+  mz_iso_threshold = 15,
   smooth_method = "lowess",
   multipliers = c(6, 6, 6),
   weights = c(1, 1, 1),
@@ -50,10 +50,10 @@ m/z.}
 \item{minimum_intensity}{A numeric indicating the minimum intensity
 to be considered for alignment.}
 
-\item{rt_simplification}{A numeric indicating the simplification
+\item{rt_iso_threshold}{A numeric indicating the simplification
 parameter for RT.}
 
-\item{mz_simplification}{A numeric indicating the simplification
+\item{mz_iso_threshold}{A numeric indicating the simplification
 parameter for m/z.}
 
 \item{smooth_method}{A character indicating the smoothing method to

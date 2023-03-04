@@ -1,16 +1,17 @@
 find_isolated_compounds <-
   function(df1,
            df2,
-           rt_lower = -.5,
-           rt_upper = .5,
-           mz_lower = -15,
-           mz_upper = 15,
-           rt_smooth = .2,
-           mz_smooth = .2,
-           minimum_intensity = 1000,
-           rt_simplification = .5,
-           mz_simplification = 15,
-           smooth_method = "lowess",
+           rt_lower,
+           rt_upper,
+           mz_lower,
+           mz_upper,
+           rt_smooth,
+           mz_smooth,
+           minimum_intensity,
+           rt_iso_threshold,
+           mz_iso_threshold,
+           match_method,
+           smooth_method,
            custom_rt = "None") {
     disallowed_names <-
       "" # ['RT_1', 'RT_2', 'MZ_1', 'MZ_2', 'Intensity_1', 'Intensity_2']
@@ -38,10 +39,11 @@ find_isolated_compounds <-
       )
     }
 
+    if (match_method == "unsupervised") {
     vec_1 <-
-      get_vectors(df1, rt_simplification, mz_simplification)
+      get_vectors(df1, rt_iso_threshold, mz_iso_threshold)
     vec_2 <-
-      get_vectors(df2, rt_simplification, mz_simplification)
+      get_vectors(df2, rt_iso_threshold, mz_iso_threshold)
     vec_1 <- df1 |>
       dplyr::filter(Compound_ID %in% vec_1) |>
       dplyr::select("RT", "MZ", "Intensity", "Metabolite", "Compound_ID")
@@ -51,6 +53,21 @@ find_isolated_compounds <-
 
     results <-
       align_isolated_compounds(vec_1, vec_2, rt_lower, rt_upper, mz_lower, mz_upper)
+    } else if (match_method == "supervised") {
+      stopifnot("Metabolite" %in% colnames(df1) &
+                  "Metabolite" %in% colnames(df2))
+      vec_1 <- df1 |>
+        dplyr::rename(df1 = Compound_ID)
+      vec_2 <- df2 |>
+        dplyr::rename(RT_2 = RT,
+                      MZ_2 = MZ,
+                      Intensity_2 = Intensity,
+                      df2 = Compound_ID)
+      results <- vec_1 |>
+        dplyr::inner_join(vec_2, by = "Metabolite")
+    } else {
+      stop("Valid arguments for `match_method` are 'supervised' or 'unsupervised'")
+    }
 
     if (results$RT_2 |>
         na.omit() |>

@@ -20,9 +20,9 @@
 #' m/z.
 #' @param minimum_intensity A numeric indicating the minimum intensity
 #' to be considered for alignment.
-#' @param rt_simplification A numeric indicating the simplification
+#' @param rt_iso_threshold A numeric indicating the simplification
 #' parameter for RT.
-#' @param mz_simplification A numeric indicating the simplification
+#' @param mz_iso_threshold A numeric indicating the simplification
 #' parameter for m/z.
 #' @param smooth_method A character indicating the smoothing method to
 #' be used. Options are "lowess", "spline", and "gaussian".
@@ -43,8 +43,9 @@ auto_align <-
            rt_smooth = .2,
            mz_smooth = .2,
            minimum_intensity = 1000,
-           rt_simplification = .5,
-           mz_simplification = 15,
+           rt_iso_threshold = .5,
+           mz_iso_threshold = 15,
+           match_method = "unsupervised",
            smooth_method = "lowess",
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1),
@@ -68,8 +69,9 @@ auto_align <-
         rt_smooth = rt_smooth,
         mz_smooth = mz_smooth,
         minimum_intensity = minimum_intensity,
-        rt_simplification = rt_simplification,
-        mz_simplification = mz_simplification,
+        rt_iso_threshold = rt_iso_threshold,
+        mz_iso_threshold = mz_iso_threshold,
+        match_method = match_method,
         smooth_method = smooth_method
       )
     if (typeof(results_list) == "character") {
