@@ -1,7 +1,9 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# massSight <img src="man/figures/massSight.png" align="right" height="300"/></a>
+# massSight
+
+<img src="man/figures/massSight.png" align="right" width="30%"/></a>
 
 `massSight` is an R package for the alignment and scaling of LC-MS
 metabolomics data.
