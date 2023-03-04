@@ -6,8 +6,8 @@ Authors@R:
            comment = c(ORCID = "YOUR-ORCID-ID")),
     person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID")))
-Description: What the package does (one paragraph).
-License: MIT + file LICENSE
+Description: an `R` package for the alignment, scaling, and downstream analysis of LC-MS metabolomics data.
+License: MIT
 Depends: 
     R (>= 2.10)
 Imports: 
