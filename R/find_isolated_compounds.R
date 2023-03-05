@@ -68,7 +68,6 @@ find_isolated_compounds <-
     } else {
       stop("Valid arguments for `match_method` are 'supervised' or 'unsupervised'")
     }
-
     if (results$RT_2 |>
         na.omit() |>
         length() == 0) {
@@ -86,8 +85,7 @@ find_isolated_compounds <-
       res_low <- lowess(
         x = results$RT,
         y = results$RT_2 - results$RT,
-        f = rt_smooth,
-        iter = 5
+        f = rt_smooth
       )
       smooth_x_rt <- res_low$x
       smooth_y_rt <- res_low$y
@@ -159,8 +157,7 @@ find_isolated_compounds <-
       mz_low <- lowess(
         x = mz_df$MZ,
         y = mz_df$MZ_2 - mz_df$MZ,
-        f = mz_smooth,
-        iter = 5
+        f = mz_smooth
       )
       smooth_x_mz <- mz_low$x
       smooth_y_mz <- mz_low$y
@@ -187,8 +184,6 @@ find_isolated_compounds <-
       )
     }
 
-    smooth_min <- smooth_y_mz_dropna[which.min(smooth_x_mz_dropna)]
-    smooth_max <- smooth_y_mz_dropna[which.max(smooth_x_mz_dropna)]
     suppressWarnings(f <- approx(
       x = smooth_x_mz_dropna,
       y = smooth_y_mz_dropna,

@@ -4,7 +4,7 @@ Version: 0.0.0.9000
 Authors@R: 
     c(person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID")),
-    person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = c("aut", "cre"),
+    person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = c("aut"),
            comment = c(ORCID = "YOUR-ORCID-ID")))
 Description: an `R` package for the alignment, scaling, and downstream analysis of LC-MS metabolomics data.
 License: MIT
