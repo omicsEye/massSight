@@ -13,7 +13,6 @@ Depends:
 Imports: 
     dplyr,
     GauPro,
-    omicsArt,
     openxlsx,
     pracma,
     purrr,
