@@ -57,14 +57,16 @@ find_isolated_compounds <-
       stopifnot("Metabolite" %in% colnames(df1) &
                   "Metabolite" %in% colnames(df2))
       vec_1 <- df1 |>
-        dplyr::rename(df1 = Compound_ID)
+        dplyr::rename(df1 = Compound_ID) |>
+        dplyr::filter(Metabolite != "")
       vec_2 <- df2 |>
         dplyr::rename(RT_2 = RT,
                       MZ_2 = MZ,
                       Intensity_2 = Intensity,
-                      df2 = Compound_ID)
+                      df2 = Compound_ID) |>
+        dplyr::filter(Metabolite != "")
       results <- vec_1 |>
-        dplyr::inner_join(vec_2, by = "Metabolite")
+        dplyr::inner_join(vec_2, by = c("Metabolite"))
     } else {
       stop("Valid arguments for `match_method` are 'supervised' or 'unsupervised'")
     }
