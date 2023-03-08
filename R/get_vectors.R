@@ -1,4 +1,4 @@
-get_vectors <- function(df, rt_sim, mz_sim) {
+get_vectors_manual <- function(df, rt_sim, mz_sim) {
   rt_metabolites <- c()
   mz_metabolites <- c()
   df_rt <- df |>
@@ -42,4 +42,8 @@ get_vectors <- function(df, rt_sim, mz_sim) {
     stop("Not enough features isolated. Consider lowering RT and MZ thresholds.")
   }
   return(metabolites)
+}
+
+get_vectors_auto <- function(df, per) {
+
 }

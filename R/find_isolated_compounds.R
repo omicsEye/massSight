@@ -8,6 +8,8 @@ find_isolated_compounds <-
            rt_smooth,
            mz_smooth,
            minimum_intensity,
+           threshold,
+           per,
            rt_iso_threshold,
            mz_iso_threshold,
            match_method,
@@ -40,19 +42,24 @@ find_isolated_compounds <-
     }
 
     if (match_method == "unsupervised") {
-    vec_1 <-
-      get_vectors(df1, rt_iso_threshold, mz_iso_threshold)
-    vec_2 <-
-      get_vectors(df2, rt_iso_threshold, mz_iso_threshold)
-    vec_1 <- df1 |>
-      dplyr::filter(Compound_ID %in% vec_1) |>
-      dplyr::select("RT", "MZ", "Intensity", "Metabolite", "Compound_ID")
-    vec_2 <- df2 |>
-      dplyr::filter(Compound_ID %in% vec_2) |>
-      dplyr::select("RT", "MZ", "Intensity", "Metabolite", "Compound_ID")
+      if (threshold == "manual") {
+        vec_1 <-
+          get_vectors_manual(df1, rt_iso_threshold, mz_iso_threshold)
+        vec_2 <-
+          get_vectors_manual(df2, rt_iso_threshold, mz_iso_threshold)
+      } else if (threshold == "auto") {
+        vec_1 <-
+          get_vectors_auto(df1, per)
+      }
+      vec_1 <- df1 |>
+        dplyr::filter(Compound_ID %in% vec_1) |>
+        dplyr::select("RT", "MZ", "Intensity", "Metabolite", "Compound_ID")
+      vec_2 <- df2 |>
+        dplyr::filter(Compound_ID %in% vec_2) |>
+        dplyr::select("RT", "MZ", "Intensity", "Metabolite", "Compound_ID")
 
-    results <-
-      align_isolated_compounds(vec_1, vec_2, rt_lower, rt_upper, mz_lower, mz_upper)
+      results <-
+        align_isolated_compounds(vec_1, vec_2, rt_lower, rt_upper, mz_lower, mz_upper)
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
                   "Metabolite" %in% colnames(df2))
@@ -60,10 +67,12 @@ find_isolated_compounds <-
         dplyr::rename(df1 = Compound_ID) |>
         dplyr::filter(Metabolite != "")
       vec_2 <- df2 |>
-        dplyr::rename(RT_2 = RT,
-                      MZ_2 = MZ,
-                      Intensity_2 = Intensity,
-                      df2 = Compound_ID) |>
+        dplyr::rename(
+          RT_2 = RT,
+          MZ_2 = MZ,
+          Intensity_2 = Intensity,
+          df2 = Compound_ID
+        ) |>
         dplyr::filter(Metabolite != "")
       results <- vec_1 |>
         dplyr::inner_join(vec_2, by = c("Metabolite"))
@@ -84,11 +93,9 @@ find_isolated_compounds <-
       smooth_x_rt <- custom_rt[1]
       smooth_y_rt <- custom_rt[2]
     } else if (smooth_method == "lowess") {
-      res_low <- lowess(
-        x = results$RT,
-        y = results$RT_2 - results$RT,
-        f = rt_smooth
-      )
+      res_low <- lowess(x = results$RT,
+                        y = results$RT_2 - results$RT,
+                        f = rt_smooth)
       smooth_x_rt <- res_low$x
       smooth_y_rt <- res_low$y
     } else if (smooth_method == "spline") {
@@ -156,11 +163,9 @@ find_isolated_compounds <-
       dplyr::select(MZ, MZ_2)
 
     if (smooth_method == "lowess") {
-      mz_low <- lowess(
-        x = mz_df$MZ,
-        y = mz_df$MZ_2 - mz_df$MZ,
-        f = mz_smooth
-      )
+      mz_low <- lowess(x = mz_df$MZ,
+                       y = mz_df$MZ_2 - mz_df$MZ,
+                       f = mz_smooth)
       smooth_x_mz <- mz_low$x
       smooth_y_mz <- mz_low$y
     } else if (smooth_method == "spline") {

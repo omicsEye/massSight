@@ -44,7 +44,7 @@ auto_align <-
            mz_smooth = .2,
            minimum_intensity = 1000,
            rt_iso_threshold = .5,
-           mz_iso_threshold = 15,
+           mz_iso_threshold = 5,
            match_method = "unsupervised",
            smooth_method = "lowess",
            multipliers = c(6, 6, 6),
