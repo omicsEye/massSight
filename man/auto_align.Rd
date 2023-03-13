@@ -15,7 +15,8 @@ auto_align(
   mz_smooth = 0.2,
   minimum_intensity = 1000,
   rt_iso_threshold = 0.5,
-  mz_iso_threshold = 15,
+  mz_iso_threshold = 5,
+  match_method = "unsupervised",
   smooth_method = "lowess",
   multipliers = c(6, 6, 6),
   weights = c(1, 1, 1),
@@ -55,6 +56,10 @@ parameter for RT.}
 
 \item{mz_iso_threshold}{A numeric indicating the simplification
 parameter for m/z.}
+
+\item{match_method}{A character indicating the initial matching method to
+be used to detect inter-batch variability. Options are "unsupervised" and
+"supervised".}
 
 \item{smooth_method}{A character indicating the smoothing method to
 be used. Options are "lowess", "spline", and "gaussian".}
