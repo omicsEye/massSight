@@ -24,6 +24,9 @@
 #' parameter for RT.
 #' @param mz_iso_threshold A numeric indicating the simplification
 #' parameter for m/z.
+#' @param match_method A character indicating the initial matching method to
+#' be used to detect inter-batch variability. Options are "unsupervised" and
+#' "supervised".
 #' @param smooth_method A character indicating the smoothing method to
 #' be used. Options are "lowess", "spline", and "gaussian".
 #' @param multipliers A numeric vector indicating the multipliers to be
@@ -51,12 +54,16 @@ auto_align <-
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     df1 <- df1 |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     df2 <- df2 |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     results_list <-
       find_isolated_compounds(

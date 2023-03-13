@@ -41,9 +41,11 @@ qc_plots <-
         alpha = .8,
         col = "#AA9868"
       ) +
-      ggplot2::labs(title = "Raw",
-                    x = "RT 1",
-                    y = expression(Delta * "RT")) +
+      ggplot2::labs(
+        title = "Raw",
+        x = "RT 1",
+        y = expression(Delta * "RT")
+      ) +
       ggplot2::theme_classic(base_size = 14) +
       theme_omicsEye()
 
@@ -55,9 +57,11 @@ qc_plots <-
         alpha = .2,
         color = "#033C5A"
       ) +
-      ggplot2::labs(title = "Scaled",
-                    x = "RT 1",
-                    y = expression(Delta * "RT")) +
+      ggplot2::labs(
+        title = "Scaled",
+        x = "RT 1",
+        y = expression(Delta * "RT")
+      ) +
       ggplot2::theme_classic(base_size = 14) +
       theme_omicsEye()
 
@@ -75,9 +79,11 @@ qc_plots <-
         alpha = 1,
         color = "#AA9868"
       ) +
-      ggplot2::labs(title = "Raw",
-                    x = "MZ 1",
-                    y = expression(Delta * "MZ")) +
+      ggplot2::labs(
+        title = "Raw",
+        x = "MZ 1",
+        y = expression(Delta * "MZ")
+      ) +
       ggplot2::theme_classic(base_size = 14) +
       theme_omicsEye()
 
@@ -89,9 +95,11 @@ qc_plots <-
         alpha = .2,
         color = "#033C5A"
       ) +
-      ggplot2::labs(title = "Scaled",
-                    x = "MZ 1",
-                    y = expression(Delta * "MZ")) +
+      ggplot2::labs(
+        title = "Scaled",
+        x = "MZ 1",
+        y = expression(Delta * "MZ")
+      ) +
       ggplot2::theme_classic(base_size = 14) +
       theme_omicsEye()
 
@@ -103,9 +111,11 @@ qc_plots <-
         alpha = .2,
         color = "#033C5A"
       ) +
-      ggplot2::labs(title = "Raw",
-                    x = "Int 1",
-                    y = expression(Delta * "Int")) +
+      ggplot2::labs(
+        title = "Raw",
+        x = "Int 1",
+        y = expression(Delta * "Int")
+      ) +
       ggplot2::theme_classic(base_size = 14) +
       theme_omicsEye()
 
