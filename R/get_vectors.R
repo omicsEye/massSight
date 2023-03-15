@@ -25,14 +25,14 @@ get_vectors_manual <- function(df, rt_sim, mz_sim) {
     mz <- df_mz[row, "MZ"]
     if (row == 1) {
       diff_mz <- df_mz[row + 1, "MZ"] - df_mz[row, "MZ"]
-      if (diff_mz > mz_sim * df_mz[row, "MZ"] / 1e6) {
+      if (diff_mz > (mz_sim * df_mz[row, "MZ"] / 1e6)) {
         mz_metabolites <- c(mz_metabolites, df_mz[row, "Compound_ID"])
       }
     } else {
       diff_down_mz <- df_mz[row + 1, "MZ"] - mz
       diff_up_mz <- mz - df_mz[row - 1, "MZ"]
-      if (diff_down_mz > mz_sim * mz / 1e6 &
-        diff_up_mz > mz_sim * mz / 1e6) {
+      if (diff_down_mz > (mz_sim * mz / 1e6) &
+        diff_up_mz > (mz_sim * mz / 1e6)) {
         mz_metabolites <- c(mz_metabolites, df_mz[row, "Compound_ID"])
       }
     }

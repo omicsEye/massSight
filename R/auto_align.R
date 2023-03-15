@@ -47,23 +47,20 @@ auto_align <-
            mz_smooth = .2,
            minimum_intensity = 1000,
            rt_iso_threshold = .5,
-           mz_iso_threshold = 5,
+           mz_iso_threshold = 50,
+           threshold = "manual",
            match_method = "unsupervised",
            smooth_method = "lowess",
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     df1 <- df1 |>
-      dplyr::mutate(
-        MZ = round(MZ, 4),
-        RT = round(RT, 2)
-      )
+      dplyr::mutate(MZ = round(MZ, 4),
+                    RT = round(RT, 2))
 
     df2 <- df2 |>
-      dplyr::mutate(
-        MZ = round(MZ, 4),
-        RT = round(RT, 2)
-      )
+      dplyr::mutate(MZ = round(MZ, 4),
+                    RT = round(RT, 2))
 
     results_list <-
       find_isolated_compounds(
@@ -78,17 +75,15 @@ auto_align <-
         minimum_intensity = minimum_intensity,
         rt_iso_threshold = rt_iso_threshold,
         mz_iso_threshold = mz_iso_threshold,
+        threshold = threshold,
         match_method = match_method,
         smooth_method = smooth_method
       )
-    if (typeof(results_list) == "character") {
-      return(results_list)
-    } else {
-      results <- results_list[[1]]
-      scaled_values <- results_list[[2]]
-      cutoffs <- results_list[[3]]
-    }
-    smooth_for_plot <- results
+
+    results <- results_list[[1]]
+    scaled_values <- results_list[[2]]
+    cutoffs <- results_list[[3]]
+
     final_results_list <-
       final_results(
         df1,
@@ -99,6 +94,7 @@ auto_align <-
         multipliers = multipliers,
         weights = weights
       )
+
     results_df_complete <- final_results_list[[1]]
     adjusted_df <- final_results_list[[2]]
     message(paste0(
@@ -109,7 +105,7 @@ auto_align <-
       list(
         "results_df_complete" = results_df_complete,
         "adjusted_df" = adjusted_df,
-        "smooth_for_plot" = smooth_for_plot
+        "smooth_for_plot" = results
       )
     )
   }

@@ -50,6 +50,7 @@ final_results <-
         pb$tick()
         next
       }
+
       if (as.vector(df1_for_align[i, "Compound_ID"]) == best_reverse_match) {
         best_hits_df1 <- c(best_hits_df1, best_match)
         best_hits_found <-
