@@ -14,8 +14,6 @@
 #'
 #' @return a `massSight` object with consolidated metabolites
 #' @export
-#'
-#' @examples
 consolidate <-
   function(massSight_obj,
            use_rt = T,
@@ -25,8 +23,10 @@ consolidate <-
     stopifnot(!massSight_obj@consolidated, "Data is already consolidated")
     df <- massSight_obj@raw
     if (use_rt) {
-      stopifnot(!is.null(rt_threshold),
-                "If `use_rt` is true, `rt_threshold` must be defined")
+      stopifnot(
+        !is.null(rt_threshold),
+        "If `use_rt` is true, `rt_threshold` must be defined"
+      )
       df <- df |> arrange(rt)
       i <- 1
       rt_adducts <- c()
@@ -43,8 +43,10 @@ consolidate <-
       }
     }
     if (use_mz) {
-      stopifnot(!is.null(mz_threshold),
-                "If `use_mz` is true, `mz_threshold` must be defined")
+      stopifnot(
+        !is.null(mz_threshold),
+        "If `use_mz` is true, `mz_threshold` must be defined"
+      )
       df <- df |> arrange(mz)
       i <- 1
       mz_adducts <- c()

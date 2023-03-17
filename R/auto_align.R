@@ -55,12 +55,16 @@ auto_align <-
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     df1 <- df1 |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     df2 <- df2 |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     results_list <-
       find_isolated_compounds(

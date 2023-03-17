@@ -17,8 +17,9 @@ load_data <-
     if (is.character(input)) {
       df <-
         readxl::read_excel(input,
-                           sheet = sheet,
-                           col_names = FALSE)
+          sheet = sheet,
+          col_names = FALSE
+        )
     } else {
       df <- input
     }
@@ -74,11 +75,11 @@ load_data <-
     # separate known data or generate a ID for unknows in the case of using all
     if (type == "known") {
       if (ID == "Metabolite") {
-        df <- df[!is.na(df[, col]),]
+        df <- df[!is.na(df[, col]), ]
       } else if (ID == "HMDB_ID") {
-        df <- df[!is.na(df[, hmdb_ord[2]]),]
-        df <- df[!grepl("\\*", df[, hmdb_ord[2]]),]
-        df <- df[df[, hmdb_ord[2]] != "",]
+        df <- df[!is.na(df[, hmdb_ord[2]]), ]
+        df <- df[!grepl("\\*", df[, hmdb_ord[2]]), ]
+        df <- df[df[, hmdb_ord[2]] != "", ]
       }
     } else if (type == "all") {
       if (ID == "Compound_ID") {
@@ -90,29 +91,30 @@ load_data <-
           name_col <- hmdb_ord[2]
         }
         df[, col] <- ifelse(is.na(df[, name_col]),
-                            paste(
-                              df[, compound_ord[2]],
-                              "MZ",
-                              round(as.numeric(df[, mz_ord[2]]), digits = 4),
-                              "RT",
-                              round(as.numeric(df[, rt_ord[2]]), digits = 2),
-                              sep = "_"
-                            ),
-                            as.character(df[, name_col]))
+          paste(
+            df[, compound_ord[2]],
+            "MZ",
+            round(as.numeric(df[, mz_ord[2]]), digits = 4),
+            "RT",
+            round(as.numeric(df[, rt_ord[2]]), digits = 2),
+            sep = "_"
+          ),
+          as.character(df[, name_col])
+        )
       }
     }
 
     # remove redundant ion
     df[is.na(df)] <- "NA"
     if (!is.na(hmdb_ord[2])) {
-      df <- df[which(df[, hmdb_ord[2]] != "redundant ion"),]
-      df <- df[df[, hmdb_ord[2]] != "Internal Standard",]
+      df <- df[which(df[, hmdb_ord[2]] != "redundant ion"), ]
+      df <- df[df[, hmdb_ord[2]] != "Internal Standard", ]
     }
-    df <- df[df[, col] != "Metabolite",]
+    df <- df[df[, col] != "Metabolite", ]
     # remove feature start with NH4_
-    df <- df[!startsWith(sapply(df[, col], as.character), "NH4_"),]
+    df <- df[!startsWith(sapply(df[, col], as.character), "NH4_"), ]
     df[df == "NA"] <- NA
-    df <- df[!is.na(df[, col]),]
+    df <- df[!is.na(df[, col]), ]
 
     if (ID == "HMDB_ID") {
       row_names <-
@@ -124,7 +126,7 @@ load_data <-
         unlist(sapply(df[row:dim(df)[1], compound_ord[2]], as.factor))
     }
     data <- df[row:dim(df)[1], col:dim(df)[2]]
-    data <- data[,-1]
+    data <- data[, -1]
     # check if row_names has unique values to be used for row names
     dup_names <- row_names[duplicated(row_names)]
     if (length(dup_names) > 0) {
@@ -159,13 +161,13 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   )
 
   # name the columns
-  colnames(qi_data) <- lapply(qi_data[3,], as.character)
+  colnames(qi_data) <- lapply(qi_data[3, ], as.character)
 
   # find the sart of raw abundance data
   data_indx <- find_indx(qi_data, word = "Raw abundance")
 
   # remove the first two columns
-  qi_data <- qi_data[4:nrow(qi_data),]
+  qi_data <- qi_data[4:nrow(qi_data), ]
 
   # use raw abundance
   qi_data <- qi_data[, c(1, 3, 5, data_indx[2]:ncol(qi_data))]
@@ -185,13 +187,15 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
     ))]
   samples_cols <- samples_cols[order(samples_cols)]
   cols_in_order <-
-    c(c(
-      "Compound",
-      "m/z",
-      "Retention time (min)",
-      "Accepted Compound ID"
-    ),
-    samples_cols)
+    c(
+      c(
+        "Compound",
+        "m/z",
+        "Retention time (min)",
+        "Accepted Compound ID"
+      ),
+      samples_cols
+    )
   qi_data <- qi_data[, cols_in_order]
 
 
@@ -200,13 +204,14 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
 
   RT_profile_data <-
     readxl::read_excel(TF_file,
-                       sheet = 2,
-                       col_names = FALSE)
+      sheet = 2,
+      col_names = FALSE
+    )
   colnames(RT_profile_data) <-
-    sapply(RT_profile_data[1,], as.factor)
+    sapply(RT_profile_data[1, ], as.factor)
   RT_profile_data_rownames <-
     sapply(RT_profile_data[, 1], as.factor)
-  RT_profile_data <- RT_profile_data[-1,-1]
+  RT_profile_data <- RT_profile_data[-1, -1]
   rownames(RT_profile_data) <- RT_profile_data_rownames[-1]
   RT_profile_data <- as.data.frame(RT_profile_data)
 
@@ -221,13 +226,14 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   ##### read first file for TR profiles #########################
   intensity_profile_data <-
     readxl::read_excel(TF_file,
-                       sheet = 1,
-                       col_names = FALSE)
+      sheet = 1,
+      col_names = FALSE
+    )
   colnames(intensity_profile_data) <-
-    sapply(intensity_profile_data[1,], as.factor)
+    sapply(intensity_profile_data[1, ], as.factor)
   intensity_profile_data_rownames <-
     sapply(intensity_profile_data[, 1], as.factor)
-  intensity_profile_data <- intensity_profile_data[-1,-1]
+  intensity_profile_data <- intensity_profile_data[-1, -1]
   rownames(intensity_profile_data) <-
     intensity_profile_data_rownames[-1]
   intensity_profile_data <- as.data.frame(intensity_profile_data)
@@ -243,13 +249,17 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   clean_rows <-
     clean_rows[!grepl("*miniMM*|*FFA*|*Bpp*|*mm*|*Standards*", clean_rows)]
   intensity_profile_clean_data <-
-    intensity_profile_data[clean_rows,]
+    intensity_profile_data[clean_rows, ]
   tf_data <- as.data.frame(t(intensity_profile_clean_data))
-  tf_data[,
-          c("Compound",
-            "m/z",
-            "Retention time (min)",
-            "Accepted Compound ID")] <- NA
+  tf_data[
+    ,
+    c(
+      "Compound",
+      "m/z",
+      "Retention time (min)",
+      "Accepted Compound ID"
+    )
+  ] <- NA
   tf_data[, "Retention time (min)"] <- tf_data[, "RT"]
 
   # rename TF metabolites if they are in QI data
@@ -280,11 +290,13 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
     )
   combined <- combined[, cols_in_order]
 
-  colnames(combined) <- c(c("Compound_ID", "Software", "MZ", "RT", "Metabolite"),
-                          samples_cols)
+  colnames(combined) <- c(
+    c("Compound_ID", "Software", "MZ", "RT", "Metabolite"),
+    samples_cols
+  )
   combined[combined == ""] <- NA
   combined <-
-    with(combined, combined[order(Metabolite, na.last = TRUE),])
+    with(combined, combined[order(Metabolite, na.last = TRUE), ])
   hs <- openxlsx::createStyle(
     textDecoration = "BOLD",
     fontColour = "#FFFFFF",
@@ -294,39 +306,9 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   )
   options("openxlsx.borderColour" = "#4F80BD") ## set default border colour
   xlsx::write.xlsx(combined,
-                   file = output_name,
-                   colNames = TRUE)
+    file = output_name,
+    colNames = TRUE
+  )
   # borders = "rows",
   # headerStyle = hs)
-}
-
-create_massSight_obj <- function(df,
-                                 id_name,
-                                 rt_name = NULL,
-                                 mz_name = NULL,
-                                 int_name = NULL,
-                                 has_metadata = F) {
-  setClass(
-    "massSight",
-    representation(
-      raw = "tbl_df",
-      scaled = "tbl_df",
-      merged = "character",
-      consolidated = "logical",
-      metadata = "tbl_df"
-    )
-  )
-  ms <- new("massSight")
-
-  raw_data <- df |>
-    select(id_name, rt_name, mz_name, int_name)
-  colnames(raw_data) <- c("id", "rt", "mz", "int")
-  ms@raw <- raw_data
-
-  if (has_metadata) {
-    meta_data <- df |>
-      select(id_name, -rt_name,-mz_name,-int_name)
-    ms@metadata <- meta_data
-  }
-  return(ms)
 }
