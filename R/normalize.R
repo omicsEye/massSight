@@ -8,9 +8,9 @@ nn_normalize <- function(ndata,
   # TODO add missing value case for sample_info
 
   sample_information |>
-    dplyr::mutate(Broad_name = case_when(
-      Broad_name %in% prefs_to_remove ~ "do not use",
-      T ~ Broad_name
+    dplyr::mutate(Platform_name = case_when(
+      Platform_name %in% prefs_to_remove ~ "do not use",
+      T ~ Platform_name
     ))
   prefs_information <- sample_information |>
     filter(stringr::str_detect(Collaborator_ID, pref_to_use))

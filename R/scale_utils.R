@@ -60,7 +60,7 @@ verify_df <-
         "MZ",
         "RT",
         "Metabolite",
-        "Broad_name",
+        "Platfrom_name",
         "Collaborator_ID",
         "Injection_order",
         "Ref_to_use"
@@ -112,7 +112,7 @@ verify_df <-
           )
         )
     }
-    # check if 'Ref_to_use' pools are actually present in the Broad_name name
+    # check if 'Ref_to_use' pools are actually present in the Platfrom_name name
     bad_refs <-
       samples_info$Ref_to_use[which(!samples_info$Ref_to_use %in% sample_info$Collaborator_ID)]
     if (length(bad_refs) > 0) {
@@ -152,9 +152,9 @@ check_prefs <- function(sample_info,
                         pref_to_use,
                         prefs_to_remove) {
   sample_information |>
-    dplyr::mutate(Broad_name = case_when(
-      Broad_name %in% prefs_to_remove ~ "do not use",
-      T ~ Broad_name
+    dplyr::mutate(Platfrom_name = case_when(
+      Platfrom_name %in% prefs_to_remove ~ "do not use",
+      T ~ Platfrom_name
     ))
   prefs_information <- sample_information |>
     filter(stringr::str_detect(Collaborator_ID, pref_to_use))

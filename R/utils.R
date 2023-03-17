@@ -73,20 +73,20 @@ load_data <-
 
     # separate known data or generate a ID for unknows in the case of using all
     if (type == "known") {
-      if (ID == "Metabolite") {
+      if (id == "Metabolite") {
         df <- df[!is.na(df[, col]),]
-      } else if (ID == "HMDB_ID") {
+      } else if (id == "HMDB_ID") {
         df <- df[!is.na(df[, hmdb_ord[2]]),]
         df <- df[!grepl("\\*", df[, hmdb_ord[2]]),]
         df <- df[df[, hmdb_ord[2]] != "",]
       }
     } else if (type == "all") {
-      if (ID == "Compound_ID") {
+      if (id == "Compound_ID") {
         name_col <- df[, compound_ord[2]] # df[,col-1]
       } else {
-        if (ID == "Metabolite") {
+        if (id == "Metabolite") {
           name_col <- col
-        } else if (ID == "HMDB_ID") {
+        } else if (id == "HMDB_ID") {
           name_col <- hmdb_ord[2]
         }
         df[, col] <- ifelse(is.na(df[, name_col]),
@@ -114,12 +114,12 @@ load_data <-
     df[df == "NA"] <- NA
     df <- df[!is.na(df[, col]),]
 
-    if (ID == "HMDB_ID") {
+    if (id == "HMDB_ID") {
       row_names <-
         gsub("\\*", "", as.matrix(df[row:dim(df)[1], hmdb_ord[2]]))
-    } else if (ID == "Metabolite") {
+    } else if (id == "Metabolite") {
       row_names <- unlist(sapply(df[row:dim(df)[1], col], as.factor))
-    } else if (ID == "Compound_ID") {
+    } else if (id == "Compound_ID") {
       row_names <-
         unlist(sapply(df[row:dim(df)[1], compound_ord[2]], as.factor))
     }
