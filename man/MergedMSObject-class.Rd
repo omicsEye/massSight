@@ -18,6 +18,8 @@ Class to represent merged mass spectroscopy data.
 
 \item{\code{metadata}}{A logical indicating whether or not the data has
 been consolidated.}
+
+\item{\code{smooth}}{A string indicating the smoothing method used.}
 }}
 
 \concept{objects}

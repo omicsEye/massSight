@@ -2,7 +2,7 @@
 #' @description Consolidate adducts/isomers with similar features into one
 #' observation
 #'
-#' @param massSight_obj a `massSight` object
+#' @param ms_obj a `massSight` object
 #' @param rt_threshold user defined retention time threshold for defining
 #' adducts/isomers
 #' @param mz_threshold user defined mass to charge ratio threshold for defining
@@ -15,13 +15,13 @@
 #' @return a `massSight` object with consolidated metabolites
 #' @export
 consolidate <-
-  function(massSight_obj,
+  function(ms_obj,
            use_rt = T,
            use_mz = T,
            rt_threshold = NULL,
            mz_threshold = NULL) {
-    stopifnot(!massSight_obj@consolidated, "Data is already consolidated")
-    df <- massSight_obj@raw
+    stopifnot(!consolidated(ms), "Data is already consolidated")
+    df <- ms_obj@raw
     if (use_rt) {
       stopifnot(
         !is.null(rt_threshold),
@@ -72,15 +72,15 @@ consolidate <-
       df <- df |>
         dplyr::filter(!(id %in% mz_adducts))
     }
-    massSight_obj@raw <- df
-    massSight_obj@consolidated <- T
+    ms_obj@raw <- df
+    ms_obj@consolidated <- T
 
-    if (nrow(massSight_obj@metadata) != 0) {
-      metadata <- massSight_obj@metadata
+    if (nrow(ms_obj@metadata) != 0) {
+      metadata <- ms_obj@metadata
       metadata <- metadata |>
         dplyr::filter(id %in% df$id)
-      massSight_obj@metadata <- metadata
+      ms_obj@metadata <- metadata
     }
 
-    return(massSight_obj)
+    return(ms_obj)
   }
