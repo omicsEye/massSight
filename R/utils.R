@@ -75,11 +75,11 @@ load_data <-
     # separate known data or generate a ID for unknows in the case of using all
     if (type == "known") {
       if (id == "Metabolite") {
-        df <- df[!is.na(df[, col]),]
+        df <- df[!is.na(df[, col]), ]
       } else if (id == "HMDB_ID") {
-        df <- df[!is.na(df[, hmdb_ord[2]]),]
-        df <- df[!grepl("\\*", df[, hmdb_ord[2]]),]
-        df <- df[df[, hmdb_ord[2]] != "",]
+        df <- df[!is.na(df[, hmdb_ord[2]]), ]
+        df <- df[!grepl("\\*", df[, hmdb_ord[2]]), ]
+        df <- df[df[, hmdb_ord[2]] != "", ]
       }
     } else if (type == "all") {
       if (id == "Compound_ID") {
