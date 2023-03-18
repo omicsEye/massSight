@@ -36,7 +36,8 @@ qc_plots <-
         ggplot2::aes(x = rt_x, y = raw_rts),
         alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(1.5), stroke = 0.05
       ) +
-      ggplot2::geom_smooth(method = "loess",
+      ggplot2::geom_smooth(
+        method = "loess",
         data = plot_scale,
         ggplot2::aes(x = smooth_rt_x, y = smooth_rt_y),
         alpha = .8,
@@ -55,14 +56,20 @@ qc_plots <-
       ggplot2::geom_point(
         data = plot_res,
         ggplot2::aes(x = rt_x, y = scaled_rts),
-        alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
+        alpha = I(0.25),
+        shape = 21,
+        colour = "black",
+        fill = "#033C5A",
+        size = I(2),
+        stroke = 0.05
       ) +
-      ggplot2::geom_smooth(method = "loess",
+      ggplot2::geom_smooth(
+        method = "loess",
         data = plot_res,
         ggplot2::aes(x = rt_x, y = scaled_rts),
         alpha = .8,
         col = "#AA9868"
-      )+
+      ) +
       ggplot2::labs(
         title = "Scaled",
         x = "RT 1",
@@ -78,7 +85,8 @@ qc_plots <-
         ggplot2::aes(x = mz_x, y = raw_mz),
         alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
       ) +
-      ggplot2::geom_smooth(method = "loess",
+      ggplot2::geom_smooth(
+        method = "loess",
         data = plot_scale,
         ggplot2::aes(x = smooth_mz_x, y = smooth_mz_y),
         alpha = 1,
@@ -99,7 +107,8 @@ qc_plots <-
         ggplot2::aes(x = mz_x, y = scaled_mz),
         alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
       ) +
-      ggplot2::geom_smooth(method = "loess",
+      ggplot2::geom_smooth(
+        method = "loess",
         data = plot_res,
         ggplot2::aes(x = mz_x, y = scaled_mz),
         alpha = .8,
@@ -120,7 +129,8 @@ qc_plots <-
         ggplot2::aes(x = raw_int1, y = int_diff),
         alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
       ) +
-      ggplot2::geom_smooth(method = "loess",
+      ggplot2::geom_smooth(
+        method = "loess",
         data = plot_res,
         ggplot2::aes(x = raw_int1, y = int_diff),
         alpha = .8,
@@ -141,13 +151,14 @@ qc_plots <-
         ggplot2::aes(x = scaled_int1, y = int_scaled_diff),
         alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
       ) +
-      ggplot2::geom_smooth(method = "loess",
+      ggplot2::geom_smooth(
+        method = "loess",
         data = plot_res,
         ggplot2::aes(x = scaled_int1, y = int_scaled_diff),
         alpha = .8,
         col = "#AA9868"
       ) +
-      ggplot2::labs(title = "Scaled", x = "log10(Int 1)", y =expression(Delta * "log10(RT)")) +
+      ggplot2::labs(title = "Scaled", x = "log10(Int 1)", y = expression(Delta * "log10(RT)")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
