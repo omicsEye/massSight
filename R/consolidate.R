@@ -9,7 +9,7 @@
 #' adducts/isomers
 #' @param use_rt boolean if retention time should be used in identifying
 #' metabolites that should be consolidated
-#' @param use_mz boolean if mass to charge ration should be used in identifying
+#' @param use_mz boolean if mass to charge ratio should be used in identifying
 #' metabolites that should be consolidated
 #'
 #' @return a `massSight` object with consolidated metabolites

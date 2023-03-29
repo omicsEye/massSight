@@ -1,5 +1,6 @@
 qc_plots <-
   function(results,
+           isolated,
            smooth = NULL,
            rt_lim = c(-.5, .5),
            mz_lim = c(-15, 15)) {

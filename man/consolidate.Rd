@@ -5,7 +5,7 @@
 \title{Consolidate}
 \usage{
 consolidate(
-  massSight_obj,
+  ms_obj,
   use_rt = T,
   use_mz = T,
   rt_threshold = NULL,
@@ -13,12 +13,12 @@ consolidate(
 )
 }
 \arguments{
-\item{massSight_obj}{a \code{massSight} object}
+\item{ms_obj}{a \code{massSight} object}
 
 \item{use_rt}{boolean if retention time should be used in identifying
 metabolites that should be consolidated}
 
-\item{use_mz}{boolean if mass to charge ration should be used in identifying
+\item{use_mz}{boolean if mass to charge ratio should be used in identifying
 metabolites that should be consolidated}
 
 \item{rt_threshold}{user defined retention time threshold for defining

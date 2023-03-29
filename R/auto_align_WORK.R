@@ -36,10 +36,9 @@
 #' @param keep_features A logical vector indicating whether or not to
 #' keep features that are not matched.
 #' @return A data frame containing the aligned data.
-#' @importFrom rlang .data
-auto_align <-
-  function(df1,
-           df2,
+auto_align_WORK <-
+  function(ref,
+           query,
            rt_lower = -.5,
            rt_upper = .5,
            mz_lower = -15,
@@ -51,21 +50,24 @@ auto_align <-
            mz_iso_threshold = 50,
            threshold = "manual",
            match_method = "unsupervised",
-           smooth_method = "loess",
+           smooth_method = "lowess",
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
-    df1 <- df1 |>
+    raw_df(ref) <- raw_df(ref) |>
       dplyr::mutate(
-        MZ = round(.data$MZ, 4),
-        RT = round(.data$RT, 2)
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
       )
 
-    df2 <- df2 |>
+    raw_df(query) <- raw_df(query) |>
       dplyr::mutate(
-        MZ = round(.data$MZ, 4),
-        RT = round(.data$RT, 2)
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
       )
+
+    isolated(ref) <- get_vectors(ref)
+    isolated(query) <- get_vectors(query)
 
     results_list <-
       find_isolated_compounds(
@@ -85,9 +87,10 @@ auto_align <-
         smooth_method = smooth_method
       )
 
-    results <- results_list[[1]]
-    scaled_values <- results_list[[2]]
-    cutoffs <- results_list[[3]]
+    aligned_obj <- create_aligned_ms_obj(ref, query)
+    iso_aligned(aligned_obj) <- results_list[[1]]
+    scaled_values(aligned_obj) <- results_list[[2]]
+    cutoffs(aligned_obj) <- results_list[[3]]
 
     final_results_list <-
       final_results(

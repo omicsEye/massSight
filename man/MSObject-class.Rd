@@ -14,6 +14,8 @@ Class to represent mass spectroscopy data.
 
 \item{\code{raw}}{A data frame containing the raw data.}
 
+\item{\code{isolated}}{A data frame containing the isolated data.}
+
 \item{\code{scaled}}{A data frame containing the scaled data.}
 
 \item{\code{consolidated}}{A logical indicating whether or not the data has

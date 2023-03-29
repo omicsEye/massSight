@@ -15,32 +15,6 @@ find_isolated_compounds <-
            match_method,
            smooth_method,
            custom_rt = "None") {
-    disallowed_names <-
-      "" # ['RT_1', 'RT_2', 'MZ_1', 'MZ_2', 'Intensity_1', 'Intensity_2']
-
-    if (!is.null(disallowed_names)) {
-      if (disallowed_names %in% colnames(df1)) {
-        names <- dplyr::intersect(disallowed_names, df1)
-        stop(
-          paste(
-            "You have a column labeled",
-            names,
-            "in file 1. Please change this to something else."
-          )
-        )
-      }
-    }
-    if (disallowed_names %in% colnames(df2)) {
-      names <- dplyr::intersect(disallowed_names, df2)
-      stop(
-        paste(
-          "You have a column labeled",
-          names,
-          "in file 2. Please change this to something else."
-        )
-      )
-    }
-
     if (match_method == "unsupervised") {
       if (threshold == "manual") {
         vec_1 <-
@@ -52,28 +26,33 @@ find_isolated_compounds <-
           get_vectors_auto(df1, per)
       }
       vec_1 <- df1 |>
-        dplyr::filter(Compound_ID %in% vec_1) |>
+        dplyr::filter(.data$Compound_ID %in% vec_1) |>
         dplyr::select("RT", "MZ", "Intensity", "Metabolite", "Compound_ID")
       vec_2 <- df2 |>
-        dplyr::filter(Compound_ID %in% vec_2) |>
+        dplyr::filter(.data$Compound_ID %in% vec_2) |>
         dplyr::select("RT", "MZ", "Intensity", "Metabolite", "Compound_ID")
 
       results <-
-        align_isolated_compounds(vec_1, vec_2, rt_lower, rt_upper, mz_lower, mz_upper)
+        align_isolated_compounds(vec_1,
+                                 vec_2,
+                                 rt_lower,
+                                 rt_upper,
+                                 mz_lower,
+                                 mz_upper)
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
         "Metabolite" %in% colnames(df2))
       vec_1 <- df1 |>
-        dplyr::rename(df1 = Compound_ID) |>
-        dplyr::filter(Metabolite != "")
+        dplyr::rename(df1 = .data$Compound_ID) |>
+        dplyr::filter(.data$Metabolite != "")
       vec_2 <- df2 |>
         dplyr::rename(
-          RT_2 = RT,
-          MZ_2 = MZ,
-          Intensity_2 = Intensity,
-          df2 = Compound_ID
+          RT_2 = .data$RT,
+          MZ_2 = .data$MZ,
+          Intensity_2 = .data$Intensity,
+          df2 = .data$Compound_ID
         ) |>
-        dplyr::filter(Metabolite != "")
+        dplyr::filter(.data$Metabolite != "")
       results <- vec_1 |>
         dplyr::inner_join(vec_2, by = c("Metabolite"))
     } else {
@@ -87,26 +66,17 @@ find_isolated_compounds <-
       )
     }
     results <- results |>
-      dplyr::arrange(RT)
+      dplyr::arrange(.data$RT) |>
+      dplyr::mutate(delta_RT = .data$RT_2 - .data$RT)
 
-    if (typeof(custom_rt) == "list") {
-      smooth_x_rt <- custom_rt[1]
-      smooth_y_rt <- custom_rt[2]
-    } else if (smooth_method == "lowess") {
-      res_low <- lowess(
-        x = results$RT,
-        y = results$RT_2 - results$RT,
-        f = rt_smooth
-      )
-      smooth_x_rt <- res_low$x
-      smooth_y_rt <- res_low$y
-    } else if (smooth_method == "spline") {
-      results <- results |>
-        dplyr::distinct(RT, .keep_all = TRUE)
+    if (smooth_method == "loess") {
+      res_low <- loess(delta_RT ~ RT, data = results)
       smooth_x_rt <- results$RT
-      smooth_y_rt <-
-        splinefun(smooth_x_rt, results$RT_2 - results$RT)
-      smooth_y_rt <- smooth_y_rt(smooth_x_rt)
+      smooth_y_rt <- predict(res_low, smooth_x_rt)
+    } else if (smooth_method == "gam") {
+      spline_func <- mgcv::gam(delta_RT ~ RT, data = results)
+      smooth_x_rt <- results$RT
+      smooth_y_rt <- predict(spline_func, smooth_x_rt)
     } else if (smooth_method == "gaussian") {
       smooth_x_rt <- results$RT
       # TODO check for RBF Kernel
@@ -149,59 +119,39 @@ find_isolated_compounds <-
         smooth_rt = smooth_y_rt,
         srt = scaled_rts_res
       )
-    # results <- results |>
-    #   dplyr::mutate(smooth_rt = smooth_y_rt,
-    #                 srt = RT_2 - smooth_rt)
-    #
-    # # message("Scaling rts for final match")
-    # scaled_rts <-
-    #   scale_smooth(df2$RT, smooth_x_rt + smooth_y_rt, smooth_y_rt)
-    #
-    # scaled_vector_rts <- data.frame("RT" = scaled_rts)
-    # scaled_vector_rts$Metabolite <- df2$Metabolite
-    # scaled_vector_rts <- scaled_vector_rts |>
-    #   filter("Metabolite" %in% results$df2)
-    # # TODO ask ali about m2align line 520
-    #
-    # results$metabolite <- scaled_vector_rts$Metabolite
-    # results$srt <- scaled_vector_rts$RT
 
 
     ## scale mzs ---------------------------------------------------------------
     results <- results |>
-      dplyr::arrange("MZ")
+      dplyr::arrange(MZ) |>
+      dplyr::mutate(delta_MZ = MZ_2 - MZ)
 
-    mz_df <- results |>
-      dplyr::select(MZ, MZ_2)
-
-    if (smooth_method == "lowess") {
-      mz_low <- lowess(
-        x = mz_df$MZ,
-        y = mz_df$MZ_2 - mz_df$MZ,
-        f = mz_smooth
-      )
-      smooth_x_mz <- mz_low$x
-      smooth_y_mz <- mz_low$y
-    } else if (smooth_method == "spline") {
-      mz_df <- mz_df |>
-        dplyr::distinct(MZ, .keep_all = TRUE)
-      results <- results |>
-        dplyr::distinct(MZ, .keep_all = TRUE)
-      smooth_x_mz <- mz_df$MZ
-      smooth_y_mz <-
-        splinefun(smooth_x_mz, mz_df$MZ_2 - mz_df$MZ)
-      smooth_y_mz <- smooth_y_mz(smooth_x_mz)
+    if (smooth_method == "loess") {
+      mz_low <- loess(delta_MZ ~ MZ, data = results)
+      smooth_x_mz <- results$MZ
+      smooth_y_mz <- predict(mz_low, smooth_x_mz)
+    } else if (smooth_method == "gam") {
+      mz_low <- mgcv::gam(delta_MZ ~ MZ, data = results)
+      smooth_x_mz <- results$MZ
+      smooth_y_mz <- predict(mz_low, smooth_x_mz)
     } else if (smooth_method == "gaussian") {
-      smooth_x_mz <- mz_df$MZ
-      # TODO check for RBF Kernel
-      gp <- GauPro::GauPro(smooth_x_mz, mz_df$MZ_2 - mz_df$MZ)
+      smooth_x_mz <- results$MZ
+      message("Starting gaussian smoothing")
+      gp <-
+        GauPro::GauPro(smooth_x_mz,
+          results$MZ_2 - results$MZ,
+          parallel = FALSE
+        )
       smooth_y_mz <- gp$predict(smooth_x_mz)
+      message("Finished gaussian smoothing")
+    } else {
+      stop("Invalid smooth method")
     }
     smooth_x_mz_dropna <- smooth_x_mz |> na.omit()
     smooth_y_mz_dropna <- smooth_y_mz |> na.omit()
     if (length(smooth_x_mz_dropna) == 0) {
       stop(
-        "There were not enough matches found to generate a predicted smoothing curve for your RT. Try increasing the range of your rt cutoffs (default -0.5 to +0.5), or increasing the 'smooth rt' value (default 0.1). Or if all else fails, try a manual/custom scaling (rt_custom)."
+        "There were not enough matches found to generate a predicted smoothing curve for your RT. Try increasing the range of your rt cutoffs (default -0.5 to +0.5), or increasing the 'smooth rt' value (default 0.1). Or if all else fails, try a manual/custom scaling (rt_custom)." 
       )
     }
 
