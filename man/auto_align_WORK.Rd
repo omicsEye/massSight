@@ -7,42 +7,20 @@
 auto_align_WORK(
   ref,
   query,
-  rt_lower = -0.5,
-  rt_upper = 0.5,
-  mz_lower = -15,
-  mz_upper = 15,
-  rt_smooth = 0.2,
-  mz_smooth = 0.2,
+  rt_match_threshold = 0.5,
+  mz_match_threshold = 10,
   minimum_intensity = 1000,
   rt_iso_threshold = 0.5,
-  mz_iso_threshold = 50,
+  mz_iso_threshold = 10,
   threshold = "manual",
   match_method = "unsupervised",
-  smooth_method = "lowess",
+  smooth_method = "loess",
   multipliers = c(6, 6, 6),
   weights = c(1, 1, 1),
   keep_features = c(F, F)
 )
 }
 \arguments{
-\item{rt_lower}{A numeric indicating the lower bound of the RT
-range to be considered for alignment.}
-
-\item{rt_upper}{A numeric indicating the upper bound of the RT
-range to be considered for alignment.}
-
-\item{mz_lower}{A numeric indicating the lower bound of the m/z
-range to be considered for alignment.}
-
-\item{mz_upper}{A numeric indicating the upper bound of the m/z
-range to be considered for alignment.}
-
-\item{rt_smooth}{A numeric indicating the smoothing parameter for
-RT.}
-
-\item{mz_smooth}{A numeric indicating the smoothing parameter for
-m/z.}
-
 \item{minimum_intensity}{A numeric indicating the minimum intensity
 to be considered for alignment.}
 
@@ -73,6 +51,24 @@ LC-MS experiment.}
 
 \item{df2}{A data frame of representing the results of a second
 preprocessed LC-MS experiment.}
+
+\item{rt_lower}{A numeric indicating the lower bound of the RT
+range to be considered for alignment.}
+
+\item{rt_upper}{A numeric indicating the upper bound of the RT
+range to be considered for alignment.}
+
+\item{mz_lower}{A numeric indicating the lower bound of the m/z
+range to be considered for alignment.}
+
+\item{mz_upper}{A numeric indicating the upper bound of the m/z
+range to be considered for alignment.}
+
+\item{rt_smooth}{A numeric indicating the smoothing parameter for
+RT.}
+
+\item{mz_smooth}{A numeric indicating the smoothing parameter for
+m/z.}
 }
 \value{
 A data frame containing the aligned data.

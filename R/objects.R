@@ -91,7 +91,8 @@ setMethod("metadata<-", signature = "MSObject", definition = function(x, value) 
 #' Class to represent merged mass spectroscopy data.
 #' @slot ms1 A character indicating the name of the experiment.
 #' @slot ms2 A data frame containing the raw data.
-#' @slot merged A data frame containing the scaled data.
+#' @slot all_matched A data frame containing the scaled data.
+#' @slot iso_matched A data frame containing the scaled data.
 #' @slot metadata A logical indicating whether or not the data has
 #' been consolidated.
 #' @slot smooth A string indicating the smoothing method used.
@@ -104,7 +105,8 @@ setClass(
   slots = list(
     ms1 = "MSObject",
     ms2 = "MSObject",
-    iso_aligned = "tbl_df",
+    all_matched = "tbl_df",
+    iso_matched = "tbl_df",
     scaled_values = "tbl_df",
     cutoffs = "numeric",
     aligned = "tbl_df",
@@ -122,8 +124,12 @@ setGeneric("ms2", function(x) standardGeneric("ms2"))
 setMethod("ms2", signature = "MergedMSObject", definition = function(x) x@ms2)
 
 #' @export
-setGeneric("iso_aligned", function(x) standardGeneric("iso_aligned"))
-setMethod("iso_aligned", signature = "MergedMSObject", definition = function(x) x@iso_aligned)
+setGeneric("all_matched", function(x) standardGeneric("all_matched"))
+setMethod("all_matched", signature = "MergedMSObject", definition = function(x) x@all_matched)
+
+#' @export
+setGeneric("iso_matched", function(x) standardGeneric("iso_matched"))
+setMethod("iso_matched", signature = "MergedMSObject", definition = function(x) x@iso_matched)
 
 #' @export
 setGeneric("scaled_values", function(x) standardGeneric("scaled_values"))
@@ -160,9 +166,16 @@ setMethod("ms2<-", signature = "MergedMSObject", definition = function(x, value)
 })
 
 #' @export
-setGeneric("iso_aligned<-", function(x, value) standardGeneric("iso_aligned<-"))
-setMethod("iso_aligned<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@iso_aligned <- value
+setGeneric("all_matched<-", function(x, value) standardGeneric("all_matched<-"))
+setMethod("all_matched<-", signature = "MergedMSObject", definition = function(x, value) {
+  x@all_matched <- value
+  return(x)
+})
+
+#' @export
+setGeneric("iso_matched<-", function(x, value) standardGeneric("iso_matched<-"))
+setMethod("iso_matched<-", signature = "MergedMSObject", definition = function(x, value) {
+  x@iso_matched <- value
   return(x)
 })
 
@@ -190,20 +203,22 @@ setMethod("aligned<-", signature = "MergedMSObject", definition = function(x, va
 #' @export
 setGeneric("metadata<-", function(x, value) standardGeneric("metadata<-"))
 setMethod("metadata<-",
-          signature = "MergedMSObject",
-          definition = function(x, value) {
-  x@metadata <- value
-  return(x)
-})
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@metadata <- value
+    return(x)
+  }
+)
 
 #' @export
 setGeneric("smooth<-", function(x, value) standardGeneric("smooth<-"))
 setMethod("smooth<-",
-          signature = "MergedMSObject",
-          definition = function(x, value) {
-  x@smooth <- value
-  return(x)
-})
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@smooth <- value
+    return(x)
+  }
+)
 
 #' @export
 #' @title Create MS Object
@@ -250,7 +265,8 @@ create_aligned_ms_obj <- function(ms1, ms2) {
   ms <- new("MergedMSObject",
     ms1 = ms1,
     ms2 = ms2,
-    iso_aligned = NULL,
+    all_matched = NULL,
+    iso_matched = NULL,
     scaled_values = NULL,
     cutoffs = NULL,
     aligned = NULL,

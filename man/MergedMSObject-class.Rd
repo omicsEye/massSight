@@ -14,7 +14,9 @@ Class to represent merged mass spectroscopy data.
 
 \item{\code{ms2}}{A data frame containing the raw data.}
 
-\item{\code{merged}}{A data frame containing the scaled data.}
+\item{\code{all_matched}}{A data frame containing the scaled data.}
+
+\item{\code{iso_matched}}{A data frame containing the scaled data.}
 
 \item{\code{metadata}}{A logical indicating whether or not the data has
 been consolidated.}

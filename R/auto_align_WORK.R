@@ -39,18 +39,14 @@
 auto_align_WORK <-
   function(ref,
            query,
-           rt_lower = -.5,
-           rt_upper = .5,
-           mz_lower = -15,
-           mz_upper = 15,
-           rt_smooth = .2,
-           mz_smooth = .2,
+           rt_match_threshold = .5,
+           mz_match_threshold = 10,
            minimum_intensity = 1000,
            rt_iso_threshold = .5,
-           mz_iso_threshold = 50,
+           mz_iso_threshold = 10,
            threshold = "manual",
            match_method = "unsupervised",
-           smooth_method = "lowess",
+           smooth_method = "loess",
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
@@ -66,8 +62,32 @@ auto_align_WORK <-
         RT = round(RT, 2)
       )
 
-    isolated(ref) <- get_vectors(ref)
-    isolated(query) <- get_vectors(query)
+    aligned_lcms <- create_aligned_ms_obj(ref, query)
+
+    all_matched(aligned_lcms) <- find_all_matches(
+      raw_df(ref),
+      raw_df(query),
+      rt_match_threshold,
+      mz_match_threshold
+    )
+
+    isolated(ref) <- get_vectors(
+      raw_df(ref),
+      rt_iso_threshold, mz_iso_threshold
+    )
+    isolated(query) <- get_vectors(
+      raw_df(query),
+      rt_iso_threshold, mz_iso_threshold
+    )
+
+    iso_matched(aligned_lcms) <- find_all_matches(
+      isolated(ref),
+      isolated(query),
+      rt_match_threshold,
+      mz_match_threshold
+    )
+
+    aligned_lcms <- model_drift(aligned_lcms, smooth_method)
 
     results_list <-
       find_isolated_compounds(
