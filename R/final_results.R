@@ -20,16 +20,20 @@ final_results <-
     best_hits_found <- c()
     features_not_aligned <- c()
     pb <-
-      progress::progress_bar$new(format = "Aligning datasets [:bar] :percent :eta",
-                                 total = nrow(df1_for_align),
-                                 clear = F)
+      progress::progress_bar$new(
+        format = "Aligning datasets [:bar] :percent :eta",
+        total = nrow(df1_for_align),
+        clear = F
+      )
     for (i in 1:nrow(df1_for_align)) {
       best_match <-
-        find_closest_match(df1_for_align[i,],
-                           df2_for_align,
-                           stds,
-                           multipliers,
-                           weights)
+        find_closest_match(
+          df1_for_align[i, ],
+          df2_for_align,
+          stds,
+          multipliers,
+          weights
+        )
       if (!is.null(best_match)) {
         pb$tick()
         best_reverse_match <-
@@ -62,11 +66,11 @@ final_results <-
     rownames(df1) <- df1$Compound_ID
     rownames(df2) <- df2$Compound_ID
     rownames(df2_adj) <- df2_adj$Compound_ID
-    df1 <- df1[best_hits_found,]
+    df1 <- df1[best_hits_found, ]
     df2_raw <- df2
-    df2 <- df2[best_hits_df1,]
+    df2 <- df2[best_hits_df1, ]
     results_df_complete <- cbind(df1, df2)
-    df2_adj <- df2_adj[best_hits_df1,]
+    df2_adj <- df2_adj[best_hits_df1, ]
     results_df <- data.frame(
       "df1_name" = df1$Compound_ID,
       "df2_name" = df2$Compound_ID,

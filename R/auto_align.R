@@ -55,20 +55,26 @@ auto_align <-
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     raw_df(ref) <- raw_df(ref) |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     raw_df(query) <- raw_df(query) |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     if (match_method == "unsupervised") {
       ref_iso <- get_vectors(raw_df(ref),
-                             rt_sim = rt_iso_threshold,
-                             mz_sim = mz_iso_threshold)
+        rt_sim = rt_iso_threshold,
+        mz_sim = mz_iso_threshold
+      )
       query_iso <- get_vectors(raw_df(query),
-                               rt_sim = rt_iso_threshold,
-                               mz_sim = mz_iso_threshold)
+        rt_sim = rt_iso_threshold,
+        mz_sim = mz_iso_threshold
+      )
       isolated(ref) <- raw_df(ref) |>
         dplyr::filter(Compound_ID %in% ref_iso)
       isolated(query) <- raw_df(query) |>
@@ -87,14 +93,20 @@ auto_align <-
     ms2(align_obj) <- query
     align_obj <- align_obj |>
       align_isolated_compounds(match_method = match_method) |>
-      smooth_drift(smooth_method = smooth_method,
-                   minimum_int = minimum_intensity) |>
-      final_results(keep_features = keep_features,
-                    multipliers = multipliers,
-                    weights = weights)
+      smooth_drift(
+        smooth_method = smooth_method,
+        minimum_int = minimum_intensity
+      ) |>
+      final_results(
+        keep_features = keep_features,
+        multipliers = multipliers,
+        weights = weights
+      )
 
-    message(paste0("Numbers of matched/kept features: ",
-                   nrow(all_matched(align_obj))))
+    message(paste0(
+      "Numbers of matched/kept features: ",
+      nrow(all_matched(align_obj))
+    ))
 
     return(align_obj)
   }

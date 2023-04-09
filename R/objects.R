@@ -287,5 +287,3 @@ create_aligned_ms_obj <- function(ms1, ms2) {
   )
   return(ms)
 }
-
-

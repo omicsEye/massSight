@@ -18,8 +18,9 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     message("Starting gaussian smoothing")
     gp <-
       GauPro::GauPro(smooth_x_rt,
-                     results$RT_2 - results$RT,
-                     parallel = F)
+        results$RT_2 - results$RT,
+        parallel = F
+      )
     smooth_y_rt <- gp$predict(smooth_x_rt)
     message("Finished gaussian smoothing")
   }
@@ -42,13 +43,17 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
   scaled_rts <-
     scale_smooth(df2$RT, smooth_x_rt + smooth_y_rt, smooth_y_rt)
   scaled_rts_res <-
-    scale_smooth(results$RT,
-                 smooth_x_rt + smooth_y_rt,
-                 smooth_y_rt)
+    scale_smooth(
+      results$RT,
+      smooth_x_rt + smooth_y_rt,
+      smooth_y_rt
+    )
 
   results <- results |>
-    dplyr::mutate(smooth_rt = smooth_y_rt,
-                  srt = scaled_rts_res)
+    dplyr::mutate(
+      smooth_rt = smooth_y_rt,
+      srt = scaled_rts_res
+    )
 
 
   ## scale mzs ---------------------------------------------------------------
@@ -69,8 +74,9 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     message("Starting gaussian smoothing")
     gp <-
       GauPro::GauPro(smooth_x_mz,
-                     results$MZ_2 - results$MZ,
-                     parallel = FALSE)
+        results$MZ_2 - results$MZ,
+        parallel = FALSE
+      )
     smooth_y_mz <- gp$predict(smooth_x_mz)
     message("Finished gaussian smoothing")
   } else {
@@ -95,13 +101,17 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
   smooth_y_mz <- f$y
   scaled_mzs <-
     scale_smooth(df2$MZ, smooth_x_mz + smooth_y_mz, smooth_y_mz)
-  scaled_mzs_res <- scale_smooth(results$MZ,
-                                 smooth_x_mz + smooth_y_mz,
-                                 smooth_y_mz)
+  scaled_mzs_res <- scale_smooth(
+    results$MZ,
+    smooth_x_mz + smooth_y_mz,
+    smooth_y_mz
+  )
 
   results <- results |>
-    dplyr::mutate(smooth_mz = smooth_y_mz,
-                  smz = scaled_mzs_res)
+    dplyr::mutate(
+      smooth_mz = smooth_y_mz,
+      smz = scaled_mzs_res
+    )
 
   # scale intensities -------------------------------------------------------
   temp_df1_int <- log10(results$Intensity)
@@ -109,20 +119,21 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
 
   ## find slope for linear adjustment of log-intensity parameters
   intensity_parameters <- scale_intensity_parameters(temp_df1_int,
-                                                     temp_df2_int,
-                                                     min_int = minimum_intensity)
+    temp_df2_int,
+    min_int = minimum_intensity
+  )
 
   ## scale potential matches
   scaled_vector_intensity <-
     scale_intensity(temp_df2_int, intensity_parameters)
-  scaled_vector_intensity <- 10 ^ scaled_vector_intensity
+  scaled_vector_intensity <- 10^scaled_vector_intensity
   results$sintensity <- scaled_vector_intensity
 
   # scale full results
   log_df2 <- log10(df2$Intensity)
   scaled_intensity <-
     scale_intensity(log_df2, intensity_parameters)
-  scaled_intensity <- 10 ^ scaled_intensity
+  scaled_intensity <- 10^scaled_intensity
 
   dev_out <- get_cutoffs(
     results |>
@@ -136,9 +147,11 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
   )
   deviations <- dev_out$cutoffs
   outliers <- dev_out$outliers
-  scaled_values <- data.frame("RT" = scaled_rts,
-                              "MZ" = scaled_mzs,
-                              "Intensity" = scaled_intensity)
+  scaled_values <- data.frame(
+    "RT" = scaled_rts,
+    "MZ" = scaled_mzs,
+    "Intensity" = scaled_intensity
+  )
 
   iso_matched(align_ms_obj) <- results
   scaled_values(align_ms_obj) <- scaled_values

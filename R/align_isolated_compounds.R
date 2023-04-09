@@ -11,9 +11,11 @@ align_isolated_compounds <-
     if (match_method == "unsupervised") {
       if ("Intensity" %in% names(df1)) {
         pb <-
-          progress::progress_bar$new(format = "Matching isolated features from datasets [:bar] :percent :eta",
-                                     total = nrow(df1),
-                                     clear = F)
+          progress::progress_bar$new(
+            format = "Matching isolated features from datasets [:bar] :percent :eta",
+            total = nrow(df1),
+            clear = F
+          )
         results <- data.frame(
           "df1" = character(),
           "RT" = numeric(),
@@ -27,10 +29,11 @@ align_isolated_compounds <-
         for (row in 1:nrow(df1)) {
           pb$tick()
           df2_filter <- df2 |>
-            dplyr::filter(# RT > df1[row, "RT"] + rt_minus &
+            dplyr::filter( # RT > df1[row, "RT"] + rt_minus &
               #   RT < df1[row, "RT"] + rt_plus &
               MZ > df1[row, "MZ"] + mz_minus * df1[row, "MZ"] / 1e6 &
-                MZ < df1[row, "MZ"] + mz_plus * df1[row, "MZ"] / 1e6)
+                MZ < df1[row, "MZ"] + mz_plus * df1[row, "MZ"] / 1e6
+            )
           if (nrow(df2_filter) == 0) {
             next
           }
@@ -113,22 +116,24 @@ align_isolated_compounds <-
             }
           } else {
             results <- results |>
-              dplyr::bind_rows(c(df1[row, "Compound_ID"],
-                                 df1[row, "RT"],
-                                 df1[row, "MZ"],
-                                 NA,
-                                 NA,
-                                 NA,
-                                 NA,
-                                 NA,
-                                 NA,
-                                 NA))
+              dplyr::bind_rows(c(
+                df1[row, "Compound_ID"],
+                df1[row, "RT"],
+                df1[row, "MZ"],
+                NA,
+                NA,
+                NA,
+                NA,
+                NA,
+                NA,
+                NA
+              ))
           }
         }
       }
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
-                  "Metabolite" %in% colnames(df2))
+        "Metabolite" %in% colnames(df2))
       vec_1 <- df1 |>
         dplyr::rename(df1 = .data$Compound_ID) |>
         dplyr::filter(.data$Metabolite != "")
