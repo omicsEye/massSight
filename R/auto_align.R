@@ -36,10 +36,9 @@
 #' @param keep_features A logical vector indicating whether or not to
 #' keep features that are not matched.
 #' @return A data frame containing the aligned data.
-#' @importFrom rlang .data
 auto_align <-
-  function(df1,
-           df2,
+  function(ref,
+           query,
            rt_lower = -.5,
            rt_upper = .5,
            mz_lower = -15,
@@ -48,69 +47,54 @@ auto_align <-
            mz_smooth = .2,
            minimum_intensity = 1000,
            rt_iso_threshold = .5,
-           mz_iso_threshold = 50,
+           mz_iso_threshold = 5,
            threshold = "manual",
            match_method = "unsupervised",
-           smooth_method = "loess",
+           smooth_method = "lowess",
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
-    df1 <- df1 |>
-      dplyr::mutate(
-        MZ = round(.data$MZ, 4),
-        RT = round(.data$RT, 2)
-      )
+    raw_df(ref) <- raw_df(ref) |>
+      dplyr::mutate(MZ = round(MZ, 4),
+                    RT = round(RT, 2))
 
-    df2 <- df2 |>
-      dplyr::mutate(
-        MZ = round(.data$MZ, 4),
-        RT = round(.data$RT, 2)
-      )
+    raw_df(query) <- raw_df(query) |>
+      dplyr::mutate(MZ = round(MZ, 4),
+                    RT = round(RT, 2))
 
-    results_list <-
-      find_isolated_compounds(
-        df1,
-        df2,
-        rt_lower = rt_lower,
-        rt_upper = rt_upper,
-        mz_lower = mz_lower,
-        mz_upper = mz_upper,
-        rt_smooth = rt_smooth,
-        mz_smooth = mz_smooth,
-        minimum_intensity = minimum_intensity,
-        rt_iso_threshold = rt_iso_threshold,
-        mz_iso_threshold = mz_iso_threshold,
-        threshold = threshold,
-        match_method = match_method,
-        smooth_method = smooth_method
-      )
+    if (match_method == "unsupervised") {
+      ref_iso <- get_vectors(raw_df(ref),
+                             rt_sim = rt_iso_threshold,
+                             mz_sim = mz_iso_threshold)
+      query_iso <- get_vectors(raw_df(query),
+                               rt_sim = rt_iso_threshold,
+                               mz_sim = mz_iso_threshold)
+      isolated(ref) <- raw_df(ref) |>
+        dplyr::filter(Compound_ID %in% ref_iso)
+      isolated(query) <- raw_df(query) |>
+        dplyr::filter(Compound_ID %in% query_iso)
+    } else if (match_method == "supervised") {
+      isolated(ref) <- raw_df(ref) |>
+        filter(Metabolite != "")
+      isolated(query) <- raw_df(query) |>
+        filter(Metabolite != "")
+    } else {
+      stop("`match_method` must be either 'unsupervised' or 'supervised'.")
+    }
 
-    results <- results_list[[1]]
-    scaled_values <- results_list[[2]]
-    cutoffs <- results_list[[3]]
+    align_obj <- new("MergedMSObject")
+    ms1(align_obj) <- ref
+    ms2(align_obj) <- query
+    align_obj <- align_obj |>
+      align_isolated_compounds(match_method = match_method) |>
+      smooth_drift(smooth_method = smooth_method,
+                   minimum_int = minimum_intensity) |>
+      final_results(keep_features = keep_features,
+                    multipliers = multipliers,
+                    weights = weights)
 
-    final_results_list <-
-      final_results(
-        df1,
-        df2,
-        scaled_values,
-        cutoffs,
-        keep_features = keep_features,
-        multipliers = multipliers,
-        weights = weights
-      )
+    message(paste0("Numbers of matched/kept features: ",
+                   nrow(all_matched(align_obj))))
 
-    results_df_complete <- final_results_list[[1]]
-    adjusted_df <- final_results_list[[2]]
-    message(paste0(
-      "Numbers of matched/kept features: ",
-      nrow(results_df_complete)
-    ))
-    return(
-      list(
-        "results_df_complete" = results_df_complete,
-        "adjusted_df" = adjusted_df,
-        "smooth_for_plot" = results
-      )
-    )
+    return(align_obj)
   }

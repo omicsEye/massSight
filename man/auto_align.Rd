@@ -5,8 +5,8 @@
 \title{Auto Align}
 \usage{
 auto_align(
-  df1,
-  df2,
+  ref,
+  query,
   rt_lower = -0.5,
   rt_upper = 0.5,
   mz_lower = -15,
@@ -15,22 +15,16 @@ auto_align(
   mz_smooth = 0.2,
   minimum_intensity = 1000,
   rt_iso_threshold = 0.5,
-  mz_iso_threshold = 50,
+  mz_iso_threshold = 5,
   threshold = "manual",
   match_method = "unsupervised",
-  smooth_method = "loess",
+  smooth_method = "lowess",
   multipliers = c(6, 6, 6),
   weights = c(1, 1, 1),
   keep_features = c(F, F)
 )
 }
 \arguments{
-\item{df1}{A data frame representing the results of a preprocessed
-LC-MS experiment.}
-
-\item{df2}{A data frame of representing the results of a second
-preprocessed LC-MS experiment.}
-
 \item{rt_lower}{A numeric indicating the lower bound of the RT
 range to be considered for alignment.}
 
@@ -73,6 +67,12 @@ the alignment.}
 
 \item{keep_features}{A logical vector indicating whether or not to
 keep features that are not matched.}
+
+\item{df1}{A data frame representing the results of a preprocessed
+LC-MS experiment.}
+
+\item{df2}{A data frame of representing the results of a second
+preprocessed LC-MS experiment.}
 }
 \value{
 A data frame containing the aligned data.

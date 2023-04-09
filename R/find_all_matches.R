@@ -1,5 +1,5 @@
 find_all_matches <- function(ref, query, rt_threshold, mz_threshold) {
-  matches <- dplyr::tibble()
+  matches <- data.frame()
   ref <- ref |>
     dplyr::rename(
       RT_1 = RT,

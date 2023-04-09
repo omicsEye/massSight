@@ -1,11 +1,12 @@
 final_results <-
-  function(df1,
-           df2,
-           scaled_df,
-           stds,
+  function(align_ms_obj,
            keep_features = c(FALSE, FALSE),
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1)) {
+    df1 <- ms1(align_ms_obj)
+    df2 <- ms2(align_ms_obj)
+    scaled_df <- scaled_values(align_ms_obj)
+    stds <- cutoffs(align_ms_obj)
     df2_adj <- df2
     df2_adj$RT <- scaled_df$RT
     df2_adj$MZ <- scaled_df$MZ
@@ -19,20 +20,16 @@ final_results <-
     best_hits_found <- c()
     features_not_aligned <- c()
     pb <-
-      progress::progress_bar$new(
-        format = "Aligning datasets [:bar] :percent :eta",
-        total = nrow(df1_for_align),
-        clear = F
-      )
+      progress::progress_bar$new(format = "Aligning datasets [:bar] :percent :eta",
+                                 total = nrow(df1_for_align),
+                                 clear = F)
     for (i in 1:nrow(df1_for_align)) {
       best_match <-
-        find_closest_match(
-          df1_for_align[i, ],
-          df2_for_align,
-          stds,
-          multipliers,
-          weights
-        )
+        find_closest_match(df1_for_align[i,],
+                           df2_for_align,
+                           stds,
+                           multipliers,
+                           weights)
       if (!is.null(best_match)) {
         pb$tick()
         best_reverse_match <-
@@ -65,11 +62,11 @@ final_results <-
     rownames(df1) <- df1$Compound_ID
     rownames(df2) <- df2$Compound_ID
     rownames(df2_adj) <- df2_adj$Compound_ID
-    df1 <- df1[best_hits_found, ]
+    df1 <- df1[best_hits_found,]
     df2_raw <- df2
-    df2 <- df2[best_hits_df1, ]
+    df2 <- df2[best_hits_df1,]
     results_df_complete <- cbind(df1, df2)
-    df2_adj <- df2_adj[best_hits_df1, ]
+    df2_adj <- df2_adj[best_hits_df1,]
     results_df <- data.frame(
       "df1_name" = df1$Compound_ID,
       "df2_name" = df2$Compound_ID,
@@ -105,8 +102,7 @@ final_results <-
       dedup("Metabolite")
 
     colnames(results_df_complete) <- columns
-    return(list(
-      "results_df_complete" = results_df_complete,
-      "adjusted_df" = adjusted_df
-    ))
+    all_matched(align_ms_obj) <- results_df_complete
+    adjusted_df(align_ms_obj) <- adjusted_df
+    return(align_ms_obj)
   }

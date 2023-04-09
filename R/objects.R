@@ -14,11 +14,11 @@ setClass(
   Class = "MSObject",
   slots = list(
     name = "character",
-    raw_df = "tbl_df",
-    isolated = "tbl_df",
-    scaled_df = "tbl_df",
+    raw_df = "data.frame",
+    isolated = "data.frame",
+    scaled_df = "data.frame",
     consolidated = "logical",
-    metadata = "tbl_df"
+    metadata = "data.frame"
   )
 )
 
@@ -105,12 +105,13 @@ setClass(
   slots = list(
     ms1 = "MSObject",
     ms2 = "MSObject",
-    all_matched = "tbl_df",
-    iso_matched = "tbl_df",
-    scaled_values = "tbl_df",
+    all_matched = "data.frame",
+    iso_matched = "data.frame",
+    scaled_values = "data.frame",
+    adjusted_df = "data.frame",
     cutoffs = "numeric",
-    aligned = "tbl_df",
-    metadata = "tbl_df",
+    aligned = "data.frame",
+    metadata = "data.frame",
     smooth = "list"
   )
 )
@@ -134,6 +135,10 @@ setMethod("iso_matched", signature = "MergedMSObject", definition = function(x) 
 #' @export
 setGeneric("scaled_values", function(x) standardGeneric("scaled_values"))
 setMethod("scaled_values", signature = "MergedMSObject", definition = function(x) x@scaled_values)
+
+#' @export
+setGeneric("adjusted_df", function(x) standardGeneric("adjusted_df"))
+setMethod("adjusted_df", signature = "MergedMSObject", definition = function(x) x@adjusted_df)
 
 #' @export
 setGeneric("cutoffs", function(x) standardGeneric("cutoffs"))
@@ -183,6 +188,13 @@ setMethod("iso_matched<-", signature = "MergedMSObject", definition = function(x
 setGeneric("scaled_values<-", function(x, value) standardGeneric("scaled_values<-"))
 setMethod("scaled_values<-", signature = "MergedMSObject", definition = function(x, value) {
   x@scaled_values <- value
+  return(x)
+})
+
+#' @export
+setGeneric("adjusted_df<-", function(x, value) standardGeneric("adjusted_df<-"))
+setMethod("adjusted_df<-", signature = "MergedMSObject", definition = function(x, value) {
+  x@adjusted_df <- value
   return(x)
 })
 
@@ -248,7 +260,6 @@ create_ms_obj <- function(df,
   consolidated(ms) <- FALSE
 
   raw_data <- df |>
-    dplyr::as_tibble() |>
     dplyr::select(id_name, rt_name, mz_name, int_name)
   colnames(raw_data) <- c("Compound_ID", "RT", "MZ", "Intensity")
   raw_df(ms) <- raw_data
@@ -268,6 +279,7 @@ create_aligned_ms_obj <- function(ms1, ms2) {
     all_matched = NULL,
     iso_matched = NULL,
     scaled_values = NULL,
+    adjusted_df = NULL,
     cutoffs = NULL,
     aligned = NULL,
     metadata = NULL,
@@ -275,3 +287,5 @@ create_aligned_ms_obj <- function(ms1, ms2) {
   )
   return(ms)
 }
+
+
