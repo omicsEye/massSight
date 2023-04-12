@@ -29,20 +29,20 @@ align_isolated_compounds <-
         for (row in 1:nrow(df1)) {
           pb$tick()
           df2_filter <- df2 |>
-            dplyr::filter( # RT > df1[row, "RT"] + rt_minus &
-              #   RT < df1[row, "RT"] + rt_plus &
-              MZ > df1[row, "MZ"] + mz_minus * df1[row, "MZ"] / 1e6 &
-                MZ < df1[row, "MZ"] + mz_plus * df1[row, "MZ"] / 1e6
+            dplyr::filter(RT > df1$RT[row] + rt_minus &
+              RT < df1$RT[row] + rt_plus &
+              MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
+                MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
             )
           if (nrow(df2_filter) == 0) {
             next
           }
           for (row_2 in 1:nrow(df2_filter)) {
             res_add <- data.frame(
-              df1 = df1[row, "Compound_ID"],
-              RT = df1[row, "RT"],
-              MZ = df1[row, "MZ"],
-              Intensity = df1[row, "Intensity"],
+              df1 = df1$Compound_ID[row],
+              RT = df1$RT[row],
+              MZ = df1$MZ[row],
+              Intensity = df1$Intensity[row],
               df2 = df2_filter$Compound_ID[row_2],
               RT_2 = df2_filter$RT[row_2],
               MZ_2 = df2_filter$MZ[row_2],

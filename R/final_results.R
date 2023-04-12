@@ -3,8 +3,8 @@ final_results <-
            keep_features = c(FALSE, FALSE),
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1)) {
-    df1 <- ms1(align_ms_obj)
-    df2 <- ms2(align_ms_obj)
+    df1 <- raw_df(ms1(align_ms_obj))
+    df2 <- raw_df(ms2(align_ms_obj))
     scaled_df <- scaled_values(align_ms_obj)
     stds <- cutoffs(align_ms_obj)
     df2_adj <- df2

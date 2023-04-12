@@ -1,4 +1,9 @@
-smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
+smooth_drift <- function(align_ms_obj,
+                         smooth_method,
+                         minimum_int) {
+  df2 <- align_ms_obj |>
+    ms2() |>
+    raw_df()
   results <- iso_matched(align_ms_obj)
   results <- results |>
     dplyr::arrange(RT) |>
@@ -120,7 +125,7 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
   ## find slope for linear adjustment of log-intensity parameters
   intensity_parameters <- scale_intensity_parameters(temp_df1_int,
     temp_df2_int,
-    min_int = minimum_intensity
+    min_int = minimum_int
   )
 
   ## scale potential matches
