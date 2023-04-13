@@ -42,13 +42,11 @@ Alignment is performed using `auto_align()`
 library(massSight)
 
 # example 1 inputs (small input for test)
-View (df1_small)
-View(df2_small)
-aligned_df <- auto_align(df1_small, df2_small)
-
-
-# example 2 inputs (small input for test)
-aligned_df <- auto_align(df1, df2)
+View(hp1)
+View(hp2)
+ref <- create_ms_obj(df = hp1, name = "hp1", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
+query <- create_ms_obj(df = hp2, name = "hp2", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
+aligned_df <- auto_align(ref, query, smooth_method = "loess")
 ```
 
 ### Input files format
@@ -63,20 +61,20 @@ the created data objects.
 # read inputs as data frame in R
 user_df1 <- read.delim(
   "/path-to-file/profile1.tsv",
-  sep = '\t',
+  sep = "\t",
   header = T,
   fill = F,
-  comment.char = "" ,
+  comment.char = "",
   check.names = F,
   row.names = 1
 )
 
 user_df1 <- read.delim(
   "/path-to-file/profile2.tsv",
-  sep = '\t',
+  sep = "\t",
   header = T,
   fill = F,
-  comment.char = "" ,
+  comment.char = "",
   check.names = F,
   row.names = 1
 )
