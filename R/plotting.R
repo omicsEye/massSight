@@ -1,12 +1,8 @@
 qc_plots <-
   function(results,
-           isolated,
            smooth = NULL,
            rt_lim = c(-.5, .5),
            mz_lim = c(-15, 15)) {
-
-
-
     plot_res <- dplyr::tibble(
       rt_x = results$RT,
       raw_rts = results$RT_2 - results$RT,
@@ -38,7 +34,12 @@ qc_plots <-
       ggplot2::geom_point(
         data = plot_res,
         ggplot2::aes(x = rt_x, y = raw_rts),
-        alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(1.5), stroke = 0.05
+        alpha = I(0.25),
+        shape = 21,
+        colour = "black",
+        fill = "#033C5A",
+        size = I(1.5),
+        stroke = 0.05
       ) +
       ggplot2::geom_smooth(
         method = "loess",
@@ -47,11 +48,9 @@ qc_plots <-
         alpha = .8,
         col = "#AA9868"
       ) +
-      ggplot2::labs(
-        title = "Raw",
-        x = "RT 1",
-        y = expression(Delta * "RT")
-      ) +
+      ggplot2::labs(title = "Raw",
+                    x = "RT 1",
+                    y = expression(Delta * "RT")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -74,11 +73,9 @@ qc_plots <-
         alpha = .8,
         col = "#AA9868"
       ) +
-      ggplot2::labs(
-        title = "Scaled",
-        x = "RT 1",
-        y = expression(Delta * "RT")
-      ) +
+      ggplot2::labs(title = "Scaled",
+                    x = "RT 1",
+                    y = expression(Delta * "RT")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -87,7 +84,12 @@ qc_plots <-
       ggplot2::geom_point(
         data = plot_res,
         ggplot2::aes(x = mz_x, y = raw_mz),
-        alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
+        alpha = I(0.25),
+        shape = 21,
+        colour = "black",
+        fill = "#033C5A",
+        size = I(2),
+        stroke = 0.05
       ) +
       ggplot2::geom_smooth(
         method = "loess",
@@ -96,11 +98,9 @@ qc_plots <-
         alpha = 1,
         color = "#AA9868"
       ) +
-      ggplot2::labs(
-        title = "Raw",
-        x = "MZ 1",
-        y = expression(Delta * "MZ")
-      ) +
+      ggplot2::labs(title = "Raw",
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -109,7 +109,12 @@ qc_plots <-
       ggplot2::geom_point(
         data = plot_res,
         ggplot2::aes(x = mz_x, y = scaled_mz),
-        alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
+        alpha = I(0.25),
+        shape = 21,
+        colour = "black",
+        fill = "#033C5A",
+        size = I(2),
+        stroke = 0.05
       ) +
       ggplot2::geom_smooth(
         method = "loess",
@@ -118,11 +123,9 @@ qc_plots <-
         alpha = .8,
         col = "#AA9868"
       ) +
-      ggplot2::labs(
-        title = "Scaled",
-        x = "MZ 1",
-        y = expression(Delta * "MZ")
-      ) +
+      ggplot2::labs(title = "Scaled",
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -131,7 +134,12 @@ qc_plots <-
       ggplot2::geom_point(
         data = plot_res,
         ggplot2::aes(x = raw_int1, y = int_diff),
-        alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
+        alpha = I(0.25),
+        shape = 21,
+        colour = "black",
+        fill = "#033C5A",
+        size = I(2),
+        stroke = 0.05
       ) +
       ggplot2::geom_smooth(
         method = "loess",
@@ -140,11 +148,9 @@ qc_plots <-
         alpha = .8,
         col = "#AA9868"
       ) +
-      ggplot2::labs(
-        title = "Raw",
-        x = "Int 1",
-        y = expression(Delta * "RT")
-      ) +
+      ggplot2::labs(title = "Raw",
+                    x = "Int 1",
+                    y = expression(Delta * "RT")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -153,7 +159,12 @@ qc_plots <-
       ggplot2::geom_point(
         data = plot_res,
         ggplot2::aes(x = scaled_int1, y = int_scaled_diff),
-        alpha = I(0.25), shape = 21, colour = "black", fill = "#033C5A", size = I(2), stroke = 0.05
+        alpha = I(0.25),
+        shape = 21,
+        colour = "black",
+        fill = "#033C5A",
+        size = I(2),
+        stroke = 0.05
       ) +
       ggplot2::geom_smooth(
         method = "loess",
@@ -162,7 +173,9 @@ qc_plots <-
         alpha = .8,
         col = "#AA9868"
       ) +
-      ggplot2::labs(title = "Scaled", x = "log10(Int 1)", y = expression(Delta * "log10(RT)")) +
+      ggplot2::labs(title = "Scaled",
+                    x = "log10(Int 1)",
+                    y = expression(Delta * "log10(RT)")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -181,12 +194,13 @@ qc_plots <-
 
 #' @export
 final_plots <-
-  function(results,
-           smooth = NULL,
-           scaled_results = NULL,
+  function(merged_ms_obj,
            rt_lim = c(-.5, .5),
            mz_lim = c(-15, 15)) {
-    both_found_key <- !is.na(results$RT) & !is.na(results$RT_2)
+    results <- all_matched(merged_ms_obj)
+    smooth <- iso_matched(merged_ms_obj)
+    scaled_results <- adjusted_df(merged_ms_obj)
+      both_found_key <- !is.na(results$RT) & !is.na(results$RT_2)
     results_df <-
       results[both_found_key, c("RT", "MZ", "Intensity", "RT_2", "MZ_2", "Intensity_2")]
     results_df$srt <- scaled_results$rt_2_adj
