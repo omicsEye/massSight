@@ -86,8 +86,8 @@ final_plots <-
                   alpha = .3,
                   col = "#AA9868") +
       ggplot2::labs(title = "All Matches",
-                    x = "RT 1",
-                    y = expression(Delta * "RT")) +
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -106,8 +106,8 @@ final_plots <-
                   alpha = .3,
                   col = "#AA9868") +
       ggplot2::labs(title = "Isolated Matches",
-                    x = "RT 1",
-                    y = expression(Delta * "RT")) +
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
@@ -130,9 +130,10 @@ final_plots <-
                   alpha = .3,
                   col = "#AA9868") +
       ggplot2::labs(title = "Scaled Matches",
-                    x = "RT 1",
-                    y = expression(Delta * "RT")) +
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       ggplot2::theme_classic(base_size = 1.54) +
+      ylim(mz_lim) +
       theme_omicsEye()
 
     return((rt_pre_iso + rt_iso + rt_all) /

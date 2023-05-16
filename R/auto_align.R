@@ -14,10 +14,6 @@
 #' range to be considered for alignment.
 #' @param mz_upper A numeric indicating the upper bound of the m/z
 #' range to be considered for alignment.
-#' @param rt_smooth A numeric indicating the smoothing parameter for
-#' RT.
-#' @param mz_smooth A numeric indicating the smoothing parameter for
-#' m/z.
 #' @param minimum_intensity A numeric indicating the minimum intensity
 #' to be considered for alignment.
 #' @param rt_iso_threshold A numeric indicating the simplification
@@ -43,9 +39,9 @@ auto_align <-
            rt_upper = .5,
            mz_lower = -15,
            mz_upper = 15,
-           rt_smooth = .2,
-           mz_smooth = .2,
            minimum_intensity = 1000,
+           iso_method = "manual",
+           eps = 1,
            rt_iso_threshold = .5,
            mz_iso_threshold = 5,
            threshold = "manual",
@@ -66,16 +62,23 @@ auto_align <-
                     RT = round(RT, 2))
 
     if (match_method == "unsupervised") {
-      ref_iso <- get_vectors(raw_df(ms1),
-                             rt_sim = rt_iso_threshold,
-                             mz_sim = mz_iso_threshold)
-      query_iso <- get_vectors(raw_df(ms2),
+      if (iso_method == "manual") {
+        ref_iso <- get_vectors(raw_df(ms1),
                                rt_sim = rt_iso_threshold,
                                mz_sim = mz_iso_threshold)
-      isolated(ms1) <- raw_df(ms1) |>
-        dplyr::filter(Compound_ID %in% ref_iso)
-      isolated(ms2) <- raw_df(ms2) |>
-        dplyr::filter(Compound_ID %in% query_iso)
+        query_iso <- get_vectors(raw_df(ms2),
+                                 rt_sim = rt_iso_threshold,
+                                 mz_sim = mz_iso_threshold)
+        isolated(ms1) <- raw_df(ms1) |>
+          dplyr::filter(Compound_ID %in% ref_iso)
+        isolated(ms2) <- raw_df(ms2) |>
+          dplyr::filter(Compound_ID %in% query_iso)
+      } else if (iso_method == "dbscan") {
+        isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
+        isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
+      } else {
+        stop("`iso_method` must be either 'manual' or 'dbscan'")
+      }
     } else if (match_method == "supervised") {
       isolated(ms1) <- raw_df(ms1) |>
         filter(Metabolite != "")
