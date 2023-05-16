@@ -23,70 +23,136 @@ setClass(
 )
 
 #' @export
-setGeneric("name", function(x) standardGeneric("name"))
-setMethod("name", signature = "MSObject", definition = function(x) x@name)
+setGeneric("name", function(x)
+  standardGeneric("name"))
+setMethod(
+  "name",
+  signature = "MSObject",
+  definition = function(x)
+    x@name
+)
 
 #' @export
-setGeneric("raw_df", function(x) standardGeneric("raw_df"))
-setMethod("raw_df", signature = "MSObject", definition = function(x) x@raw_df)
+setGeneric("raw_df", function(x)
+  standardGeneric("raw_df"))
+setMethod(
+  "raw_df",
+  signature = "MSObject",
+  definition = function(x)
+    x@raw_df
+)
 
 #' @export
-setGeneric("isolated", function(x) standardGeneric("isolated"))
-setMethod("isolated", signature = "MSObject", definition = function(x) x@isolated)
+setGeneric("isolated", function(x)
+  standardGeneric("isolated"))
+setMethod(
+  "isolated",
+  signature = "MSObject",
+  definition = function(x)
+    x@isolated
+)
 
 #' @export
-setGeneric("scaled_df", function(x) standardGeneric("scaled_df"))
-setMethod("scaled_df", signature = "MSObject", definition = function(x) x@scaled_df)
+setGeneric("scaled_df", function(x)
+  standardGeneric("scaled_df"))
+setMethod(
+  "scaled_df",
+  signature = "MSObject",
+  definition = function(x)
+    x@scaled_df
+)
 
 #' @export
-setGeneric("consolidated", function(x) standardGeneric("consolidated"))
-setMethod("consolidated", signature = "MSObject", definition = function(x) x@consolidated)
+setGeneric("consolidated", function(x)
+  standardGeneric("consolidated"))
+setMethod(
+  "consolidated",
+  signature = "MSObject",
+  definition = function(x)
+    x@consolidated
+)
 
 #' @export
-setGeneric("metadata", function(x) standardGeneric("metadata"))
-setMethod("metadata", signature = "MSObject", definition = function(x) x@metadata)
+setGeneric("metadata", function(x)
+  standardGeneric("metadata"))
+setMethod(
+  "metadata",
+  signature = "MSObject",
+  definition = function(x)
+    x@metadata
+)
 
 #' @export
-setGeneric("name<-", function(x, value) standardGeneric("name<-"))
-setMethod("name<-", signature = "MSObject", definition = function(x, value) {
-  x@name <- value
-  return(x)
-})
+setGeneric("name<-", function(x, value)
+  standardGeneric("name<-"))
+setMethod(
+  "name<-",
+  signature = "MSObject",
+  definition = function(x, value) {
+    x@name <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("raw_df<-", function(x, value) standardGeneric("raw_df<-"))
-setMethod("raw_df<-", signature = "MSObject", definition = function(x, value) {
-  x@raw_df <- value
-  return(x)
-})
+setGeneric("raw_df<-", function(x, value)
+  standardGeneric("raw_df<-"))
+setMethod(
+  "raw_df<-",
+  signature = "MSObject",
+  definition = function(x, value) {
+    x@raw_df <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("isolated<-", function(x, value) standardGeneric("isolated<-"))
-setMethod("isolated<-", signature = "MSObject", definition = function(x, value) {
-  x@isolated <- value
-  return(x)
-})
+setGeneric("isolated<-", function(x, value)
+  standardGeneric("isolated<-"))
+setMethod(
+  "isolated<-",
+  signature = "MSObject",
+  definition = function(x, value) {
+    x@isolated <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("scaled_df<-", function(x, value) standardGeneric("scaled_df<-"))
-setMethod("scaled_df<-", signature = "MSObject", definition = function(x, value) {
-  x@scaled_df <- value
-  return(x)
-})
+setGeneric("scaled_df<-", function(x, value)
+  standardGeneric("scaled_df<-"))
+setMethod(
+  "scaled_df<-",
+  signature = "MSObject",
+  definition = function(x, value) {
+    x@scaled_df <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("consolidated<-", function(x, value) standardGeneric("consolidated<-"))
-setMethod("consolidated<-", signature = "MSObject", definition = function(x, value) {
-  x@consolidated <- value
-  return(x)
-})
+setGeneric("consolidated<-", function(x, value)
+  standardGeneric("consolidated<-"))
+setMethod(
+  "consolidated<-",
+  signature = "MSObject",
+  definition = function(x, value) {
+    x@consolidated <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("metadata<-", function(x, value) standardGeneric("metadata<-"))
-setMethod("metadata<-", signature = "MSObject", definition = function(x, value) {
-  x@metadata <- value
-  return(x)
-})
+setGeneric("metadata<-", function(x, value)
+  standardGeneric("metadata<-"))
+setMethod(
+  "metadata<-",
+  signature = "MSObject",
+  definition = function(x, value) {
+    x@metadata <- value
+    return(x)
+  }
+)
 
 #' Class to represent merged mass spectroscopy data.
 #' @slot ms1 A character indicating the name of the experiment.
@@ -105,116 +171,242 @@ setClass(
   slots = list(
     ms1 = "MSObject",
     ms2 = "MSObject",
-    all_matched = "data.frame",
+    pre_iso_matched = "data.frame",
     iso_matched = "data.frame",
+    all_matched = "data.frame",
     scaled_values = "data.frame",
     adjusted_df = "data.frame",
     cutoffs = "numeric",
     aligned = "data.frame",
     metadata = "data.frame",
-    smooth = "list"
+    smooth = "character"
   )
 )
 
 #' @export
-setGeneric("ms1", function(x) standardGeneric("ms1"))
-setMethod("ms1", signature = "MergedMSObject", definition = function(x) x@ms1)
+setGeneric("ms1", function(x)
+  standardGeneric("ms1"))
+setMethod(
+  "ms1",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@ms1
+)
 
 #' @export
-setGeneric("ms2", function(x) standardGeneric("ms2"))
-setMethod("ms2", signature = "MergedMSObject", definition = function(x) x@ms2)
+setGeneric("ms2", function(x)
+  standardGeneric("ms2"))
+setMethod(
+  "ms2",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@ms2
+)
+
 
 #' @export
-setGeneric("all_matched", function(x) standardGeneric("all_matched"))
-setMethod("all_matched", signature = "MergedMSObject", definition = function(x) x@all_matched)
+setGeneric("pre_iso_matched", function(x)
+  standardGeneric("pre_iso_matched"))
+setMethod(
+  "pre_iso_matched",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@pre_iso_matched
+)
 
 #' @export
-setGeneric("iso_matched", function(x) standardGeneric("iso_matched"))
-setMethod("iso_matched", signature = "MergedMSObject", definition = function(x) x@iso_matched)
+setGeneric("all_matched", function(x)
+  standardGeneric("all_matched"))
+setMethod(
+  "all_matched",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@all_matched
+)
 
 #' @export
-setGeneric("scaled_values", function(x) standardGeneric("scaled_values"))
-setMethod("scaled_values", signature = "MergedMSObject", definition = function(x) x@scaled_values)
+setGeneric("iso_matched", function(x)
+  standardGeneric("iso_matched"))
+setMethod(
+  "iso_matched",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@iso_matched
+)
 
 #' @export
-setGeneric("adjusted_df", function(x) standardGeneric("adjusted_df"))
-setMethod("adjusted_df", signature = "MergedMSObject", definition = function(x) x@adjusted_df)
+setGeneric("scaled_values", function(x)
+  standardGeneric("scaled_values"))
+setMethod(
+  "scaled_values",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@scaled_values
+)
 
 #' @export
-setGeneric("cutoffs", function(x) standardGeneric("cutoffs"))
-setMethod("cutoffs", signature = "MergedMSObject", definition = function(x) x@cutoffs)
+setGeneric("adjusted_df", function(x)
+  standardGeneric("adjusted_df"))
+setMethod(
+  "adjusted_df",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@adjusted_df
+)
 
 #' @export
-setGeneric("aligned", function(x) standardGeneric("aligned"))
-setMethod("aligned", signature = "MergedMSObject", definition = function(x) x@aligned)
+setGeneric("cutoffs", function(x)
+  standardGeneric("cutoffs"))
+setMethod(
+  "cutoffs",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@cutoffs
+)
 
 #' @export
-setGeneric("metadata", function(x) standardGeneric("metadata"))
-setMethod("metadata", signature = "MergedMSObject", definition = function(x) x@metadata)
+setGeneric("aligned", function(x)
+  standardGeneric("aligned"))
+setMethod(
+  "aligned",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@aligned
+)
 
 #' @export
-setGeneric("smooth", function(x) standardGeneric("smooth"))
-setMethod("smooth", signature = "MergedMSObject", definition = function(x) x@smooth)
+setGeneric("metadata", function(x)
+  standardGeneric("metadata"))
+setMethod(
+  "metadata",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@metadata
+)
 
 #' @export
-setGeneric("ms1<-", function(x, value) standardGeneric("ms1<-"))
-setMethod("ms1<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@ms1 <- value
-  return(x)
-})
+setGeneric("smooth", function(x)
+  standardGeneric("smooth"))
+setMethod(
+  "smooth",
+  signature = "MergedMSObject",
+  definition = function(x)
+    x@smooth
+)
 
 #' @export
-setGeneric("ms2<-", function(x, value) standardGeneric("ms2<-"))
-setMethod("ms2<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@ms2 <- value
-  return(x)
-})
+setGeneric("ms1<-", function(x, value)
+  standardGeneric("ms1<-"))
+setMethod(
+  "ms1<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@ms1 <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("all_matched<-", function(x, value) standardGeneric("all_matched<-"))
-setMethod("all_matched<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@all_matched <- value
-  return(x)
-})
+setGeneric("ms2<-", function(x, value)
+  standardGeneric("ms2<-"))
+setMethod(
+  "ms2<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@ms2 <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("iso_matched<-", function(x, value) standardGeneric("iso_matched<-"))
-setMethod("iso_matched<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@iso_matched <- value
-  return(x)
-})
+setGeneric("pre_iso_matched<-", function(x, value)
+  standardGeneric("pre_iso_matched<-"))
+setMethod(
+  "pre_iso_matched<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@pre_iso_matched <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("scaled_values<-", function(x, value) standardGeneric("scaled_values<-"))
-setMethod("scaled_values<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@scaled_values <- value
-  return(x)
-})
+setGeneric("all_matched<-", function(x, value)
+  standardGeneric("all_matched<-"))
+setMethod(
+  "all_matched<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@all_matched <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("adjusted_df<-", function(x, value) standardGeneric("adjusted_df<-"))
-setMethod("adjusted_df<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@adjusted_df <- value
-  return(x)
-})
+setGeneric("iso_matched<-", function(x, value)
+  standardGeneric("iso_matched<-"))
+setMethod(
+  "iso_matched<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@iso_matched <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("cutoffs<-", function(x, value) standardGeneric("cutoffs<-"))
-setMethod("cutoffs<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@cutoffs <- value
-  return(x)
-})
+setGeneric("scaled_values<-", function(x, value)
+  standardGeneric("scaled_values<-"))
+setMethod(
+  "scaled_values<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@scaled_values <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("aligned<-", function(x, value) standardGeneric("aligned<-"))
-setMethod("aligned<-", signature = "MergedMSObject", definition = function(x, value) {
-  x@aligned <- value
-  return(x)
-})
+setGeneric("adjusted_df<-", function(x, value)
+  standardGeneric("adjusted_df<-"))
+setMethod(
+  "adjusted_df<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@adjusted_df <- value
+    return(x)
+  }
+)
 
 #' @export
-setGeneric("metadata<-", function(x, value) standardGeneric("metadata<-"))
-setMethod("metadata<-",
+setGeneric("cutoffs<-", function(x, value)
+  standardGeneric("cutoffs<-"))
+setMethod(
+  "cutoffs<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@cutoffs <- value
+    return(x)
+  }
+)
+
+#' @export
+setGeneric("aligned<-", function(x, value)
+  standardGeneric("aligned<-"))
+setMethod(
+  "aligned<-",
+  signature = "MergedMSObject",
+  definition = function(x, value) {
+    x@aligned <- value
+    return(x)
+  }
+)
+
+#' @export
+setGeneric("metadata<-", function(x, value)
+  standardGeneric("metadata<-"))
+setMethod(
+  "metadata<-",
   signature = "MergedMSObject",
   definition = function(x, value) {
     x@metadata <- value
@@ -223,8 +415,10 @@ setMethod("metadata<-",
 )
 
 #' @export
-setGeneric("smooth<-", function(x, value) standardGeneric("smooth<-"))
-setMethod("smooth<-",
+setGeneric("smooth<-", function(x, value)
+  standardGeneric("smooth<-"))
+setMethod(
+  "smooth<-",
   signature = "MergedMSObject",
   definition = function(x, value) {
     x@smooth <- value
@@ -250,30 +444,49 @@ setMethod("smooth<-",
 #' @return An MSObject.
 create_ms_obj <- function(df,
                           name,
+                          annot = FALSE,
                           id_name,
-                          rt_name = NULL,
-                          mz_name = NULL,
-                          int_name = NULL,
+                          rt_name = "RT",
+                          mz_name = "MZ",
+                          int_name = "Intensity",
+                          metab_name = NULL,
                           has_metadata = FALSE) {
+  if (annot == TRUE & is.null(metab_name)) {
+    stop("If annot is TRUE, then metabolite name must be supplied")
+  }
   ms <- new("MSObject")
   name(ms) <- name
   consolidated(ms) <- FALSE
 
-  raw_data <- df |>
-    dplyr::select(id_name, rt_name, mz_name, int_name)
-  colnames(raw_data) <- c("Compound_ID", "RT", "MZ", "Intensity")
+  if (annot) {
+    raw_data <- df |>
+      dplyr::select(id_name, rt_name, mz_name, int_name, metab_name)
+    colnames(raw_data) <-
+      c("Compound_ID", "RT", "MZ", "Intensity", "Metabolite")
+  } else {
+    raw_data <- df |>
+      dplyr::select(id_name, rt_name, mz_name, int_name)
+    colnames(raw_data) <-
+      c("Compound_ID", "RT", "MZ", "Intensity")
+  }
   raw_df(ms) <- raw_data
 
   if (has_metadata) {
-    meta_data <- df |>
-      dplyr::select(id_name, -rt_name, -mz_name, -int_name)
+    if (annot) {
+      meta_data <- df |>
+        dplyr::select(id_name, -rt_name, -mz_name, -int_name, -metab_name)
+    } else {
+      meta_data <- df |>
+        dplyr::select(id_name, -rt_name, -mz_name, -int_name)
+    }
     metadata(ms) <- meta_data
   }
   return(ms)
 }
 
 create_aligned_ms_obj <- function(ms1, ms2) {
-  ms <- new("MergedMSObject",
+  ms <- new(
+    "MergedMSObject",
     ms1 = ms1,
     ms2 = ms2,
     all_matched = NULL,

@@ -24,7 +24,6 @@ options(cli.hyperlink = FALSE)
 ## Contents
 
 -   [Description](#description)
--   [Requirements](#requirements)
 -   [Installation](#installation)
     -   [Input Files](#input-files-format)
 -   [Run](#run)
@@ -35,13 +34,15 @@ options(cli.hyperlink = FALSE)
 
 ## Description {#description}
 
-## Requirements {#requirements}
-
 ## Installation {#installation}
 
-    devtools::install_github("omicsEye/massSight")
-    
-### Usage/Testing
+```         
+devtools::install_github("omicsEye/massSight")
+```
+
+### Usage
+
+#### Aligning MS experiments
 
 Alignment is performed using `auto_align()`
 
@@ -56,9 +57,16 @@ query <- create_ms_obj(df = hp2, name = "hp2", id_name = "Compound_ID", rt_name 
 aligned <- auto_align(ref, query, smooth_method = "loess")
 ```
 
+#### Plotting results from alignment
+
+```{r, eval = F}
+final_plots(aligned)
+```
+
 ### Input files format {#input-files-format}
 
 ## Run {#run}
+
 For now, manually add tsv/csv file and load data object into the global environment using `read_csv` or `read_table`. Then run `auto_align` on the created data objects.
 
 ```{r, eval = F}
@@ -87,10 +95,7 @@ user_df1 <- read.delim(
 aligned <- auto_align(user_df1, user_df2)
 ```
 
-
-
 ### Output Files
-
 
 ## Visualization {#visualization}
 
@@ -108,4 +113,3 @@ final_plots(aligned)
 2.  Open the R project `massSight.Rproj`
 3.  Build package using `devtools::build()`
 4.  Install package using `devtools::install()`
-

@@ -5,15 +5,15 @@ model_drift <- function(aligned_ms_obj, smooth_method) {
   delta_mz <- iso_matched(aligned_ms_obj)$MZ_2 - iso_matched(aligned_ms_obj)$MZ
 
   if (smooth_method == "loess") {
-    rt_smooth <- loess(delta_rt ~ rt)
-    mz_smooth <- loess(delta_mz ~ mz)
+    rt_smooth <- stats::loess(delta_rt ~ rt)
+    mz_smooth <- stats::loess(delta_mz ~ mz)
   } else if (smooth_method == "gam") {
     rt_smooth <- mgcv::gam(delta_rt ~ rt)
     mz_smooth <- mgcv::gam(delta_mz ~ mz)
   }
 
-  delta_rt_smooth <- predict(rt_smooth, rt)
-  delta_mz_smooth <- predict(rt_smooth, mz)
+  delta_rt_smooth <- stats::predict(rt_smooth, rt)
+  delta_mz_smooth <- stats::predict(rt_smooth, mz)
   iso_matched(aligned_ms_obj) <- iso_matched(aligned_ms_obj) |>
     dplyr::mutate(
       delta_rt = delta_rt,

@@ -5,17 +5,17 @@
 \title{Auto Align}
 \usage{
 auto_align(
-  ref,
-  query,
+  ms1,
+  ms2,
   rt_lower = -0.5,
   rt_upper = 0.5,
-  mz_lower = -5,
-  mz_upper = 5,
+  mz_lower = -15,
+  mz_upper = 15,
   rt_smooth = 0.2,
   mz_smooth = 0.2,
   minimum_intensity = 1000,
-  rt_iso_threshold = 1,
-  mz_iso_threshold = 10,
+  rt_iso_threshold = 0.5,
+  mz_iso_threshold = 5,
   threshold = "manual",
   match_method = "unsupervised",
   smooth_method = "loess",
@@ -25,6 +25,9 @@ auto_align(
 )
 }
 \arguments{
+\item{ms1}{A \code{massSight} object representing the results of a preprocessed
+LC-MS experiment.}
+
 \item{rt_lower}{A numeric indicating the lower bound of the RT
 range to be considered for alignment.}
 
@@ -68,10 +71,7 @@ the alignment.}
 \item{keep_features}{A logical vector indicating whether or not to
 keep features that are not matched.}
 
-\item{df1}{A data frame representing the results of a preprocessed
-LC-MS experiment.}
-
-\item{df2}{A data frame of representing the results of a second
+\item{df2}{A \code{massSight} object representing the results of a second
 preprocessed LC-MS experiment.}
 }
 \value{

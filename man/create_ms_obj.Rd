@@ -7,10 +7,12 @@
 create_ms_obj(
   df,
   name,
+  annot = FALSE,
   id_name,
-  rt_name = NULL,
-  mz_name = NULL,
-  int_name = NULL,
+  rt_name = "RT",
+  mz_name = "MZ",
+  int_name = "Intensity",
+  metab_name = NULL,
   has_metadata = FALSE
 )
 }

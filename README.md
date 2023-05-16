@@ -16,7 +16,6 @@ metabolomics data.
 ## Contents
 
 - [Description](#description)
-- [Requirements](#requirements)
 - [Installation](#installation)
   - [Input Files](#input-files-format)
 - [Run](#run)
@@ -28,13 +27,13 @@ metabolomics data.
 
 ## Description
 
-## Requirements
-
 ## Installation
 
     devtools::install_github("omicsEye/massSight")
 
-### Usage/Testing
+### Usage
+
+#### Aligning MS experiments
 
 Alignment is performed using `auto_align()`
 
@@ -46,7 +45,13 @@ View(hp1)
 View(hp2)
 ref <- create_ms_obj(df = hp1, name = "hp1", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
 query <- create_ms_obj(df = hp2, name = "hp2", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
-aligned_df <- auto_align(ref, query, smooth_method = "loess")
+aligned <- auto_align(ref, query, smooth_method = "loess")
+```
+
+#### Plotting results from alignment
+
+``` r
+final_plots(aligned)
 ```
 
 ### Input files format
@@ -80,7 +85,7 @@ user_df1 <- read.delim(
 )
 
 # run alignment function to combine two datasets
-aligned_df <- auto_align(user_df1, user_df2)
+aligned <- auto_align(user_df1, user_df2)
 ```
 
 ### Output Files
@@ -88,11 +93,7 @@ aligned_df <- auto_align(user_df1, user_df2)
 ## Visualization
 
 ``` r
-final_plots(
-  aligned_df$results_df_complete,
-  aligned_df$smooth_for_plot,
-  aligned_df$adjusted_df
-)
+final_plots(aligned)
 ```
 
 ## Example of Real world applications
