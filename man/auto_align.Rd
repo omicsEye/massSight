@@ -11,9 +11,9 @@ auto_align(
   rt_upper = 0.5,
   mz_lower = -15,
   mz_upper = 15,
-  rt_smooth = 0.2,
-  mz_smooth = 0.2,
   minimum_intensity = 1000,
+  iso_method = "manual",
+  eps = 1,
   rt_iso_threshold = 0.5,
   mz_iso_threshold = 5,
   threshold = "manual",
@@ -39,12 +39,6 @@ range to be considered for alignment.}
 
 \item{mz_upper}{A numeric indicating the upper bound of the m/z
 range to be considered for alignment.}
-
-\item{rt_smooth}{A numeric indicating the smoothing parameter for
-RT.}
-
-\item{mz_smooth}{A numeric indicating the smoothing parameter for
-m/z.}
 
 \item{minimum_intensity}{A numeric indicating the minimum intensity
 to be considered for alignment.}
