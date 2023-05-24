@@ -1,25 +1,29 @@
 get_cutoffs <-
   function(df1,
            df2,
-           columns = c("RT", "MZ", "Intensity")) {
-    rt_col <- columns[1]
-    mz_col <- columns[2]
-    int_col <- columns[3]
+           has_int = T) {
+    data_rt <- df2$RT - df1$RT
+    data_mz <- (df2$MZ - df1$MZ) / df1$MZ * 1e6
 
-    data_rt <- df2[rt_col] - df1[rt_col]
-    data_mz <- (df2[mz_col] - df1[mz_col]) / df1[mz_col] * 1e6
-    data_int <- log10(df2[int_col]) - log10(df1[int_col])
-
-    not_outliers <- !mad_based_outlier(data_rt) &
-      !mad_based_outlier(data_mz) &
-      !mad_based_outlier(data_int)
-
-    data_int <- replace(data_int, data_int %in% c(Inf, -Inf), NA)
-    cutoffs <- c(
-      sd(data_rt[not_outliers, ]),
-      sd(data_mz[not_outliers, ]),
-      sd(data_int[not_outliers, ])
-    )
+    if (has_int) {
+      data_int <- log10(df2$Intensity) - log10(df1$Intensity)
+      not_outliers <- !mad_based_outlier(data_rt) &
+        !mad_based_outlier(data_mz) &
+        !mad_based_outlier(data_int)
+      data_int <- replace(data_int, data_int %in% c(Inf, -Inf), NA)
+      cutoffs <- c(
+        sd(data_rt[not_outliers]),
+        sd(data_mz[not_outliers]),
+        sd(data_int[not_outliers])
+      )
+    } else {
+      not_outliers <- !mad_based_outlier(data_rt) &
+        !mad_based_outlier(data_mz)
+      cutoffs <- c(
+        sd(data_rt[not_outliers]),
+        sd(data_mz[not_outliers])
+      )
+    }
 
     # TODO Fix below
     # rt_outliers <- df1[mad_based_outlier(data_rt)] |>

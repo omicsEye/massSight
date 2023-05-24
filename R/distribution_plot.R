@@ -31,7 +31,7 @@ distribution_plot <- function(ms_obj, subset = "all") {
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
 
-    return(ggExtra::ggMarginal(p, type = "histogram",))
+    return(ggExtra::ggMarginal(p, type = "histogram", ))
   } else if (class(ms_obj) == "MergedMSObject") {
     if (subset == "all") {
       ms_df1 <- raw_df(ms1(ms_obj))

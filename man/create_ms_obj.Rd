@@ -8,7 +8,7 @@ create_ms_obj(
   df,
   name,
   annot = FALSE,
-  id_name,
+  id_name = "Compound_ID",
   rt_name = "RT",
   mz_name = "MZ",
   int_name = "Intensity",

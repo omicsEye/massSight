@@ -11,10 +11,10 @@ final_results <-
     df2_adj$RT <- scaled_df$RT
     df2_adj$MZ <- scaled_df$MZ
     df2_adj$Intensity <- scaled_df$Intensity
-    df1_for_align <-
-      df1[, c("Compound_ID", "RT", "MZ", "Intensity")]
-    df2_for_align <-
-      df2_adj[, c("Compound_ID", "RT", "MZ", "Intensity")]
+    df1_for_align <- df1 |>
+      dplyr::select(dplyr::any_of(c("Compound_ID", "RT", "MZ", "Intensity")))
+    df2_for_align <- df2_adj |>
+      dplyr::select(dplyr::any_of(c("Compound_ID", "RT", "MZ", "Intensity")))
 
     best_hits_df1 <- c()
     best_hits_found <- c()
@@ -31,8 +31,7 @@ final_results <-
           df1_for_align[i, ],
           df2_for_align,
           stds,
-          multipliers,
-          weights
+          multipliers
         )
       if (!is.null(best_match)) {
         pb$tick()
@@ -42,8 +41,7 @@ final_results <-
               dplyr::filter(Compound_ID == best_match),
             df1_for_align,
             stds,
-            multipliers,
-            weights
+            multipliers
           )
       } else {
         features_not_aligned <-
@@ -52,7 +50,7 @@ final_results <-
         next
       }
 
-      if (as.vector(df1_for_align[i, "Compound_ID"]) == best_reverse_match) {
+      if (df1_for_align[i, "Compound_ID"] %in% best_reverse_match) {
         best_hits_df1 <- c(best_hits_df1, best_match)
         best_hits_found <-
           c(best_hits_found, df1_for_align[i, "Compound_ID"])
@@ -71,22 +69,38 @@ final_results <-
     df2 <- df2[best_hits_df1, ]
     results_df_complete <- cbind(df1, df2)
     df2_adj <- df2_adj[best_hits_df1, ]
-    results_df <- data.frame(
-      "df1_name" = df1$Compound_ID,
-      "df2_name" = df2$Compound_ID,
-      "df1_rt" = df1$RT,
-      "df2_rt" = df2$RT,
-      "df1_mz" = df1$MZ,
-      "df2_mz" = df2$MZ,
-      "df1_int" = df1$Intensity,
-      "df2_int" = df2$Intensity
-    )
+    if ("Intensity" %in% colnames(df1)) {
+      results_df <- data.frame(
+        "df1" = df1$Compound_ID,
+        "RT" = df1$RT,
+        "MZ" = df1$MZ,
+        "Intensity" = df1$Intensity,
+        "df2" = df2$Compound_ID,
+        "RT_2" = df2$RT,
+        "MZ_2" = df2$MZ,
+        "Intensity_2" = df2$Intensity
+      )
 
-    adjusted_df <- data.frame(
-      "rt_2_adj" = df2_adj$RT,
-      "mz_2_adj" = df2_adj$MZ,
-      "int_2_adj" = df2_adj$Intensity
-    )
+      adjusted_df <- data.frame(
+        "rt_2_adj" = df2_adj$RT,
+        "mz_2_adj" = df2_adj$MZ,
+        "int_2_adj" = df2_adj$Intensity
+      )
+    } else {
+      results_df <- data.frame(
+        "df1_name" = df1$Compound_ID,
+        "df2_name" = df2$Compound_ID,
+        "df1_rt" = df1$RT,
+        "df2_rt" = df2$RT,
+        "df1_mz" = df1$MZ,
+        "df2_mz" = df2$MZ
+      )
+
+      adjusted_df <- data.frame(
+        "rt_2_adj" = df2_adj$RT,
+        "mz_2_adj" = df2_adj$MZ
+      )
+    }
 
     if (keep_features[1] == T) {
       message("keeping file 1 features")
@@ -98,15 +112,15 @@ final_results <-
       # TODO
     }
 
-    columns <- colnames(results_df_complete) |>
-      dedup("RT") |>
-      dedup("MZ") |>
-      dedup("Intensity") |>
-      dedup("Compound_ID") |>
-      dedup("Metabolite")
-
-    colnames(results_df_complete) <- columns
-    all_matched(align_ms_obj) <- results_df_complete
+    # columns <- colnames(results_df_complete) |>
+    #   dedup("RT") |>
+    #   dedup("MZ") |>
+    #   dedup("Intensity") |>
+    #   dedup("Compound_ID") |>
+    #   dedup("Metabolite")
+    #
+    # colnames(results_df_complete) <- columns
+    all_matched(align_ms_obj) <- results_df
     adjusted_df(align_ms_obj) <- adjusted_df
     return(align_ms_obj)
   }

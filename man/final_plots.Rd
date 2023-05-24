@@ -4,14 +4,14 @@
 \alias{final_plots}
 \title{Final Plots}
 \usage{
-final_plots(merged_ms_object, rt_lim = c(-0.5, 0.5), mz_lim = c(-15, 15))
+final_plots(merged_ms_obj, rt_lim = c(-0.5, 0.5), mz_lim = c(-15, 15))
 }
 \arguments{
-\item{merged_ms_object}{A Merged MS Object, typically the result of \code{auto_align}}
-
 \item{rt_lim}{RT bounds}
 
 \item{mz_lim}{MZ bounds}
+
+\item{merged_ms_object}{A Merged MS Object, typically the result of \code{auto_align}}
 }
 \value{
 patchwork list

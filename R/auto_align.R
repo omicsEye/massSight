@@ -51,24 +51,32 @@ auto_align <-
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     # stop conditions ---------------------------------------------------------
-    stopifnot("`smooth_method` must be either 'loess', 'gam', or 'gp'." =
-                smooth_method %in% c("loess", "gam", "gp"))
+    stopifnot(
+      "`smooth_method` must be either 'loess', 'gam', or 'gp'." =
+        smooth_method %in% c("loess", "gam", "gp")
+    )
     raw_df(ms1) <- raw_df(ms1) |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     raw_df(ms2) <- raw_df(ms2) |>
-      dplyr::mutate(MZ = round(MZ, 4),
-                    RT = round(RT, 2))
+      dplyr::mutate(
+        MZ = round(MZ, 4),
+        RT = round(RT, 2)
+      )
 
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
         ref_iso <- get_vectors(raw_df(ms1),
-                               rt_sim = rt_iso_threshold,
-                               mz_sim = mz_iso_threshold)
+          rt_sim = rt_iso_threshold,
+          mz_sim = mz_iso_threshold
+        )
         query_iso <- get_vectors(raw_df(ms2),
-                                 rt_sim = rt_iso_threshold,
-                                 mz_sim = mz_iso_threshold)
+          rt_sim = rt_iso_threshold,
+          mz_sim = mz_iso_threshold
+        )
         isolated(ms1) <- raw_df(ms1) |>
           dplyr::filter(Compound_ID %in% ref_iso)
         isolated(ms2) <- raw_df(ms2) |>
@@ -105,14 +113,20 @@ auto_align <-
         mz_minus = mz_lower,
         mz_plus = mz_upper
       ) |>
-      smooth_drift(smooth_method = smooth_method,
-                   minimum_int = minimum_intensity) |>
-      final_results(keep_features = keep_features,
-                    multipliers = multipliers,
-                    weights = weights)
+      smooth_drift(
+        smooth_method = smooth_method,
+        minimum_int = minimum_intensity
+      ) |>
+      final_results(
+        keep_features = keep_features,
+        multipliers = multipliers,
+        weights = weights
+      )
 
-    message(paste0("Numbers of matched/kept features: ",
-                   nrow(all_matched(align_obj))))
+    message(paste0(
+      "Numbers of matched/kept features: ",
+      nrow(all_matched(align_obj))
+    ))
 
     return(align_obj)
   }

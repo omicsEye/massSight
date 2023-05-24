@@ -19,7 +19,8 @@ Imports:
     purrr,
     readxl,
     stringr,
-    xlsx
+    xlsx,
+    patchwork
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

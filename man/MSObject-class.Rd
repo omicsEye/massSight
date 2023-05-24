@@ -12,11 +12,11 @@ Class to represent mass spectroscopy data.
 \describe{
 \item{\code{name}}{A character indicating the name of the experiment.}
 
-\item{\code{raw}}{A data frame containing the raw data.}
+\item{\code{raw_df}}{A data frame containing the raw data.}
 
 \item{\code{isolated}}{A data frame containing the isolated data.}
 
-\item{\code{scaled}}{A data frame containing the scaled data.}
+\item{\code{scaled_df}}{A data frame containing the scaled data.}
 
 \item{\code{consolidated}}{A logical indicating whether or not the data has
 been consolidated.}

@@ -17,9 +17,9 @@ metabolomics data.
 
 - [Description](#description)
 - [Installation](#installation)
-  - [Input Files](#input-files-format)
-- [Run](#run)
-  - [Run a Demo](#run-a-demo)
+- [Data Preparation](#data-preparation)
+  - [The `massSight` Object](#ms-obj)
+- [Alignment](#align)
 - [Visualization](#visualization)
 - [Example of real world
   applications](#example-of-real-world-applications)
@@ -31,21 +31,71 @@ metabolomics data.
 
     devtools::install_github("omicsEye/massSight")
 
-### Usage
+## Data Preparation
 
-#### Aligning MS experiments
+`massSight` works with the output of LC-MS experiments, which should
+contain columns corresponding to:
+
+1.  Compound ID
+2.  Retention Time
+3.  Mass to Charge Ratio
+4.  (Optional) Average Intensity across all samples
+5.  (Optional) Metabolite Name
+
+| Compound_ID |       MZ |       RT | Intensity | Metabolite            |
+|:------------|---------:|---------:|----------:|:----------------------|
+| CMP-2758    | 197.0665 | 3.401200 |  74498.87 | 1,7-dimethyluric acid |
+| CMP-4802    | 282.1189 | 8.627617 |  25684.75 | 1-methyladenosine     |
+| CMP-3329    | 166.0720 | 6.069083 |  28585.37 | 1-methylguanine       |
+| CMP-3294    | 298.1139 | 5.913067 |  61491.94 | 1-methylguanosine     |
+| CMP-5077    | 137.0707 | 9.114433 | 112107.07 | 1-methylnicotinamide  |
+| CMP-1830    | 347.2210 | 2.017650 |   1291.29 | 21-deoxycortisol      |
+
+### The `massSight` Object
+
+`massSight` creates and uses the `MSObject` class to store data and
+results pertaining to individual LC-MS experiments. Prior to alignment,
+LC-MS data frames or tibbles should be converted into an `MSObject`
+using `create_ms_obj`:
+
+``` r
+ms1 <-
+  create_ms_obj(
+    df = hp1,
+    name = "hp1",
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity"
+  )
+
+ms2 <-
+  create_ms_obj(
+    df = hp2,
+    name = "hp2",
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity"
+  )
+```
+
+An `MSObject` provides the following functions:
+
+- `raw_df()` to access the experiment’s raw LC-MS data
+- `isolated()` to access the experiment’s isolated metabolites, which is
+  important for downstream alignment tasks
+- `scaled_df()` to access the experiment’s scaled LC-MS data
+- `consolidated()` to access the experiment’s consolidated data
+- `metadata()` to access the experiment’s metadata
+
+## Alignment
 
 Alignment is performed using `auto_align()`
 
 ``` r
-library(massSight)
-
-# example 1 inputs (small input for test)
-View(hp1)
-View(hp2)
-ref <- create_ms_obj(df = hp1, name = "hp1", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
-query <- create_ms_obj(df = hp2, name = "hp2", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
-aligned <- auto_align(ref, query, smooth_method = "loess")
+aligned <- auto_align(ms1 = ms1, ms2 = ms2, iso_method = "dbscan")
+#> Numbers of matched/kept features: 2723
 ```
 
 #### Plotting results from alignment
@@ -53,6 +103,8 @@ aligned <- auto_align(ref, query, smooth_method = "loess")
 ``` r
 final_plots(aligned)
 ```
+
+![](README-unnamed-chunk-5-1.png)<!-- -->
 
 ### Input files format
 

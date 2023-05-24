@@ -5,6 +5,7 @@ output: github_document
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ```{r, include = FALSE}
+library(massSight)
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -25,9 +26,9 @@ options(cli.hyperlink = FALSE)
 
 -   [Description](#description)
 -   [Installation](#installation)
-    -   [Input Files](#input-files-format)
--   [Run](#run)
-    -   [Run a Demo](#run-a-demo)
+-   [Data Preparation](#data-preparation)
+    - [The `massSight` Object](#ms-obj)
+-   [Alignment](#align)
 -   [Visualization](#visualization)
 -   [Example of real world applications](#example-of-real-world-applications)
 -   [Dev Instructions](#dev-instructions)
@@ -40,26 +41,67 @@ options(cli.hyperlink = FALSE)
 devtools::install_github("omicsEye/massSight")
 ```
 
-### Usage
+## Data Preparation {#data-preparation}
 
-#### Aligning MS experiments
+`massSight` works with the output of LC-MS experiments, which should contain columns corresponding to:
+
+1.  Compound ID
+2.  Retention Time
+3.  Mass to Charge Ratio
+4.  (Optional) Average Intensity across all samples
+5.  (Optional) Metabolite Name
+
+```{r, echo = F}
+df1 |>
+  head() |>
+  kableExtra::kbl(format = "simple")
+```
+
+### The `massSight` Object {#ms-obj}
+
+`massSight` creates and uses the `MSObject` class to store data and results pertaining to individual LC-MS experiments. Prior to alignment, LC-MS data frames or tibbles should be converted into an `MSObject` using `create_ms_obj`:
+
+```{r}
+ms1 <-
+  create_ms_obj(
+    df = hp1,
+    name = "hp1",
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity"
+  )
+
+ms2 <-
+  create_ms_obj(
+    df = hp2,
+    name = "hp2",
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity"
+  )
+```
+
+An `MSObject` provides the following functions:
+
+* `raw_df()` to access the experiment's raw LC-MS data 
+* `isolated()` to access the experiment's isolated metabolites, which is important for downstream alignment tasks
+* `scaled_df()` to access the experiment's scaled LC-MS data
+* `consolidated()` to access the experiment's consolidated data
+* `metadata()` to access the experiment's metadata
+
+## Alignment {#align}
 
 Alignment is performed using `auto_align()`
 
-```{r, eval = F}
-library(massSight)
-
-# example 1 inputs (small input for test)
-View(hp1)
-View(hp2)
-ref <- create_ms_obj(df = hp1, name = "hp1", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
-query <- create_ms_obj(df = hp2, name = "hp2", id_name = "Compound_ID", rt_name = "RT", mz_name = "MZ", int_name = "Intensity")
-aligned <- auto_align(ref, query, smooth_method = "loess")
+```{r, cache = T}
+aligned <- auto_align(ms1 = ms1, ms2 = ms2, iso_method = "dbscan")
 ```
 
 #### Plotting results from alignment
 
-```{r, eval = F}
+```{r, message = F, warning = F}
 final_plots(aligned)
 ```
 

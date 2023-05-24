@@ -122,44 +122,59 @@ smooth_drift <- function(align_ms_obj,
     )
 
   # scale intensities -------------------------------------------------------
-  temp_df1_int <- log10(results$Intensity)
-  temp_df2_int <- log10(results$Intensity_2)
+  if ("Intensity" %in% names(results)) {
+    temp_df1_int <- log10(results$Intensity)
+    temp_df2_int <- log10(results$Intensity_2)
 
-  ## find slope for linear adjustment of log-intensity parameters
-  intensity_parameters <- scale_intensity_parameters(temp_df1_int,
-    temp_df2_int,
-    min_int = minimum_int
-  )
+    ## find slope for linear adjustment of log-intensity parameters
+    intensity_parameters <- scale_intensity_parameters(temp_df1_int,
+      temp_df2_int,
+      min_int = minimum_int
+    )
 
-  ## scale potential matches
-  scaled_vector_intensity <-
-    scale_intensity(temp_df2_int, intensity_parameters)
-  scaled_vector_intensity <- 10^scaled_vector_intensity
-  results$sintensity <- scaled_vector_intensity
+    ## scale potential matches
+    scaled_vector_intensity <-
+      scale_intensity(temp_df2_int, intensity_parameters)
+    scaled_vector_intensity <- 10^scaled_vector_intensity
+    results$sintensity <- scaled_vector_intensity
 
-  # scale full results
-  log_df2 <- log10(df2$Intensity)
-  scaled_intensity <-
-    scale_intensity(log_df2, intensity_parameters)
-  scaled_intensity <- 10^scaled_intensity
-
-  dev_out <- get_cutoffs(
-    results |>
-      dplyr::select("RT", "MZ", "Intensity"),
-    data.frame(
+    # scale full results
+    log_df2 <- log10(df2$Intensity)
+    scaled_intensity <-
+      scale_intensity(log_df2, intensity_parameters)
+    scaled_intensity <- 10^scaled_intensity
+    scaled_df <- data.frame(
       "RT" = results$srt,
       "MZ" = results$smz,
       "Intensity" = results$sintensity
-    ),
-    c("RT", "MZ", "Intensity")
+    )
+    scaled_values <- data.frame(
+      "RT" = scaled_rts,
+      "MZ" = scaled_mzs,
+      "Intensity" = scaled_intensity
+    )
+  } else {
+    scaled_df <- data.frame(
+      "RT" = results$srt,
+      "MZ" = results$smz
+    )
+    scaled_values <- data.frame(
+      "RT" = scaled_rts,
+      "MZ" = scaled_mzs
+    )
+  }
+
+  dev_out <- get_cutoffs(
+    df1 = results |>
+      dplyr::select(dplyr::any_of(c(
+        "RT", "MZ", "Intensity"
+      ))),
+    df2 = scaled_df,
+    has_int = ("Intensity" %in% names(results))
   )
+
   deviations <- dev_out$cutoffs
   outliers <- dev_out$outliers
-  scaled_values <- data.frame(
-    "RT" = scaled_rts,
-    "MZ" = scaled_mzs,
-    "Intensity" = scaled_intensity
-  )
 
   iso_matched(align_ms_obj) <- results
   scaled_values(align_ms_obj) <- scaled_values
