@@ -10,6 +10,12 @@
     <loc>https://omicseye.github.io/massSight/LICENSE.html</loc>
   </url>
   <url>
+    <loc>https://omicseye.github.io/massSight/articles/example_alignment.html</loc>
+  </url>
+  <url>
+    <loc>https://omicseye.github.io/massSight/articles/index.html</loc>
+  </url>
+  <url>
     <loc>https://omicseye.github.io/massSight/authors.html</loc>
   </url>
   <url>
@@ -19,6 +25,12 @@
     <loc>https://omicseye.github.io/massSight/notes.html</loc>
   </url>
   <url>
+    <loc>https://omicseye.github.io/massSight/reference/MSObject-class.html</loc>
+  </url>
+  <url>
+    <loc>https://omicseye.github.io/massSight/reference/MergedMSObject-class.html</loc>
+  </url>
+  <url>
     <loc>https://omicseye.github.io/massSight/reference/auto_align.html</loc>
   </url>
   <url>
@@ -26,6 +38,18 @@
   </url>
   <url>
     <loc>https://omicseye.github.io/massSight/reference/cluster.html</loc>
+  </url>
+  <url>
+    <loc>https://omicseye.github.io/massSight/reference/consolidate.html</loc>
+  </url>
+  <url>
+    <loc>https://omicseye.github.io/massSight/reference/create_ms_obj.html</loc>
+  </url>
+  <url>
+    <loc>https://omicseye.github.io/massSight/reference/distribution_plot.html</loc>
+  </url>
+  <url>
+    <loc>https://omicseye.github.io/massSight/reference/final_plots.html</loc>
   </url>
   <url>
     <loc>https://omicseye.github.io/massSight/reference/index.html</loc>

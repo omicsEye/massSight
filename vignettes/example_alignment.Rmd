@@ -1,0 +1,52 @@
+---
+title: "Example Alignment"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{example_alignment}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Loading Data 
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+We begin by loading the `massSight` package alongside two dataframes containing data from LC-MS experiments.
+
+```{r setup}
+library(massSight)
+data("hp1")
+data("hp2")
+head(hp1) |> kableExtra::kbl()
+head(hp2) |> kableExtra::kbl()
+```
+
+## Creating `massSight` objects
+
+```{r}
+hp1_ms <- create_ms_obj(hp1,
+                        name = "hp1",
+                        annot = TRUE,
+                        id_name = "Compound_ID",
+                        rt_name = "RT",
+                        mz_name = "MZ",
+                        int_name = "Intensity",
+                        metab_name = "Metabolite",
+                        has_metadata = FALSE)
+hp2_ms <- create_ms_obj(hp2,
+                        name = "hp2",
+                        annot = TRUE,
+                        id_name = "Compound_ID",
+                        rt_name = "RT",
+                        mz_name = "MZ",
+                        int_name = "Intensity",
+                        metab_name = "Metabolite",
+                        has_metadata = FALSE)
+```
+
+

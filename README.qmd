@@ -1,8 +1,8 @@
 ---
-output: github_document
+format: gfm
 ---
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
+<!-- README.md is generated from README.qmd. Please edit that file -->
 
 ```{r, include = FALSE}
 library(massSight)
@@ -37,7 +37,7 @@ options(cli.hyperlink = FALSE)
 
 ## Installation {#installation}
 
-```         
+```{r, eval = F}         
 devtools::install_github("omicsEye/massSight")
 ```
 
@@ -91,19 +91,32 @@ An `MSObject` provides the following functions:
 * `consolidated()` to access the experiment's consolidated data
 * `metadata()` to access the experiment's metadata
 
+```{r}
+ms2 |>
+  raw_df() |>
+  head() |>
+  kableExtra::kbl(format = "simple")
+```
+
 ## Alignment {#align}
 
 Alignment is performed using `auto_align()`
 
-```{r, cache = T}
-aligned <- auto_align(ms1 = ms1, ms2 = ms2, iso_method = "dbscan")
+```{r, eval = F}
+aligned <- auto_align(ms1 = ms1, 
+                      ms2 = ms2, 
+                      iso_method = "dbscan")
 ```
 
-#### Plotting results from alignment
+More information on the `auto_align()` function can be found in the [package documentation](https://omicseye.github.io/massSight/reference/auto_align.html)
 
-```{r, message = F, warning = F}
+### Plotting results from alignment
+
+```{r, eval = F}
 final_plots(aligned)
 ```
+
+![](man/figures/final_plot_out.png)
 
 ### Input files format {#input-files-format}
 
@@ -136,16 +149,6 @@ user_df1 <- read.delim(
 # run alignment function to combine two datasets
 aligned <- auto_align(user_df1, user_df2)
 ```
-
-### Output Files
-
-## Visualization {#visualization}
-
-```{r, eval = F}
-final_plots(aligned)
-```
-
-## Example of Real world applications {#example-of-real-world-applications}
 
 ## Dev Instructions {#dev-instrutions}
 

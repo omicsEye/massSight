@@ -1,5 +1,5 @@
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
+<!-- README.md is generated from README.qmd. Please edit that file -->
 
 # massSight
 
@@ -29,7 +29,9 @@ metabolomics data.
 
 ## Installation
 
-    devtools::install_github("omicsEye/massSight")
+``` r
+devtools::install_github("omicsEye/massSight")
+```
 
 ## Data Preparation
 
@@ -89,22 +91,43 @@ An `MSObject` provides the following functions:
 - `consolidated()` to access the experiment’s consolidated data
 - `metadata()` to access the experiment’s metadata
 
+``` r
+ms2 |>
+  raw_df() |>
+  head() |>
+  kableExtra::kbl(format = "simple")
+```
+
+| Compound_ID      |   RT |       MZ | Intensity |
+|:-----------------|-----:|---------:|----------:|
+| 1.68_121.1013m/z | 1.68 | 121.1013 | 50543.745 |
+| 3.53_197.0667m/z | 3.53 | 197.0667 | 21948.556 |
+| 7.81_282.1190m/z | 7.81 | 282.1190 | 14220.869 |
+| 5.29_166.0721m/z | 5.29 | 166.0721 | 46434.807 |
+| 5.16_298.1139m/z | 5.16 | 298.1139 | 60616.582 |
+| 9.77_126.1026m/z | 9.77 | 126.1026 |  4435.973 |
+
 ## Alignment
 
 Alignment is performed using `auto_align()`
 
 ``` r
-aligned <- auto_align(ms1 = ms1, ms2 = ms2, iso_method = "dbscan")
-#> Numbers of matched/kept features: 2723
+aligned <- auto_align(ms1 = ms1, 
+                      ms2 = ms2, 
+                      iso_method = "dbscan")
 ```
 
-#### Plotting results from alignment
+More information on the `auto_align()` function can be found in the
+[package
+documentation](https://omicseye.github.io/massSight/reference/auto_align.html)
+
+### Plotting results from alignment
 
 ``` r
 final_plots(aligned)
 ```
 
-![](README-unnamed-chunk-5-1.png)<!-- -->
+![](man/figures/final_plot_out.png)
 
 ### Input files format
 
@@ -139,16 +162,6 @@ user_df1 <- read.delim(
 # run alignment function to combine two datasets
 aligned <- auto_align(user_df1, user_df2)
 ```
-
-### Output Files
-
-## Visualization
-
-``` r
-final_plots(aligned)
-```
-
-## Example of Real world applications
 
 ## Dev Instructions
 

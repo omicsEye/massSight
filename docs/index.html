@@ -38,6 +38,12 @@
 <li class="nav-item">
   <a class="nav-link" href="reference/index.html">Reference</a>
 </li>
+<li class="nav-item dropdown">
+  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
+  <div class="dropdown-menu" aria-labelledby="dropdown-articles">
+    <a class="dropdown-item" href="articles/example_alignment.html">example_alignment</a>
+  </div>
+</li>
       </ul>
 <form class="form-inline my-2 my-lg-0" role="search">
         <input type="search" class="form-control me-sm-2" aria-label="Toggle navigation" name="search-input" data-search-index="search.json" id="search-input" placeholder="Search for" autocomplete="off">
@@ -71,19 +77,14 @@
 </h2>
 <ul>
 <li><a href="#description">Description</a></li>
-<li><a href="#requirements">Requirements</a></li>
+<li><a href="#installation">Installation</a></li>
 <li>
-<a href="#installation">Installation</a>
+<a href="#data-preparation">Data Preparation</a>
 <ul>
-<li><a href="#input-files-format">Input Files</a></li>
+<li><a href="#ms-obj">The <code>massSight</code> Object</a></li>
 </ul>
 </li>
-<li>
-<a href="#run">Run</a>
-<ul>
-<li><a href="#run-a-demo">Run a Demo</a></li>
-</ul>
-</li>
+<li><a href="#align">Alignment</a></li>
 <li><a href="#visualization">Visualization</a></li>
 <li><a href="#example-of-real-world-applications">Example of real world applications</a></li>
 <li><a href="#dev-instructions">Dev Instructions</a></li>
@@ -94,28 +95,133 @@
 </h2>
 </div>
 <div class="section level2">
-<h2 id="requirements">Requirements<a class="anchor" aria-label="anchor" href="#requirements"></a>
-</h2>
-</div>
-<div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"omicsEye/massSight"</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"omicsEye/massSight"</span>)</span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="data-preparation">Data Preparation<a class="anchor" aria-label="anchor" href="#data-preparation"></a>
+</h2>
+<p><code>massSight</code> works with the output of LC-MS experiments, which should contain columns corresponding to:</p>
+<ol style="list-style-type: decimal">
+<li>Compound ID</li>
+<li>Retention Time</li>
+<li>Mass to Charge Ratio</li>
+<li>(Optional) Average Intensity across all samples</li>
+<li>(Optional) Metabolite Name</li>
+</ol>
+<table class="table">
+<colgroup>
+<col width="19%">
+<col width="14%">
+<col width="14%">
+<col width="16%">
+<col width="34%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Compound_ID</th>
+<th align="right">MZ</th>
+<th align="right">RT</th>
+<th align="right">Intensity</th>
+<th align="left">Metabolite</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">CMP-2758</td>
+<td align="right">197.0665</td>
+<td align="right">3.401200</td>
+<td align="right">74498.87</td>
+<td align="left">1,7-dimethyluric acid</td>
+</tr>
+<tr class="even">
+<td align="left">CMP-4802</td>
+<td align="right">282.1189</td>
+<td align="right">8.627617</td>
+<td align="right">25684.75</td>
+<td align="left">1-methyladenosine</td>
+</tr>
+<tr class="odd">
+<td align="left">CMP-3329</td>
+<td align="right">166.0720</td>
+<td align="right">6.069083</td>
+<td align="right">28585.37</td>
+<td align="left">1-methylguanine</td>
+</tr>
+<tr class="even">
+<td align="left">CMP-3294</td>
+<td align="right">298.1139</td>
+<td align="right">5.913067</td>
+<td align="right">61491.94</td>
+<td align="left">1-methylguanosine</td>
+</tr>
+<tr class="odd">
+<td align="left">CMP-5077</td>
+<td align="right">137.0707</td>
+<td align="right">9.114433</td>
+<td align="right">112107.07</td>
+<td align="left">1-methylnicotinamide</td>
+</tr>
+<tr class="even">
+<td align="left">CMP-1830</td>
+<td align="right">347.2210</td>
+<td align="right">2.017650</td>
+<td align="right">1291.29</td>
+<td align="left">21-deoxycortisol</td>
+</tr>
+</tbody>
+</table>
 <div class="section level3">
-<h3 id="usagetesting">Usage/Testing<a class="anchor" aria-label="anchor" href="#usagetesting"></a>
+<h3 id="the-masssight-object">The <code>massSight</code> Object<a class="anchor" aria-label="anchor" href="#the-masssight-object"></a>
 </h3>
-<p>Alignment is performed using <code><a href="reference/auto_align.html">auto_align()</a></code></p>
+<p><code>massSight</code> creates and uses the <code>MSObject</code> class to store data and results pertaining to individual LC-MS experiments. Prior to alignment, LC-MS data frames or tibbles should be converted into an <code>MSObject</code> using <code>create_ms_obj</code>:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/omicsEye/massSight" class="external-link">massSight</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">ms1</span> <span class="op">&lt;-</span></span>
+<span>  <span class="fu"><a href="reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
+<span>    df <span class="op">=</span> <span class="va">hp1</span>,</span>
+<span>    name <span class="op">=</span> <span class="st">"hp1"</span>,</span>
+<span>    id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>,</span>
+<span>    rt_name <span class="op">=</span> <span class="st">"RT"</span>,</span>
+<span>    mz_name <span class="op">=</span> <span class="st">"MZ"</span>,</span>
+<span>    int_name <span class="op">=</span> <span class="st">"Intensity"</span></span>
+<span>  <span class="op">)</span></span>
 <span></span>
-<span><span class="co"># example 1 inputs (small input for test)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/View.html" class="external-link">View</a></span> <span class="op">(</span><span class="va">df1_small</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/View.html" class="external-link">View</a></span><span class="op">(</span><span class="va">df2_small</span><span class="op">)</span></span>
-<span><span class="va">aligned_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span><span class="va">df1_small</span>, <span class="va">df2_small</span><span class="op">)</span></span>
-<span></span>
-<span></span>
-<span><span class="co"># example 2 inputs (small input for test)</span></span>
-<span><span class="va">aligned_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span><span class="va">df1</span>, <span class="va">df2</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">ms2</span> <span class="op">&lt;-</span></span>
+<span>  <span class="fu"><a href="reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
+<span>    df <span class="op">=</span> <span class="va">hp2</span>,</span>
+<span>    name <span class="op">=</span> <span class="st">"hp2"</span>,</span>
+<span>    id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>,</span>
+<span>    rt_name <span class="op">=</span> <span class="st">"RT"</span>,</span>
+<span>    mz_name <span class="op">=</span> <span class="st">"MZ"</span>,</span>
+<span>    int_name <span class="op">=</span> <span class="st">"Intensity"</span></span>
+<span>  <span class="op">)</span></span></code></pre></div>
+<p>An <code>MSObject</code> provides the following functions:</p>
+<ul>
+<li>
+<code>raw_df()</code> to access the experiment’s raw LC-MS data</li>
+<li>
+<code>isolated()</code> to access the experiment’s isolated metabolites, which is important for downstream alignment tasks</li>
+<li>
+<code>scaled_df()</code> to access the experiment’s scaled LC-MS data</li>
+<li>
+<code>consolidated()</code> to access the experiment’s consolidated data</li>
+<li>
+<code>metadata()</code> to access the experiment’s metadata</li>
+</ul>
+</div>
+</div>
+<div class="section level2">
+<h2 id="alignment">Alignment<a class="anchor" aria-label="anchor" href="#alignment"></a>
+</h2>
+<p>Alignment is performed using <code><a href="reference/auto_align.html">auto_align()</a></code></p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span>ms1 <span class="op">=</span> <span class="va">ms1</span>, ms2 <span class="op">=</span> <span class="va">ms2</span>, iso_method <span class="op">=</span> <span class="st">"dbscan"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Numbers of matched/kept features: 2723</span></span></code></pre></div>
+<div class="section level4">
+<h4 id="plotting-results-from-alignment">Plotting results from alignment<a class="anchor" aria-label="anchor" href="#plotting-results-from-alignment"></a>
+</h4>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span></code></pre></div>
+<p><img src="README-unnamed-chunk-5-1.png"><!-- --></p>
 </div>
 <div class="section level3">
 <h3 id="input-files-format">Input files format<a class="anchor" aria-label="anchor" href="#input-files-format"></a>
@@ -126,30 +232,30 @@
 <h2 id="run">Run<a class="anchor" aria-label="anchor" href="#run"></a>
 </h2>
 <p>For now, manually add tsv/csv file and load data object into the global environment using <code>read_csv</code> or <code>read_table</code>. Then run <code>auto_align</code> on the created data objects.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># read inputs as data frame in R</span></span>
 <span><span class="va">user_df1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.delim</a></span><span class="op">(</span></span>
 <span>  <span class="st">"/path-to-file/profile1.tsv"</span>,</span>
-<span>  sep <span class="op">=</span> <span class="st">'\t'</span>,</span>
+<span>  sep <span class="op">=</span> <span class="st">"\t"</span>,</span>
 <span>  header <span class="op">=</span> <span class="cn">T</span>,</span>
 <span>  fill <span class="op">=</span> <span class="cn">F</span>,</span>
-<span>  comment.char <span class="op">=</span> <span class="st">""</span> ,</span>
+<span>  comment.char <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  check.names <span class="op">=</span> <span class="cn">F</span>,</span>
 <span>  row.names <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">user_df1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.delim</a></span><span class="op">(</span></span>
 <span>  <span class="st">"/path-to-file/profile2.tsv"</span>,</span>
-<span>  sep <span class="op">=</span> <span class="st">'\t'</span>,</span>
+<span>  sep <span class="op">=</span> <span class="st">"\t"</span>,</span>
 <span>  header <span class="op">=</span> <span class="cn">T</span>,</span>
 <span>  fill <span class="op">=</span> <span class="cn">F</span>,</span>
-<span>  comment.char <span class="op">=</span> <span class="st">""</span> ,</span>
+<span>  comment.char <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  check.names <span class="op">=</span> <span class="cn">F</span>,</span>
 <span>  row.names <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># run alignment function to combine two datasets</span></span>
-<span><span class="va">aligned_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span><span class="va">user_df1</span>, <span class="va">user_df2</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span><span class="va">user_df1</span>, <span class="va">user_df2</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="output-files">Output Files<a class="anchor" aria-label="anchor" href="#output-files"></a>
 </h3>
@@ -158,12 +264,8 @@
 <div class="section level2">
 <h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">massSight</span><span class="fu">::</span><span class="fu">final_plotsfinal_plots</span><span class="op">(</span></span>
-<span>  <span class="va">aligned_df</span><span class="op">$</span><span class="va">results_df_complete</span>,</span>
-<span>  <span class="va">aligned_df</span><span class="op">$</span><span class="va">smooth_for_plot</span>,</span>
-<span>  <span class="va">aligned_df</span><span class="op">$</span><span class="va">adjusted_df</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="example-of-real-world-applications">Example of Real world applications<a class="anchor" aria-label="anchor" href="#example-of-real-world-applications"></a>

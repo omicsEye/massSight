@@ -1,11 +1,16 @@
 #' Final Plots
 #'
-#' @param merged_ms_object A Merged MS Object, typically the result of `auto_align`
+#' @param merged_ms_obj A Merged MS Object, typically the result of `auto_align`
 #' @param rt_lim RT bounds
 #' @param mz_lim MZ bounds
 #'
-#' @return patchwork list
+#' @return cowplot grid of plots
 #' @export
+#' @examples
+#' data("hp1_ms")
+#' data("hp2_ms")
+#' merged_ms_obj <- auto_align(hp1_ms, hp2_ms)
+#' final_plots(merged_ms_obj)
 final_plots <-
   function(merged_ms_obj,
            rt_lim = c(-.5, .5),
