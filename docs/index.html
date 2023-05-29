@@ -41,7 +41,7 @@
 <li class="nav-item dropdown">
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
   <div class="dropdown-menu" aria-labelledby="dropdown-articles">
-    <a class="dropdown-item" href="articles/example_alignment.html">example_alignment</a>
+    <a class="dropdown-item" href="articles/example_alignment.html">Example Alignment</a>
   </div>
 </li>
       </ul>
@@ -97,7 +97,8 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"omicsEye/massSight"</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"omicsEye/massSight"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="data-preparation">Data Preparation<a class="anchor" aria-label="anchor" href="#data-preparation"></a>
@@ -207,21 +208,74 @@
 <li>
 <code>metadata()</code> to access the experiment’s metadata</li>
 </ul>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ms2</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">raw_df</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">kableExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/kableExtra/man/kbl.html" class="external-link">kbl</a></span><span class="op">(</span>format <span class="op">=</span> <span class="st">"simple"</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<thead><tr class="header">
+<th align="left">Compound_ID</th>
+<th align="right">RT</th>
+<th align="right">MZ</th>
+<th align="right">Intensity</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">1.68_121.1013m/z</td>
+<td align="right">1.68</td>
+<td align="right">121.1013</td>
+<td align="right">50543.745</td>
+</tr>
+<tr class="even">
+<td align="left">3.53_197.0667m/z</td>
+<td align="right">3.53</td>
+<td align="right">197.0667</td>
+<td align="right">21948.556</td>
+</tr>
+<tr class="odd">
+<td align="left">7.81_282.1190m/z</td>
+<td align="right">7.81</td>
+<td align="right">282.1190</td>
+<td align="right">14220.869</td>
+</tr>
+<tr class="even">
+<td align="left">5.29_166.0721m/z</td>
+<td align="right">5.29</td>
+<td align="right">166.0721</td>
+<td align="right">46434.807</td>
+</tr>
+<tr class="odd">
+<td align="left">5.16_298.1139m/z</td>
+<td align="right">5.16</td>
+<td align="right">298.1139</td>
+<td align="right">60616.582</td>
+</tr>
+<tr class="even">
+<td align="left">9.77_126.1026m/z</td>
+<td align="right">9.77</td>
+<td align="right">126.1026</td>
+<td align="right">4435.973</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div class="section level2">
 <h2 id="alignment">Alignment<a class="anchor" aria-label="anchor" href="#alignment"></a>
 </h2>
 <p>Alignment is performed using <code><a href="reference/auto_align.html">auto_align()</a></code></p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span>ms1 <span class="op">=</span> <span class="va">ms1</span>, ms2 <span class="op">=</span> <span class="va">ms2</span>, iso_method <span class="op">=</span> <span class="st">"dbscan"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Numbers of matched/kept features: 2723</span></span></code></pre></div>
-<div class="section level4">
-<h4 id="plotting-results-from-alignment">Plotting results from alignment<a class="anchor" aria-label="anchor" href="#plotting-results-from-alignment"></a>
-</h4>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span>ms1 <span class="op">=</span> <span class="va">ms1</span>, </span>
+<span>                      ms2 <span class="op">=</span> <span class="va">ms2</span>, </span>
+<span>                      iso_method <span class="op">=</span> <span class="st">"dbscan"</span><span class="op">)</span></span></code></pre></div>
+<p>More information on the <code><a href="reference/auto_align.html">auto_align()</a></code> function can be found in the <a href="https://omicseye.github.io/massSight/reference/auto_align.html">package documentation</a></p>
+<div class="section level3">
+<h3 id="plotting-results-from-alignment">Plotting results from alignment<a class="anchor" aria-label="anchor" href="#plotting-results-from-alignment"></a>
+</h3>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span></code></pre></div>
-<p><img src="README-unnamed-chunk-5-1.png"><!-- --></p>
+<p><img src="reference/figures/final_plot_out.png"></p>
 </div>
 <div class="section level3">
 <h3 id="input-files-format">Input files format<a class="anchor" aria-label="anchor" href="#input-files-format"></a>
@@ -232,7 +286,7 @@
 <h2 id="run">Run<a class="anchor" aria-label="anchor" href="#run"></a>
 </h2>
 <p>For now, manually add tsv/csv file and load data object into the global environment using <code>read_csv</code> or <code>read_table</code>. Then run <code>auto_align</code> on the created data objects.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># read inputs as data frame in R</span></span>
 <span><span class="va">user_df1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.delim</a></span><span class="op">(</span></span>
 <span>  <span class="st">"/path-to-file/profile1.tsv"</span>,</span>
@@ -256,20 +310,6 @@
 <span></span>
 <span><span class="co"># run alignment function to combine two datasets</span></span>
 <span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_align.html">auto_align</a></span><span class="op">(</span><span class="va">user_df1</span>, <span class="va">user_df2</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="output-files">Output Files<a class="anchor" aria-label="anchor" href="#output-files"></a>
-</h3>
-</div>
-</div>
-<div class="section level2">
-<h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
-</h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="example-of-real-world-applications">Example of Real world applications<a class="anchor" aria-label="anchor" href="#example-of-real-world-applications"></a>
-</h2>
 </div>
 <div class="section level2">
 <h2 id="dev-instructions">Dev Instructions<a class="anchor" aria-label="anchor" href="#dev-instructions"></a>

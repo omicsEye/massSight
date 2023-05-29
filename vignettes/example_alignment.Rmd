@@ -2,7 +2,7 @@
 title: "Example Alignment"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{example_alignment}
+  %\VignetteIndexEntry{Example Alignment}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
