@@ -19,7 +19,8 @@ smooth_drift <- function(align_ms_obj,
   } else if (smooth_method == "gam") {
     spline_func <- mgcv::gam(delta_RT ~ RT, data = results)
     smooth_x_rt <- results$RT
-    smooth_y_rt <- predict(spline_func, smooth_x_rt)
+    smooth_y_rt <- predict(spline_func, data.frame(RT = smooth_x_rt)) |>
+      as.vector()
   } else if (smooth_method == "gaussian") {
     smooth_x_rt <- results$RT
     # TODO check for RBF Kernel
@@ -74,9 +75,10 @@ smooth_drift <- function(align_ms_obj,
     smooth_x_mz <- results$MZ
     smooth_y_mz <- predict(mz_low, smooth_x_mz)
   } else if (smooth_method == "gam") {
-    mz_low <- mgcv::gam(delta_MZ ~ MZ, data = results)
+    mz_gam <- mgcv::gam(delta_MZ ~ MZ, data = results)
     smooth_x_mz <- results$MZ
-    smooth_y_mz <- predict(mz_low, smooth_x_mz)
+    smooth_y_mz <- predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
+      as.vector()
   } else if (smooth_method == "gaussian") {
     smooth_x_mz <- results$MZ
     message("Starting gaussian smoothing")

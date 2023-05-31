@@ -53,7 +53,7 @@ final_results <-
       if (df1_for_align[i, "Compound_ID"] %in% best_reverse_match) {
         best_hits_df1 <- c(best_hits_df1, best_match)
         best_hits_found <-
-          c(best_hits_found, df1_for_align[i, "Compound_ID"])
+          c(best_hits_found, rep(df1_for_align[i, "Compound_ID"], length(best_match)))
       } else {
         features_not_aligned <-
           c(features_not_aligned, rownames(df1_for_align[i, "Compound_ID"]))
@@ -88,12 +88,12 @@ final_results <-
       )
     } else {
       results_df <- data.frame(
-        "df1_name" = df1$Compound_ID,
-        "df2_name" = df2$Compound_ID,
-        "df1_rt" = df1$RT,
-        "df2_rt" = df2$RT,
-        "df1_mz" = df1$MZ,
-        "df2_mz" = df2$MZ
+        "df1" = df1$Compound_ID,
+        "df2" = df2$Compound_ID,
+        "RT" = df1$RT,
+        "RT_2" = df2$RT,
+        "MZ" = df1$MZ,
+        "MZ_2" = df2$MZ
       )
 
       adjusted_df <- data.frame(

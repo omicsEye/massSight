@@ -513,7 +513,7 @@ create_ms_obj <- function(df,
     dplyr::select(id_name, metab_name, rt_name, mz_name, int_name) |>
     dplyr::rename(
       Compound_ID = id_name,
-      Metabolite_Name = metab_name,
+      Metabolite = metab_name,
       RT = rt_name,
       MZ = mz_name,
       Intensity = int_name

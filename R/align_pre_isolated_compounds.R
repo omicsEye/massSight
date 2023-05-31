@@ -9,11 +9,9 @@ align_pre_isolated_compounds <-
     df2 <- raw_df(ms2(align_ms_obj))
     if ("Intensity" %in% names(df1)) {
       pb <-
-        progress::progress_bar$new(
-          format = "Matching all features from datasets [:bar] :percent :eta",
-          total = nrow(df1),
-          clear = F
-        )
+        progress::progress_bar$new(format = "Matching all features from datasets [:bar] :percent :eta",
+                                   total = nrow(df1),
+                                   clear = F)
       results <- data.frame(
         "df1" = character(),
         "RT" = numeric(),
@@ -53,11 +51,9 @@ align_pre_isolated_compounds <-
       }
     } else {
       pb <-
-        progress::progress_bar$new(
-          format = "Matching all features from datasets [:bar] :percent :eta",
-          total = nrow(df1),
-          clear = F
-        )
+        progress::progress_bar$new(format = "Matching all features from datasets [:bar] :percent :eta",
+                                   total = nrow(df1),
+                                   clear = F)
       results <- data.frame(
         "df1" = character(),
         "RT" = numeric(),
@@ -80,14 +76,16 @@ align_pre_isolated_compounds <-
         if (nrow(df2_filter > 0)) {
           for (row_2 in 1:nrow(df2_filter)) {
             results <- results |>
-              rbind(c(
-                df1[row, "Compound_ID"],
-                df1[row, "RT"],
-                df1[row, "MZ"],
-                df2_filter[row_2, "Compound_ID"],
-                df2_filter[row_2, "RT"],
-                df2_filter[row_2, "MZ"]
-              ))
+              dplyr::bind_rows(
+                data.frame(
+                  "df1" = df1[row, "Compound_ID"],
+                  "RT" = df1[row, "RT"],
+                  "MZ" = df1[row, "MZ"],
+                  "df2" = df2_filter[row_2, "Compound_ID"],
+                  "RT_2" = df2_filter[row_2, "RT"],
+                  "MZ_2" = df2_filter[row_2, "MZ"]
+                )
+              )
           }
         }
       }
