@@ -1,0 +1,150 @@
+---
+title: "Profiling software comparison using iHMP data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Profiling software comparison using iHMP data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Loading the `massSight` package alongside 
+
+```{r setup}
+library(ggplot2)
+library(omicsArt)
+#devtools::install_github("omicsEye/massSight", force = TRUE)
+library(massSight)
+setwd("~/Downloads")
+```
+
+## Loading two dataframes containing iHMP profiles.
+
+```{r}
+loaded_data <- massSight::load_data(input='data/iHMP_ProgenesisQI/HMP2_metabolomics.xlsx', type = 'all', sheet = 1, id = 'Compound_ID')
+loaded_data$feature_metadata$MZ <- as.numeric(loaded_data$feature_metadata$MZ)
+loaded_data$feature_metadata$RT <- as.numeric(loaded_data$feature_metadata$RT)
+feature_metadata2 <-loaded_data$feature_metadata[colnames(loaded_data$data),]
+```
+## calculate emean of intensity across samples 
+
+```{r}
+feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm=T)
+ref_input <- feature_metadata2[!is.na(feature_metadata2$MZ) & !is.na(feature_metadata2$RT), ]
+```
+
+## create a massSight object as first (ref) object
+
+```{r}
+ref <- create_ms_obj(df = ref_input, 
+                     name = "iHMP", 
+                     id_name = "Compound_ID", 
+                     rt_name = "RT", 
+                     mz_name = "MZ", 
+                     int_name = "Intensity",
+                     metab_name= "Metabolite")
+```
+
+## create a massSight object as second (query) object
+
+```{r}
+C18_CD <- read.delim(
+  'data/iHMP_CompoundDiscoverer/C18neg_FFA method/iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv',
+  sep = ',',
+  header = TRUE,
+  fill = FALSE,
+  comment.char = "" ,
+  check.names = FALSE
+  #row.names = 1
+)
+```
+
+check the column names to see what are metabolite descriptors
+
+```{r}
+colnames(C18_CD)
+```
+
+### calculate average intensity across all samples
+
+In this dataframe samples start from col number 7 and goes to the end of the dataframe.
+we used omicsArt::numeric_dataframe to make sure we convert the dataframe as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
+
+```{r}
+C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2]]) , na.rm=T)
+
+C18_CD$row_id <- rownames(C18_CD)
+```
+
+Creat an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
+
+## Creating `massSight` objects
+
+```{r}
+ms_C18_CD <-
+  create_ms_obj(
+    df = C18_CD,
+    name = "C18_CD",
+    id_name = "row_id",
+    rt_name = "RT [min]",
+    mz_name = "m/z",
+    int_name = "Intensity",
+    metab_name= "Name"
+  )
+```
+
+## check few first rows of the dataframe
+```{r}
+ms_C18_CD |>
+  raw_df() |>
+  head() |>
+  kableExtra::kbl(format = "simple")
+
+aligned <- auto_align(ms1 = ref, 
+                      ms2 = ms_C18_CD, 
+                      iso_method = "dbscan")
+```
+## Visualization 
+```{r}
+final_smooth <- final_plots(aligned)
+
+ggsave(filename='manuscript/fig_iHMP_software_comp/final_smooth_ref_all.png', plot=final_smooth, width = 7.2, height = 3.5, units = "in", dpi = 300)
+```
+
+```{r}
+ref_input_C18 <- ref_input[ref_input$Method=="C18-neg",]
+ref_C18 <- create_ms_obj(df = ref_input_C18, 
+                         name = "iHMP_C18", 
+                         id_name = "Compound_ID", 
+                         rt_name = "RT", 
+                         mz_name = "MZ", 
+                         int_name = "Intensity",
+                         metab_name= "Metabolite")
+
+
+aligned_c18 <- auto_align(ms1 = ref_C18, 
+                          ms2 = ms_C18_CD, 
+                          iso_method = "dbscan")
+
+final_smooth_ref_C18 <- final_plots(aligned_c18)
+ggsave(filename='manuscript/fig_iHMP_software_comp/final_smooth_ref_C18.png', plot=final_smooth_ref_C18, width = 7.2, height = 3.5, units = "in", dpi = 300)
+
+
+aligned_c18_default <- auto_align(ms1 = ref_C18, 
+                                  ms2 = ms_C18_CD)
+
+final_smooth_ref_C18_default <- final_plots(aligned_c18, iso_method = "manual")
+
+ggsave(filename='manuscript/fig_iHMP_software_comp/final_smooth_ref_C18_default.png', plot=final_smooth_ref_C18_default, width = 7.2, height = 3.5, units = "in", dpi = 300)
+```
+
+
+
+
