@@ -103,9 +103,11 @@ ms2 |>
 Alignment is performed using `auto_align()`
 
 ```{r, eval = F}
-aligned <- auto_align(ms1 = ms1, 
-                      ms2 = ms2, 
-                      iso_method = "dbscan")
+aligned <- auto_align(
+  ms1 = ms1,
+  ms2 = ms2,
+  iso_method = "dbscan"
+)
 ```
 
 More information on the `auto_align()` function can be found in the [package documentation](https://omicseye.github.io/massSight/reference/auto_align.html)

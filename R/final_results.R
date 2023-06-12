@@ -70,16 +70,31 @@ final_results <-
     results_df_complete <- cbind(df1, df2)
     df2_adj <- df2_adj[best_hits_df1, ]
     if ("Intensity" %in% colnames(df1)) {
-      results_df <- data.frame(
-        "df1" = df1$Compound_ID,
-        "RT" = df1$RT,
-        "MZ" = df1$MZ,
-        "Intensity" = df1$Intensity,
-        "df2" = df2$Compound_ID,
-        "RT_2" = df2$RT,
-        "MZ_2" = df2$MZ,
-        "Intensity_2" = df2$Intensity
-      )
+      if ("Metabolite" %in% colnames(df1)) {
+        results_df <- data.frame(
+          "df1" = df1$Compound_ID,
+          "RT" = df1$RT,
+          "MZ" = df1$MZ,
+          "Intensity" = df1$Intensity,
+          "Metabolite" = df1$Metabolite,
+          "df2" = df2$Compound_ID,
+          "RT_2" = df2$RT,
+          "MZ_2" = df2$MZ,
+          "Intensity_2" = df2$Intensity,
+          "Metabolite_2" = df2$Metabolite
+        )
+      } else {
+        results_df <- data.frame(
+          "df1" = df1$Compound_ID,
+          "RT" = df1$RT,
+          "MZ" = df1$MZ,
+          "Intensity" = df1$Intensity,
+          "df2" = df2$Compound_ID,
+          "RT_2" = df2$RT,
+          "MZ_2" = df2$MZ,
+          "Intensity_2" = df2$Intensity
+        )
+      }
 
       adjusted_df <- data.frame(
         "rt_2_adj" = df2_adj$RT,
@@ -87,20 +102,34 @@ final_results <-
         "int_2_adj" = df2_adj$Intensity
       )
     } else {
-      results_df <- data.frame(
-        "df1" = df1$Compound_ID,
-        "df2" = df2$Compound_ID,
-        "RT" = df1$RT,
-        "RT_2" = df2$RT,
-        "MZ" = df1$MZ,
-        "MZ_2" = df2$MZ
-      )
+      if ("Metabolite" %in% colnames(df1)) {
+        results_df <- data.frame(
+          "df1" = df1$Compound_ID,
+          "df2" = df2$Compound_ID,
+          "RT" = df1$RT,
+          "RT_2" = df2$RT,
+          "MZ" = df1$MZ,
+          "MZ_2" = df2$MZ,
+          "Metabolite" = df1$Metabolite,
+          "Metabolite_2" = df2$Metabolite
+        )
+      } else {
+        results_df <- data.frame(
+          "df1" = df1$Compound_ID,
+          "df2" = df2$Compound_ID,
+          "RT" = df1$RT,
+          "RT_2" = df2$RT,
+          "MZ" = df1$MZ,
+          "MZ_2" = df2$MZ
+        )
+      }
 
       adjusted_df <- data.frame(
         "rt_2_adj" = df2_adj$RT,
         "mz_2_adj" = df2_adj$MZ
       )
     }
+
 
     if (keep_features[1] == T) {
       message("keeping file 1 features")

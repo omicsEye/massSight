@@ -20,7 +20,8 @@ Imports:
     readxl,
     stringr,
     xlsx,
-    patchwork
+    patchwork,
+    rlang
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

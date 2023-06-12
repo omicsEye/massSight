@@ -28,17 +28,20 @@ auto_align(
 \item{ms1}{A \code{massSight} object representing the results of a preprocessed
 LC-MS experiment.}
 
+\item{ms2}{A \code{massSight} object representing the results of a second
+preprocessed LC-MS experiment.}
+
 \item{rt_lower}{A numeric indicating the lower bound of the RT
-range to be considered for alignment.}
+range to be considered for aligning two metabolites.}
 
 \item{rt_upper}{A numeric indicating the upper bound of the RT
-range to be considered for alignment.}
+range to be considered for aligning two metabolites.}
 
 \item{mz_lower}{A numeric indicating the lower bound of the m/z
-range to be considered for alignment.}
+range to be considered for aligning two metabolites.}
 
 \item{mz_upper}{A numeric indicating the upper bound of the m/z
-range to be considered for alignment.}
+range to be considered for aligning two metabolites.}
 
 \item{minimum_intensity}{A numeric indicating the minimum intensity
 to be considered for alignment.}
@@ -64,14 +67,11 @@ the alignment.}
 
 \item{keep_features}{A logical vector indicating whether or not to
 keep features that are not matched.}
-
-\item{df2}{A \code{massSight} object representing the results of a second
-preprocessed LC-MS experiment.}
 }
 \value{
 A data frame containing the aligned data.
 }
 \description{
-This function will automatically align your data based on the
-smoothing method you choose.
+Aligns two \code{massSight} objects, resulting in a single
+\code{MergedMSObject}.
 }

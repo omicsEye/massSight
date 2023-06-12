@@ -30,23 +30,25 @@ head(hp2) |> kableExtra::kbl()
 
 ```{r}
 hp1_ms <- create_ms_obj(hp1,
-                        name = "hp1",
-                        annot = TRUE,
-                        id_name = "Compound_ID",
-                        rt_name = "RT",
-                        mz_name = "MZ",
-                        int_name = "Intensity",
-                        metab_name = "Metabolite",
-                        has_metadata = FALSE)
+  name = "hp1",
+  annot = TRUE,
+  id_name = "Compound_ID",
+  rt_name = "RT",
+  mz_name = "MZ",
+  int_name = "Intensity",
+  metab_name = "Metabolite",
+  has_metadata = FALSE
+)
 hp2_ms <- create_ms_obj(hp2,
-                        name = "hp2",
-                        annot = TRUE,
-                        id_name = "Compound_ID",
-                        rt_name = "RT",
-                        mz_name = "MZ",
-                        int_name = "Intensity",
-                        metab_name = "Metabolite",
-                        has_metadata = FALSE)
+  name = "hp2",
+  annot = TRUE,
+  id_name = "Compound_ID",
+  rt_name = "RT",
+  mz_name = "MZ",
+  int_name = "Intensity",
+  metab_name = "Metabolite",
+  has_metadata = FALSE
+)
 ```
 
 

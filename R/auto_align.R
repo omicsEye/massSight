@@ -1,19 +1,19 @@
 #' @export
 #' @title Auto Align
-#' @description This function will automatically align your data based on the
-#' smoothing method you choose.
+#' @description Aligns two `massSight` objects, resulting in a single
+#' `MergedMSObject`.
 #' @param ms1 A `massSight` object representing the results of a preprocessed
 #' LC-MS experiment.
-#' @param df2 A `massSight` object representing the results of a second
+#' @param ms2 A `massSight` object representing the results of a second
 #' preprocessed LC-MS experiment.
 #' @param rt_lower A numeric indicating the lower bound of the RT
-#' range to be considered for alignment.
+#' range to be considered for aligning two metabolites.
 #' @param rt_upper A numeric indicating the upper bound of the RT
-#' range to be considered for alignment.
+#' range to be considered for aligning two metabolites.
 #' @param mz_lower A numeric indicating the lower bound of the m/z
-#' range to be considered for alignment.
+#' range to be considered for aligning two metabolites.
 #' @param mz_upper A numeric indicating the upper bound of the m/z
-#' range to be considered for alignment.
+#' range to be considered for aligning two metabolites.
 #' @param minimum_intensity A numeric indicating the minimum intensity
 #' to be considered for alignment.
 #' @param rt_iso_threshold A numeric indicating the simplification
@@ -42,8 +42,8 @@ auto_align <-
            minimum_intensity = 1000,
            iso_method = "manual",
            eps = 1,
-           rt_iso_threshold = .2,
-           mz_iso_threshold = 2.5,
+           rt_iso_threshold = .5,
+           mz_iso_threshold = 5,
            threshold = "manual",
            match_method = "unsupervised",
            smooth_method = "loess",
@@ -52,13 +52,13 @@ auto_align <-
            keep_features = c(F, F)) {
     # stop conditions ---------------------------------------------------------
     stopifnot(
-      "`smooth_method` must be either 'loess', 'gam', or 'gp'." =
-        smooth_method %in% c("loess", "gam", "gp")
+      "`smooth_method` must be either 'loess' or 'gam'" =
+        smooth_method %in% c("loess", "gam")
     )
     raw_df(ms1) <- raw_df(ms1) |>
       dplyr::mutate(
-        MZ = round(MZ, 4),
-        RT = round(RT, 2)
+        MZ = round(.data$MZ, 4),
+        RT = round(.data$RT, 2)
       )
 
     raw_df(ms2) <- raw_df(ms2) |>
