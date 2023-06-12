@@ -6,6 +6,9 @@
 #' LC-MS experiment.
 #' @param ms2 A `massSight` object representing the results of a second
 #' preprocessed LC-MS experiment.
+#' @param match_method A character indicating the initial matching method to
+#' be used to detect inter-batch variability. Options are "unsupervised" and
+#' "supervised".
 #' @param rt_lower A numeric indicating the lower bound of the RT
 #' range to be considered for aligning two metabolites.
 #' @param rt_upper A numeric indicating the upper bound of the RT
@@ -16,13 +19,13 @@
 #' range to be considered for aligning two metabolites.
 #' @param minimum_intensity A numeric indicating the minimum intensity
 #' to be considered for alignment.
-#' @param rt_iso_threshold A numeric indicating the simplification
-#' parameter for RT.
-#' @param mz_iso_threshold A numeric indicating the simplification
-#' parameter for m/z.
-#' @param match_method A character indicating the initial matching method to
-#' be used to detect inter-batch variability. Options are "unsupervised" and
-#' "supervised".
+#' @param iso_method A character indicating the method to be used for
+#' isolating metabolites. Options are "threshold" or "dbscan".
+#' @param eps A numeric indicating the eps parameter for DBSCAN.
+#' @param rt_iso_threshold A numeric indicating the RT threshold for
+#' isolating metabolites.
+#' @param mz_iso_threshold A numeric indicating the m/z threshold for
+#' isolating metabolites.
 #' @param smooth_method A character indicating the smoothing method to
 #' be used. Options are "lowess", "spline", and "gaussian".
 #' @param multipliers A numeric vector indicating the multipliers to be
@@ -35,21 +38,21 @@
 auto_align <-
   function(ms1,
            ms2,
+          match_method = "unsupervised",
            rt_lower = -.5,
            rt_upper = .5,
            mz_lower = -15,
            mz_upper = 15,
            minimum_intensity = 1000,
-           iso_method = "manual",
+           iso_method = "threshold",
            eps = 1,
            rt_iso_threshold = .5,
            mz_iso_threshold = 5,
            threshold = "manual",
-           match_method = "unsupervised",
            smooth_method = "loess",
            multipliers = c(6, 6, 6),
            weights = c(1, 1, 1),
-           keep_features = c(F, F)) {
+           keep_features = c(FALSE, FALSE)) {
     # stop conditions ---------------------------------------------------------
     stopifnot(
       "`smooth_method` must be either 'loess' or 'gam'" =
@@ -68,7 +71,7 @@ auto_align <-
       )
 
     if (match_method == "unsupervised") {
-      if (iso_method == "manual") {
+      if (iso_method == "threshold") {
         ref_iso <- get_vectors(raw_df(ms1),
           rt_sim = rt_iso_threshold,
           mz_sim = mz_iso_threshold
@@ -85,7 +88,7 @@ auto_align <-
         isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
         isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
       } else {
-        stop("`iso_method` must be either 'manual' or 'dbscan'")
+        stop("`iso_method` must be either 'threshold' or 'dbscan'")
       }
     } else if (match_method == "supervised") {
       isolated(ms1) <- raw_df(ms1) |>
@@ -125,7 +128,7 @@ auto_align <-
 
     message(paste0(
       "Numbers of matched/kept features: ",
-      nrow(all_matched(align_obj))
+      nrow(final_matched(align_obj))
     ))
 
     return(align_obj)

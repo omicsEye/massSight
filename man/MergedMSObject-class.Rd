@@ -14,9 +14,19 @@ Class to represent merged mass spectroscopy data.
 
 \item{\code{ms2}}{A data frame containing the raw data.}
 
-\item{\code{all_matched}}{A data frame containing the scaled data.}
+\item{\code{pre_iso_matched}}{A data frame containing all possible matches from the
+pre-isolated data}
 
-\item{\code{iso_matched}}{A data frame containing the scaled data.}
+\item{\code{iso_matched}}{A data frame containing the matched isolated metabolites.}
+
+\item{\code{final_matched}}{A data frame containing the final matched metabolites
+after drift correction.}
+
+\item{\code{scaled_values}}{A data frame containing the scaled data.}
+
+\item{\code{adjusted_df}}{A data frame containing the adjusted data.}
+
+\item{\code{cutoffs}}{A numeric vector containing the cutoffs for each metabolite.}
 
 \item{\code{metadata}}{A logical indicating whether or not the data has
 been consolidated.}

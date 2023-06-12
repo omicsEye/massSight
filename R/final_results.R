@@ -149,7 +149,7 @@ final_results <-
     #   dedup("Metabolite")
     #
     # colnames(results_df_complete) <- columns
-    all_matched(align_ms_obj) <- results_df
+    final_matched(align_ms_obj) <- results_df
     adjusted_df(align_ms_obj) <- adjusted_df
     return(align_ms_obj)
   }
