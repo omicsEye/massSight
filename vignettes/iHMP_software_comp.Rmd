@@ -1,5 +1,6 @@
 ---
 title: "Profiling software comparison using iHMP data"
+author: "Bahar Sayoldin, bahar.sayoldin@gmail.com"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Profiling software comparison using iHMP data}
@@ -7,6 +8,9 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+install.packages('devtools')
+library(devtools)
+devtools::install_github("omicsEye/massSight", force = TRUE)
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
@@ -20,9 +24,12 @@ Loading the `massSight` package alongside
 ```{r setup}
 library(ggplot2)
 library(omicsArt)
-#devtools::install_github("omicsEye/massSight", force = TRUE)
 library(massSight)
-setwd("~/Downloads")
+```
+
+## Set working directory
+```{r setup, include=F, cache = F}
+opts_knit$set(root.dir = "~/path-to-box/")
 ```
 
 ## Loading two dataframes containing iHMP profiles.
