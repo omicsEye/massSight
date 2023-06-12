@@ -24,11 +24,12 @@ knitr::opts_chunk$set(
 library(ggplot2)
 library(omicsArt)
 library(massSight)
+library(knitr)
 ```
 
 ## Set working directory
 ```{r setup, include=F, cache = F}
-opts_knit$set(root.dir = "~/path-to-box/")
+opts_knit$set(root.dir = "~/Library/CloudStorage/Box-Box/massSight")
 ```
 
 ## Loading two dataframes containing iHMP profiles.
@@ -39,14 +40,14 @@ loaded_data$feature_metadata$MZ <- as.numeric(loaded_data$feature_metadata$MZ)
 loaded_data$feature_metadata$RT <- as.numeric(loaded_data$feature_metadata$RT)
 feature_metadata2 <-loaded_data$feature_metadata[colnames(loaded_data$data),]
 ```
-## calculate emean of intensity across samples 
+## calculate mean of intensity across samples 
 
 ```{r}
 feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm=T)
 ref_input <- feature_metadata2[!is.na(feature_metadata2$MZ) & !is.na(feature_metadata2$RT), ]
 ```
 
-## create a massSight object as first (ref) object
+## create a `massSight` object as the first (ref) object for alignment
 
 ```{r}
 ref <- create_ms_obj(df = ref_input, 
@@ -58,7 +59,7 @@ ref <- create_ms_obj(df = ref_input,
                      metab_name= "Metabolite")
 ```
 
-## create a massSight object as second (query) object
+## create a `massSight` object as a second (query) object for alignment
 
 ```{r}
 C18_CD <- read.delim(
@@ -72,7 +73,7 @@ C18_CD <- read.delim(
 )
 ```
 
-check the column names to see what are metabolite descriptors
+check the column names to see metabolite descriptors names to be used in objects creation
 
 ```{r}
 colnames(C18_CD)
@@ -89,7 +90,7 @@ C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2
 C18_CD$row_id <- rownames(C18_CD)
 ```
 
-Creat an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
+Create an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
 
 ## Creating `massSight` objects
 
@@ -107,22 +108,30 @@ ms_C18_CD <-
 ```
 
 ## check few first rows of the dataframe
+
 ```{r}
 ms_C18_CD |>
   raw_df() |>
   head() |>
   kableExtra::kbl(format = "simple")
+```
+## run aut-align function with defualts 
 
+```{r}
 aligned <- auto_align(ms1 = ref, 
                       ms2 = ms_C18_CD, 
                       iso_method = "dbscan")
 ```
-## Visualization 
+
+## Visualization and save pdfs
+
 ```{r}
 final_smooth <- final_plots(aligned)
 
-ggsave(filename='manuscript/fig_iHMP_software_comp/final_smooth_ref_all.png', plot=final_smooth, width = 7.2, height = 3.5, units = "in", dpi = 300)
+ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png', plot=final_smooth, width = 7.2, height = 3.5, units = "in", dpi = 300)
 ```
+
+## Use only C18-neg as reference 
 
 ```{r}
 ref_input_C18 <- ref_input[ref_input$Method=="C18-neg",]
@@ -133,20 +142,29 @@ ref_C18 <- create_ms_obj(df = ref_input_C18,
                          mz_name = "MZ", 
                          int_name = "Intensity",
                          metab_name= "Metabolite")
+```
 
+## run auto_align with dbscan
 
+```{r}
 aligned_c18 <- auto_align(ms1 = ref_C18, 
                           ms2 = ms_C18_CD, 
                           iso_method = "dbscan")
+```
 
+## Visualization and save pdfs
+
+```{r}
 final_smooth_ref_C18 <- final_plots(aligned_c18)
-ggsave(filename='manuscript/fig_iHMP_software_comp/final_smooth_ref_C18.png', plot=final_smooth_ref_C18, width = 7.2, height = 3.5, units = "in", dpi = 300)
+ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png', plot=final_smooth_ref_C18, width = 7.2, height = 3.5, units = "in", dpi = 300)
+```
 
-
+## run auto_align with dafualt
+```{r}
 aligned_c18_default <- auto_align(ms1 = ref_C18, 
                                   ms2 = ms_C18_CD)
 
 final_smooth_ref_C18_default <- final_plots(aligned_c18, iso_method = "manual")
 
-ggsave(filename='manuscript/fig_iHMP_software_comp/final_smooth_ref_C18_default.png', plot=final_smooth_ref_C18_default, width = 7.2, height = 3.5, units = "in", dpi = 300)
+ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18_default.png', plot=final_smooth_ref_C18_default, width = 7.2, height = 3.5, units = "in", dpi = 300)
 ```
