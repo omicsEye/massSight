@@ -22,7 +22,7 @@ library(ggplot2)
 library(omicsArt)
 #devtools::install_github("omicsEye/massSight", force = TRUE)
 library(massSight)
-setwd("~/Library/CloudStorage/Box-Box/massSight")
+setwd("~/Downloads")
 ```
 
 ## Loading two dataframes containing iHMP profiles.
@@ -32,9 +32,17 @@ loaded_data <- massSight::load_data(input='data/iHMP_ProgenesisQI/HMP2_metabolom
 loaded_data$feature_metadata$MZ <- as.numeric(loaded_data$feature_metadata$MZ)
 loaded_data$feature_metadata$RT <- as.numeric(loaded_data$feature_metadata$RT)
 feature_metadata2 <-loaded_data$feature_metadata[colnames(loaded_data$data),]
-feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm=T)
-ref_input <- feature_metadata2[!is.na(feature_metadata2$MZ) & !is.na(feature_metadata2$RT), ] 
+```
+## calculate emean of intensity across samples 
 
+```{r}
+feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm=T)
+ref_input <- feature_metadata2[!is.na(feature_metadata2$MZ) & !is.na(feature_metadata2$RT), ]
+```
+
+## create a massSight object as first (ref) object
+
+```{r}
 ref <- create_ms_obj(df = ref_input, 
                      name = "iHMP", 
                      id_name = "Compound_ID", 
@@ -42,7 +50,11 @@ ref <- create_ms_obj(df = ref_input,
                      mz_name = "MZ", 
                      int_name = "Intensity",
                      metab_name= "Metabolite")
+```
 
+## create a massSight object as second (query) object
+
+```{r}
 C18_CD <- read.delim(
   'data/iHMP_CompoundDiscoverer/C18neg_FFA method/iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv',
   sep = ',',
@@ -53,14 +65,16 @@ C18_CD <- read.delim(
   #row.names = 1
 )
 ```
+
 check the column names to see what are metabolite descriptors
 
 ```{r}
 colnames(C18_CD)
 ```
 
-### calculate average intensity across all samples, in this dataframe samples start from col number 7 and goes to the end of the dataframe
+### calculate average intensity across all samples
 
+In this dataframe samples start from col number 7 and goes to the end of the dataframe.
 we used omicsArt::numeric_dataframe to make sure we convert the dataframe as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
 
 ```{r}
@@ -68,7 +82,8 @@ C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2
 
 C18_CD$row_id <- rownames(C18_CD)
 ```
-make an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
+
+Creat an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
 
 ## Creating `massSight` objects
 
