@@ -19,9 +19,8 @@ knitr::opts_chunk$set(
 )
 ```
 
-Loading the `massSight` package alongside 
-
-```{r setup}
+## Load libraries including `massSight`
+```{r}
 library(ggplot2)
 library(omicsArt)
 library(massSight)
@@ -151,7 +150,3 @@ final_smooth_ref_C18_default <- final_plots(aligned_c18, iso_method = "manual")
 
 ggsave(filename='manuscript/fig_iHMP_software_comp/final_smooth_ref_C18_default.png', plot=final_smooth_ref_C18_default, width = 7.2, height = 3.5, units = "in", dpi = 300)
 ```
-
-
-
-
