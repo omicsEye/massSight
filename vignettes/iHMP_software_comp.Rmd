@@ -22,24 +22,22 @@ knitr::opts_chunk$set(
 ```{r, eval = F}
 install.packages('devtools')
 devtools::install_github("omicsEye/massSight", force = TRUE)
+```
+
+We can then load the necessary libraries.
+
+```{r}
 library(ggplot2)
-library(omicsArt)
 library(massSight)
 library(knitr)
 ```
 
-
 For this tutorial, we will be analyzing two datasets from the NIH human microbiome project. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics).
-
-## Set working directory
-```{r setup, include=F, cache = F}
-opts_knit$set(root.dir = "~/Library/CloudStorage/Box-Box/massSight")
-```
 
 ## Loading two dataframes containing iHMP profiles.
 
 ```{r, eval = F}
-loaded_data <- load_data(input='data/iHMP_ProgenesisQI/HMP2_metabolomics.xlsx', 
+loaded_data <- load_data(input='data/HMP2_metabolomics.xlsx', 
                          type = 'all', 
                          sheet = 1, 
                          id = 'Compound_ID')
