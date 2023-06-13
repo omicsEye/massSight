@@ -8,12 +8,6 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, eval = F}
-install.packages('devtools')
-library(devtools)
-devtools::install_github("omicsEye/massSight", force = TRUE)
-```
-
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -21,22 +15,27 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Load libraries including `massSight`
+## Setup
+
+`massSight` can be installed via `devtools`:
+
 ```{r, eval = F}
+install.packages('devtools')
+devtools::install_github("omicsEye/massSight", force = TRUE)
 library(ggplot2)
 library(omicsArt)
 library(massSight)
 ```
 
-## Set working directory
-```{r setup, include=F, cache = F, eval = F}
-opts_knit$set(root.dir = "~/path-to-box/")
-```
+For this tutorial, we will be analyzing two datasets from the NIH human microbiome project. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics).
 
 ## Loading two dataframes containing iHMP profiles.
 
 ```{r, eval = F}
-loaded_data <- massSight::load_data(input='data/iHMP_ProgenesisQI/HMP2_metabolomics.xlsx', type = 'all', sheet = 1, id = 'Compound_ID')
+loaded_data <- load_data(input='data/iHMP_ProgenesisQI/HMP2_metabolomics.xlsx', 
+                         type = 'all', 
+                         sheet = 1, 
+                         id = 'Compound_ID')
 loaded_data$feature_metadata$MZ <- as.numeric(loaded_data$feature_metadata$MZ)
 loaded_data$feature_metadata$RT <- as.numeric(loaded_data$feature_metadata$RT)
 feature_metadata2 <-loaded_data$feature_metadata[colnames(loaded_data$data),]
