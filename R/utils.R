@@ -142,7 +142,7 @@ load_data <-
     data <- as.data.frame(t(data))
 
     # make sure data frame is numeric
-    result$data <- numeric_dataframe(data)
+    result$data <- omicsArt::numeric_dataframe(data)
     return(result)
   }
 

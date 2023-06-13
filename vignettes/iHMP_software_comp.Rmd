@@ -68,7 +68,7 @@ ref <- create_ms_obj(df = ref_input,
 
 ```{r, eval = F}
 C18_CD <- read.delim(
-  'data/iHMP_CompoundDiscoverer/C18neg_FFA method/iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv',
+  'data/iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv',
   sep = ',',
   header = TRUE,
   fill = FALSE,
@@ -81,13 +81,13 @@ C18_CD <- read.delim(
 check the column names to see metabolite descriptors names to be used in objects creation
 
 ```{r, eval = F}
-colnames(C18_CD)
+colnames(C18_CD) |> head(10)
 ```
 
 ### calculate average intensity across all samples
 
-In this dataframe samples start from col number 7 and goes to the end of the dataframe.
-we used omicsArt::numeric_dataframe to make sure we convert the dataframe as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
+In this dataset, sample intensity values begin at column 7 until the end of the dataframe.
+The `load_data()` function used `omicsArt::numeric_dataframe()` to ensure that we converted the dataframe columns as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
 
 ```{r, eval = F}
 C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2]]) , na.rm=T)
@@ -121,7 +121,7 @@ ms_C18_CD |>
   kableExtra::kbl(format = "simple")
 ```
 
-## run aut-align function with defualts 
+## run auto-align function with defualts 
 
 ```{r}
 aligned <- auto_align(ms1 = ref, 
@@ -167,7 +167,7 @@ final_smooth_ref_C18 <- final_plots(aligned_c18)
 ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png', plot=final_smooth_ref_C18, width = 7.2, height = 3.5, units = "in", dpi = 300)
 ```
 
-## run auto_align with dafualt
+## run auto_align with default
 
 ```{r}
 aligned_c18_default <- auto_align(ms1 = ref_C18, 
