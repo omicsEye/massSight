@@ -64,9 +64,9 @@ final_plots <-
       ggplot2::theme_classic() +
       theme_omicsEye()
 
-    rt_all <- final_matched(merged_ms_obj) |>
+    rt_all <- all_matched(merged_ms_obj) |>
       dplyr::mutate(scaled_rts = adjusted_df(merged_ms_obj)$rt_2_adj -
-        final_matched(merged_ms_obj)$RT) |>
+        all_matched(merged_ms_obj)$RT) |>
       ggplot2::ggplot(ggplot2::aes(x = RT, y = scaled_rts)) +
       ggplot2::geom_point(
         alpha = I(0.25),
@@ -138,11 +138,11 @@ final_plots <-
       ggplot2::theme_classic() +
       theme_omicsEye()
 
-    mz_all <- final_matched(merged_ms_obj) |>
+    mz_all <- all_matched(merged_ms_obj) |>
       dplyr::mutate(scaled_mz = (
-        adjusted_df(merged_ms_obj)$mz_2_adj - final_matched(merged_ms_obj)$MZ
+        adjusted_df(merged_ms_obj)$mz_2_adj - all_matched(merged_ms_obj)$MZ
       ) / ((
-        adjusted_df(merged_ms_obj)$mz_2_adj + final_matched(merged_ms_obj)$MZ
+        adjusted_df(merged_ms_obj)$mz_2_adj + all_matched(merged_ms_obj)$MZ
       ) / 2) * 1e6) |>
       ggplot2::ggplot(ggplot2::aes(x = MZ, y = scaled_mz)) +
       ggplot2::geom_point(

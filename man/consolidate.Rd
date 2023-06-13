@@ -6,8 +6,8 @@
 \usage{
 consolidate(
   ms_obj,
-  use_rt = TRUE,
-  use_mz = TRUE,
+  use_rt = T,
+  use_mz = T,
   rt_threshold = NULL,
   mz_threshold = NULL
 )

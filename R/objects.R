@@ -175,15 +175,8 @@ setMethod(
 #' Class to represent merged mass spectroscopy data.
 #' @slot ms1 A character indicating the name of the experiment.
 #' @slot ms2 A data frame containing the raw data.
-#' @slot pre_iso_matched A data frame containing all possible matches from the
-#' pre-isolated data
-#' @slot iso_matched A data frame containing the matched isolated metabolites.
-#' @slot final_matched A data frame containing the final matched metabolites 
-#' after drift correction.
-#' @slot scaled_values A data frame containing the scaled data.
-#' @slot adjusted_df A data frame containing the adjusted data.
-#' @slot cutoffs A numeric vector containing the cutoffs for each metabolite.
-#' 
+#' @slot all_matched A data frame containing the scaled data.
+#' @slot iso_matched A data frame containing the scaled data.
 #' @slot metadata A logical indicating whether or not the data has
 #' been consolidated.
 #' @slot smooth A string indicating the smoothing method used.
@@ -198,10 +191,11 @@ setClass(
     ms2 = "MSObject",
     pre_iso_matched = "data.frame",
     iso_matched = "data.frame",
-    final_matched = "data.frame",
+    all_matched = "data.frame",
     scaled_values = "data.frame",
     adjusted_df = "data.frame",
     cutoffs = "numeric",
+    aligned = "data.frame",
     metadata = "data.frame",
     smooth = "character"
   )
@@ -245,14 +239,14 @@ setMethod(
 )
 
 #' @export
-setGeneric("final_matched", function(x) {
-  standardGeneric("final_matched")
+setGeneric("all_matched", function(x) {
+  standardGeneric("all_matched")
 })
 setMethod(
-  "final_matched",
+  "all_matched",
   signature = "MergedMSObject",
   definition = function(x) {
-    x@final_matched
+    x@all_matched
   }
 )
 
@@ -301,6 +295,18 @@ setMethod(
   signature = "MergedMSObject",
   definition = function(x) {
     x@cutoffs
+  }
+)
+
+#' @export
+setGeneric("aligned", function(x) {
+  standardGeneric("aligned")
+})
+setMethod(
+  "aligned",
+  signature = "MergedMSObject",
+  definition = function(x) {
+    x@aligned
   }
 )
 
@@ -368,14 +374,14 @@ setMethod(
 )
 
 #' @export
-setGeneric("final_matched<-", function(x, value) {
-  standardGeneric("final_matched<-")
+setGeneric("all_matched<-", function(x, value) {
+  standardGeneric("all_matched<-")
 })
 setMethod(
-  "final_matched<-",
+  "all_matched<-",
   signature = "MergedMSObject",
   definition = function(x, value) {
-    x@final_matched <- value
+    x@all_matched <- value
     return(x)
   }
 )
@@ -496,7 +502,7 @@ create_ms_obj <- function(df,
                           int_name = "Intensity",
                           metab_name = NULL,
                           has_metadata = FALSE) {
-  if (annot == TRUE && is.null(metab_name)) {
+  if (annot == TRUE & is.null(metab_name)) {
     stop("If annot is TRUE, then metabolite name must be supplied")
   }
   ms <- new("MSObject")
@@ -528,7 +534,7 @@ create_aligned_ms_obj <- function(ms1, ms2) {
     "MergedMSObject",
     ms1 = ms1,
     ms2 = ms2,
-    final_matched = NULL,
+    all_matched = NULL,
     iso_matched = NULL,
     scaled_values = NULL,
     adjusted_df = NULL,

@@ -7,21 +7,21 @@
 auto_align(
   ms1,
   ms2,
-  match_method = "unsupervised",
   rt_lower = -0.5,
   rt_upper = 0.5,
   mz_lower = -15,
   mz_upper = 15,
   minimum_intensity = 1000,
-  iso_method = "threshold",
+  iso_method = "manual",
   eps = 1,
   rt_iso_threshold = 0.5,
   mz_iso_threshold = 5,
   threshold = "manual",
+  match_method = "unsupervised",
   smooth_method = "loess",
   multipliers = c(6, 6, 6),
   weights = c(1, 1, 1),
-  keep_features = c(FALSE, FALSE)
+  keep_features = c(F, F)
 )
 }
 \arguments{
@@ -30,10 +30,6 @@ LC-MS experiment.}
 
 \item{ms2}{A \code{massSight} object representing the results of a second
 preprocessed LC-MS experiment.}
-
-\item{match_method}{A character indicating the initial matching method to
-be used to detect inter-batch variability. Options are "unsupervised" and
-"supervised".}
 
 \item{rt_lower}{A numeric indicating the lower bound of the RT
 range to be considered for aligning two metabolites.}
@@ -50,16 +46,15 @@ range to be considered for aligning two metabolites.}
 \item{minimum_intensity}{A numeric indicating the minimum intensity
 to be considered for alignment.}
 
-\item{iso_method}{A character indicating the method to be used for
-isolating metabolites. Options are "threshold" or "dbscan".}
+\item{rt_iso_threshold}{A numeric indicating the simplification
+parameter for RT.}
 
-\item{eps}{A numeric indicating the eps parameter for DBSCAN.}
+\item{mz_iso_threshold}{A numeric indicating the simplification
+parameter for m/z.}
 
-\item{rt_iso_threshold}{A numeric indicating the RT threshold for
-isolating metabolites.}
-
-\item{mz_iso_threshold}{A numeric indicating the m/z threshold for
-isolating metabolites.}
+\item{match_method}{A character indicating the initial matching method to
+be used to detect inter-batch variability. Options are "unsupervised" and
+"supervised".}
 
 \item{smooth_method}{A character indicating the smoothing method to
 be used. Options are "lowess", "spline", and "gaussian".}

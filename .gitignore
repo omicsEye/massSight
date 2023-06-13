@@ -7,4 +7,5 @@
 .DS_Store
 .vscode/
 README_cache/
+docs
 inst/doc
