@@ -1,6 +1,6 @@
 ---
 title: "Profiling software comparison using iHMP data"
-author: "Bahar Sayoldin, bahar.sayoldin@gmail.com"
+author: "Bahar Sayoldin, bahar.sayoldin@gmail.com; Chiraag Gohel, chiraaggohel@gwu.edu"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Profiling software comparison using iHMP data}
@@ -32,29 +32,34 @@ library(massSight)
 library(knitr)
 ```
 
-For this tutorial, we will be analyzing two datasets from the NIH human microbiome project. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics).
+## Loading iHMP data
 
-## Loading two dataframes containing iHMP profiles.
+For this tutorial, we will be analyzing two datasets from the NIH human microbiome project. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics). The second dataset can be downloaded [here](https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz)
 
-```{r, eval = F}
+```{r}
 loaded_data <- load_data(input='data/HMP2_metabolomics.xlsx', 
                          type = 'all', 
                          sheet = 1, 
                          id = 'Compound_ID')
 loaded_data$feature_metadata$MZ <- as.numeric(loaded_data$feature_metadata$MZ)
 loaded_data$feature_metadata$RT <- as.numeric(loaded_data$feature_metadata$RT)
-feature_metadata2 <-loaded_data$feature_metadata[colnames(loaded_data$data),]
-```
-## calculate mean of intensity across samples 
-
-```{r, eval = F}
-feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm=T)
-ref_input <- feature_metadata2[!is.na(feature_metadata2$MZ) & !is.na(feature_metadata2$RT), ]
+feature_metadata2 <- loaded_data$feature_metadata[colnames(loaded_data$data),]
 ```
 
-## create a `massSight` object as the first (ref) object for alignment
+### Calculate the mean of intensity values across samples 
 
-```{r, eval = F}
+```{r}
+loaded_data$data <- loaded_data$data |> t() |> data.frame()
+hmp2_keep <- filter_intensities(data = loaded_data$data, prevalence = .5)
+loaded_data$data <- loaded_data$data[hmp2_keep, ]
+feature_metadata2 <- feature_metadata2[hmp2_keep, ]
+feature_metadata2$Intensity <- rowMeans(loaded_data$data, na.rm=T)
+ref_input <- feature_metadata2[(!is.na(feature_metadata2$MZ)) & (!is.na(feature_metadata2$RT)), ]
+```
+
+### create a `massSight` object as the first (ref) object for alignment
+
+```{r}
 ref <- create_ms_obj(df = ref_input, 
                      name = "iHMP", 
                      id_name = "Compound_ID", 
@@ -64,9 +69,9 @@ ref <- create_ms_obj(df = ref_input,
                      metab_name= "Metabolite")
 ```
 
-## create a `massSight` object as a second (query) object for alignment
+### create a `massSight` object as a second (query) object for alignment
 
-```{r, eval = F}
+```{r}
 C18_CD <- read.delim(
   'data/iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv',
   sep = ',',
@@ -78,9 +83,9 @@ C18_CD <- read.delim(
 )
 ```
 
-check the column names to see metabolite descriptors names to be used in objects creation
+We then check the column names to see what variable names should be used when converting the dataframe into a `massSight` object.
 
-```{r, eval = F}
+```{r}
 colnames(C18_CD) |> head(10)
 ```
 
@@ -89,17 +94,24 @@ colnames(C18_CD) |> head(10)
 In this dataset, sample intensity values begin at column 7 until the end of the dataframe.
 The `load_data()` function used `omicsArt::numeric_dataframe()` to ensure that we converted the dataframe columns as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
 
-```{r, eval = F}
-C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2]]) , na.rm=T)
+```{r}
+prev <- .5
 
+row_nas <- C18_CD[,7:ncol(C18_CD)] |>
+  is.na() |>
+  rowSums()
+
+keep <- (row_nas/ncol(C18_CD)) > prev
+
+C18_CD_filter <- C18_CD[keep,]
+
+C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2]]) , na.rm=T)
 C18_CD$row_id <- rownames(C18_CD)
 ```
 
 Create an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
 
-## Creating `massSight` objects
-
-```{r, eval = F}
+```{r}
 ms_C18_CD <-
   create_ms_obj(
     df = C18_CD,
@@ -125,7 +137,11 @@ ms_C18_CD |>
 
 ```{r}
 aligned <- auto_align(ms1 = ref, 
-                      ms2 = ms_C18_CD, 
+                      ms2 = ms_C18_CD,
+                      rt_lower = -.25,
+                      rt_upper = .25,
+                      mz_lower = -5,
+                      mz_upper = 5,
                       iso_method = "dbscan")
 ```
 

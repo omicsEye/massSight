@@ -13,7 +13,7 @@ auto_align(
   mz_upper = 15,
   minimum_intensity = 1000,
   iso_method = "manual",
-  eps = 1,
+  eps = 0.5,
   rt_iso_threshold = 0.5,
   mz_iso_threshold = 5,
   threshold = "manual",

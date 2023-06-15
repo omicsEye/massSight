@@ -41,7 +41,7 @@ auto_align <-
            mz_upper = 15,
            minimum_intensity = 1000,
            iso_method = "manual",
-           eps = 1,
+           eps = .5,
            rt_iso_threshold = .5,
            mz_iso_threshold = 5,
            threshold = "manual",
@@ -55,17 +55,17 @@ auto_align <-
       "`smooth_method` must be either 'loess' or 'gam'" =
         smooth_method %in% c("loess", "gam")
     )
-    raw_df(ms1) <- raw_df(ms1) |>
-      dplyr::mutate(
-        MZ = round(.data$MZ, 4),
-        RT = round(.data$RT, 2)
-      )
-
-    raw_df(ms2) <- raw_df(ms2) |>
-      dplyr::mutate(
-        MZ = round(MZ, 4),
-        RT = round(RT, 2)
-      )
+    # raw_df(ms1) <- raw_df(ms1) |>
+    #   dplyr::mutate(
+    #     MZ = round(.data$MZ, 4),
+    #     RT = round(.data$RT, 3)
+    #   )
+    #
+    # raw_df(ms2) <- raw_df(ms2) |>
+    #   dplyr::mutate(
+    #     MZ = round(MZ, 4),
+    #     RT = round(RT, 3)
+    #   )
 
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
