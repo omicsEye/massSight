@@ -1,5 +1,6 @@
 ---
 title: "Profiling software comparison using iHMP data"
+date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
 author: 
 - Bahar Sayoldin, bahar.sayoldin@gmail.com
 - Chiraag Gohel, chiraaggohel@gwu.edu
@@ -19,28 +20,25 @@ knitr::opts_chunk$set(
 
 ## Setup
 
-`massSight` can be installed via `devtools`:
+For this tutorial, we will be analyzing two datasets from the NIH human microbiome project that were processed using different techniques. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics). The second dataset can be downloaded [here](https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz). 
+
+First, `massSight` can be installed via `devtools`:
 
 ```{r, eval = F}
 install.packages('devtools')
 devtools::install_github("omicsEye/massSight", force = TRUE)
 ```
 
-We can then load the necessary libraries.
+We can then load the necessary libraries. `omicsArt` provides helper functions for loading and visualizing data.
 
-```{r}
+```{r, message = F}
 library(massSight)
 library(omicsArt)
 ```
 
 ## Loading iHMP data
 
-For this tutorial, we will be analyzing two datasets from the NIH human microbiome project. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics). The second dataset can be downloaded [here](https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz). 
-
 We can use the `load_data()` function to import LC-MS data in excel format from a variety of standard pre-processed formats.
-
-```{r, echo = F}
-```
 
 ```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
 loaded_data <- massSight::load_data(input='data/HMP2_metabolomics.xlsx', 
@@ -52,7 +50,7 @@ loaded_data$feature_metadata$RT <- as.numeric(loaded_data$feature_metadata$RT)
 feature_metadata2 <- loaded_data$feature_metadata[colnames(loaded_data$data),]
 ```
 
-### Calculate the mean of intensity values across samples 
+We can then use the `filter_intensities()` function to perform quality control and remove metabolites with low prevalence. 
 
 ```{r}
 loaded_data$data <- loaded_data$data |> t() |> data.frame()
@@ -63,7 +61,9 @@ feature_metadata2$Intensity <- rowMeans(loaded_data$data, na.rm=T)
 ref_input <- feature_metadata2[(!is.na(feature_metadata2$MZ)) & (!is.na(feature_metadata2$RT)), ]
 ```
 
-### create a `massSight` object as the first (ref) object for alignment
+### Create a `massSight` object for the first dataset
+
+We now have everything we need to create a `massSight` object (`MSObject`). The object serves as a container that contains raw data, analyzed data, and other information regarding the experiment. For more information about the `MSObject`, check out its [documentation](https://omicseye.github.io/massSight/reference/MSObject-class.html).
 
 ```{r}
 hmp2_ms <- create_ms_obj(df = ref_input, 
@@ -75,7 +75,17 @@ hmp2_ms <- create_ms_obj(df = ref_input,
                      metab_name= "Metabolite")
 ```
 
-### create a `massSight` object as a second (query) object for alignment
+
+We can use the `raw_df()` function to access the stored data from the created object. Let's see what it looks like!
+
+```{r}
+ms_C18_CD |>
+  raw_df() |>
+  head() |>
+  kableExtra::kbl(format = "simple")
+```
+
+We process the second dataset similarly.
 
 ```{r}
 C18_CD <- read.delim(
@@ -95,8 +105,6 @@ We then check the column names to see what variable names should be used when co
 colnames(C18_CD) |> head(10)
 ```
 
-### calculate average intensity across all samples
-
 In this dataset, sample intensity values begin at column 7 until the end of the dataframe.
 The `load_data()` function used `omicsArt::numeric_dataframe()` to ensure that we converted the dataframe columns as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
 
@@ -108,7 +116,7 @@ C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2
 C18_CD$row_id <- rownames(C18_CD)
 ```
 
-Create an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
+We then can create an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
 
 ```{r}
 ms_C18_CD <-
@@ -123,16 +131,9 @@ ms_C18_CD <-
   )
 ```
 
-## check few first rows of the dataframe
+## Aligning Datasets
 
-```{r}
-ms_C18_CD |>
-  raw_df() |>
-  head() |>
-  kableExtra::kbl(format = "simple")
-```
-
-## run auto-align function with defualts 
+The `auto_align()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/auto_align.html)!
 
 ```{r, cache = T}
 aligned <- auto_align(ms1 = hmp2_ms, 
