@@ -10,7 +10,7 @@
     <loc>https://omicseye.github.io/massSight/LICENSE.html</loc>
   </url>
   <url>
-    <loc>https://omicseye.github.io/massSight/articles/example_alignment.html</loc>
+    <loc>https://omicseye.github.io/massSight/articles/iHMP_software_comp.html</loc>
   </url>
   <url>
     <loc>https://omicseye.github.io/massSight/articles/index.html</loc>
@@ -46,6 +46,9 @@
     <loc>https://omicseye.github.io/massSight/reference/distribution_plot.html</loc>
   </url>
   <url>
+    <loc>https://omicseye.github.io/massSight/reference/filter_intensities.html</loc>
+  </url>
+  <url>
     <loc>https://omicseye.github.io/massSight/reference/final_plots.html</loc>
   </url>
   <url>
@@ -53,5 +56,8 @@
   </url>
   <url>
     <loc>https://omicseye.github.io/massSight/reference/load_data.html</loc>
+  </url>
+  <url>
+    <loc>https://omicseye.github.io/massSight/reference/massSight-package.html</loc>
   </url>
 </urlset>

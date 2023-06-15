@@ -6,15 +6,11 @@
 #'
 #' @return cowplot grid of plots
 #' @export
-#' @examples
-#' data("hp1_ms")
-#' data("hp2_ms")
-#' merged_ms_obj <- auto_align(hp1_ms, hp2_ms)
-#' final_plots(merged_ms_obj)
 final_plots <-
   function(merged_ms_obj,
            rt_lim = c(-.5, .5),
            mz_lim = c(-15, 15)) {
+    smooth <- merged_ms_obj@smooth
     rt_pre_iso <- pre_iso_matched(merged_ms_obj) |>
       ggplot2::ggplot(ggplot2::aes(x = RT, y = RT_2 - RT)) +
       ggplot2::geom_point(
@@ -26,7 +22,7 @@ final_plots <-
         stroke = 0.05
       ) +
       ggplot2::geom_smooth(
-        method = "loess",
+        method = smooth,
         alpha = .3,
         col = "#AA9868"
       ) +
@@ -52,7 +48,7 @@ final_plots <-
         stroke = 0.05
       ) +
       ggplot2::geom_smooth(
-        method = "loess",
+        method = smooth,
         alpha = .3,
         col = "#AA9868"
       ) +
@@ -78,7 +74,7 @@ final_plots <-
       ) +
       ggplot2::ylim(rt_lim) +
       ggplot2::geom_smooth(
-        method = "loess",
+        method = smooth,
         alpha = .3,
         col = "#AA9868"
       ) +
@@ -102,7 +98,7 @@ final_plots <-
         stroke = 0.05
       ) +
       ggplot2::geom_smooth(
-        method = "loess",
+        method = smooth,
         alpha = .3,
         col = "#AA9868"
       ) +
@@ -126,7 +122,7 @@ final_plots <-
         stroke = 0.05
       ) +
       ggplot2::geom_smooth(
-        method = "loess",
+        method = smooth,
         alpha = .3,
         col = "#AA9868"
       ) +
@@ -154,7 +150,7 @@ final_plots <-
         stroke = 0.05
       ) +
       ggplot2::geom_smooth(
-        method = "loess",
+        method = smooth,
         alpha = .3,
         col = "#AA9868"
       ) +

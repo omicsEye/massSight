@@ -19,9 +19,3 @@ cowplot grid of plots
 \description{
 Final Plots
 }
-\examples{
-data("hp1_ms")
-data("hp2_ms")
-merged_ms_obj <- auto_align(hp1_ms, hp2_ms)
-final_plots(merged_ms_obj)
-}

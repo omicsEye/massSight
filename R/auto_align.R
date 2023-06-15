@@ -99,6 +99,7 @@ auto_align <-
     align_obj <- new("MergedMSObject")
     ms1(align_obj) <- ms1
     ms2(align_obj) <- ms2
+    smooth(align_obj) <- smooth_method
     align_obj <- align_obj |>
       align_pre_isolated_compounds(
         rt_minus = rt_lower,

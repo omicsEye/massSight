@@ -10,6 +10,6 @@ filter_intensities <- function(data, prevalence = .5) {
   row_nas <- data |>
     is.na() |>
     rowSums()
-  keep <- (row_nas / ncol(data)) > prev
+  keep <- (row_nas / ncol(data)) > prevalence
   return(keep)
 }

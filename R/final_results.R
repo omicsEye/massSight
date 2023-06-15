@@ -35,9 +35,6 @@ final_results <-
         )
       if (!is.null(best_match)) {
         pb$tick()
-        if (length(best_match) > 1) {
-          browser()
-        }
         best_reverse_match <-
           find_closest_match(
             df2_for_align |>

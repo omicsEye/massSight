@@ -1,6 +1,8 @@
 ---
 title: "Profiling software comparison using iHMP data"
-author: "Bahar Sayoldin, bahar.sayoldin@gmail.com; Chiraag Gohel, chiraaggohel@gwu.edu"
+author: 
+- Bahar Sayoldin, bahar.sayoldin@gmail.com
+- Chiraag Gohel, chiraaggohel@gwu.edu
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Profiling software comparison using iHMP data}
@@ -27,17 +29,21 @@ devtools::install_github("omicsEye/massSight", force = TRUE)
 We can then load the necessary libraries.
 
 ```{r}
-library(ggplot2)
 library(massSight)
-library(knitr)
+library(omicsArt)
 ```
 
 ## Loading iHMP data
 
-For this tutorial, we will be analyzing two datasets from the NIH human microbiome project. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics). The second dataset can be downloaded [here](https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz)
+For this tutorial, we will be analyzing two datasets from the NIH human microbiome project. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics). The second dataset can be downloaded [here](https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz). 
 
-```{r}
-loaded_data <- load_data(input='data/HMP2_metabolomics.xlsx', 
+We can use the `load_data()` function to import LC-MS data in excel format from a variety of standard pre-processed formats.
+
+```{r, echo = F}
+```
+
+```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+loaded_data <- massSight::load_data(input='data/HMP2_metabolomics.xlsx', 
                          type = 'all', 
                          sheet = 1, 
                          id = 'Compound_ID')
@@ -60,7 +66,7 @@ ref_input <- feature_metadata2[(!is.na(feature_metadata2$MZ)) & (!is.na(feature_
 ### create a `massSight` object as the first (ref) object for alignment
 
 ```{r}
-ref <- create_ms_obj(df = ref_input, 
+hmp2_ms <- create_ms_obj(df = ref_input, 
                      name = "iHMP", 
                      id_name = "Compound_ID", 
                      rt_name = "RT", 
@@ -95,16 +101,9 @@ In this dataset, sample intensity values begin at column 7 until the end of the 
 The `load_data()` function used `omicsArt::numeric_dataframe()` to ensure that we converted the dataframe columns as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
 
 ```{r}
-prev <- .5
-
-row_nas <- C18_CD[,7:ncol(C18_CD)] |>
-  is.na() |>
-  rowSums()
-
-keep <- (row_nas/ncol(C18_CD)) > prev
-
-C18_CD_filter <- C18_CD[keep,]
-
+c18_keep <- filter_intensities(data = C18_CD[,7:ncol(C18_CD)],
+                               prevalence = .5)
+C18_CD_filter <- C18_CD[c18_keep,]
 C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2]]) , na.rm=T)
 C18_CD$row_id <- rownames(C18_CD)
 ```
@@ -135,19 +134,21 @@ ms_C18_CD |>
 
 ## run auto-align function with defualts 
 
-```{r}
-aligned <- auto_align(ms1 = ref, 
+```{r, cache = T}
+aligned <- auto_align(ms1 = hmp2_ms, 
                       ms2 = ms_C18_CD,
-                      rt_lower = -.25,
-                      rt_upper = .25,
-                      mz_lower = -5,
-                      mz_upper = 5,
-                      iso_method = "dbscan")
+                      iso_method = "dbscan",
+                      eps = .15,
+                      smooth_method = "loess")
 ```
 
-## Visualization and save pdfs
+## Visualization of smoothing and matching
 
 ```{r}
+final_plots(aligned)
+```
+
+```{r, eval = F}
 ## Visualization 
 final_smooth <- final_plots(aligned)
 
@@ -157,7 +158,6 @@ ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.
 ## Use only C18-neg as reference 
 
 ```{r}
-
 ref_input_C18 <- ref_input[ref_input$Method=="C18-neg",]
 ref_C18 <- create_ms_obj(df = ref_input_C18, 
                          name = "iHMP_C18", 
@@ -170,26 +170,21 @@ ref_C18 <- create_ms_obj(df = ref_input_C18,
 
 ## run auto_align with dbscan
 
-```{r}
+```{r, cache = T}
 aligned_c18 <- auto_align(ms1 = ref_C18, 
                           ms2 = ms_C18_CD, 
-                          iso_method = "dbscan")
+                          iso_method = "dbscan",
+                          eps = .15,
+                          smooth_method = "loess")
 ```
 
 ## Visualization and save pdfs
 
 ```{r}
-final_smooth_ref_C18 <- final_plots(aligned_c18)
-ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png', plot=final_smooth_ref_C18, width = 7.2, height = 3.5, units = "in", dpi = 300)
+final_plots(aligned_c18)
 ```
 
-## run auto_align with default
-
-```{r}
-aligned_c18_default <- auto_align(ms1 = ref_C18, 
-                                  ms2 = ms_C18_CD)
-
-final_smooth_ref_C18_default <- final_plots(aligned_c18, iso_method = "manual")
-
-ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18_default.png', plot=final_smooth_ref_C18_default, width = 7.2, height = 3.5, units = "in", dpi = 300)
+```{r, eval = F}
+final_smooth_ref_C18 <- final_plots(aligned_c18)
+ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png', plot=final_smooth_ref_C18, width = 7.2, height = 3.5, units = "in", dpi = 300)
 ```
