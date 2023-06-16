@@ -1,12 +1,13 @@
 ---
-title: "Profiling software comparison using iHMP data"
+title: "Alignment Tutorial using iHMP Data"
 date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
-author: 
-- Bahar Sayoldin, bahar.sayoldin@gmail.com
+author:
 - Chiraag Gohel, chiraaggohel@gwu.edu
+- Bahar Sayoldin, bahar.sayoldin@gmail.com
+- Ali Rahnavard, rahnavard@gwu.edu
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Profiling software comparison using iHMP data}
+  %\VignetteIndexEntry{Alignment Tutorial using iHMP Data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -33,6 +34,7 @@ We can then load the necessary libraries. `omicsArt` provides helper functions f
 
 ```{r, message = F}
 library(massSight)
+library(ggplot2)
 library(omicsArt)
 ```
 
@@ -79,7 +81,7 @@ hmp2_ms <- create_ms_obj(df = ref_input,
 We can use the `raw_df()` function to access the stored data from the created object. Let's see what it looks like!
 
 ```{r}
-ms_C18_CD |>
+hmp2_ms |>
   raw_df() |>
   head() |>
   kableExtra::kbl(format = "simple")
@@ -133,21 +135,25 @@ ms_C18_CD <-
 
 ## Aligning Datasets
 
-The `auto_align()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/auto_align.html)!
+The `auto_combine()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)!
 
 ```{r, cache = T}
-aligned <- auto_align(ms1 = hmp2_ms, 
+aligned <- auto_combine(ms1 = hmp2_ms, 
                       ms2 = ms_C18_CD,
                       iso_method = "dbscan",
                       eps = .15,
                       smooth_method = "loess")
 ```
 
-## Visualization of smoothing and matching
+## Visualization
+
+Visualization of alignment can be performed via the `final_plots()` function.
 
 ```{r}
 final_plots(aligned)
 ```
+
+We recommend the use of `ggsave()` from the package `ggplot2` for the saving of publication quality figures.
 
 ```{r, eval = F}
 ## Visualization 
@@ -156,7 +162,7 @@ final_smooth <- final_plots(aligned)
 ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png', plot=final_smooth, width = 7.2, height = 3.5, units = "in", dpi = 300)
 ```
 
-## Use only C18-neg as reference 
+## Using only C18-neg as a reference 
 
 ```{r}
 ref_input_C18 <- ref_input[ref_input$Method=="C18-neg",]
@@ -169,17 +175,17 @@ ref_C18 <- create_ms_obj(df = ref_input_C18,
                          metab_name= "Metabolite")
 ```
 
-## run auto_align with dbscan
+## Run auto_combine with dbscan
 
 ```{r, cache = T}
-aligned_c18 <- auto_align(ms1 = ref_C18, 
+aligned_c18 <- auto_combine(ms1 = ref_C18, 
                           ms2 = ms_C18_CD, 
                           iso_method = "dbscan",
                           eps = .15,
                           smooth_method = "loess")
 ```
 
-## Visualization and save pdfs
+## Visualization
 
 ```{r}
 final_plots(aligned_c18)

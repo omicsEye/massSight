@@ -1,6 +1,6 @@
 #' @export
-#' @title Auto Align
-#' @description Aligns two `massSight` objects, resulting in a single
+#' @title Auto Combine
+#' @description Combines two `massSight` objects, resulting in a single
 #' `MergedMSObject`.
 #' @param ms1 A `massSight` object representing the results of a preprocessed
 #' LC-MS experiment.
@@ -31,8 +31,8 @@
 #' the alignment.
 #' @param keep_features A logical vector indicating whether or not to
 #' keep features that are not matched.
-#' @return A data frame containing the aligned data.
-auto_align <-
+#' @return A data frame containing the combined data.
+auto_combine <-
   function(ms1,
            ms2,
            rt_lower = -.5,
@@ -41,7 +41,7 @@ auto_align <-
            mz_upper = 15,
            minimum_intensity = 1000,
            iso_method = "manual",
-           eps = .5,
+           eps = .1,
            rt_iso_threshold = .5,
            mz_iso_threshold = 5,
            threshold = "manual",
@@ -78,9 +78,9 @@ auto_align <-
           mz_sim = mz_iso_threshold
         )
         isolated(ms1) <- raw_df(ms1) |>
-          dplyr::filter(Compound_ID %in% ref_iso)
+          dplyr::filter(!!"Compound_ID" %in% ref_iso)
         isolated(ms2) <- raw_df(ms2) |>
-          dplyr::filter(Compound_ID %in% query_iso)
+          dplyr::filter(!!"Compound_ID" %in% query_iso)
       } else if (iso_method == "dbscan") {
         isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
         isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
@@ -89,9 +89,9 @@ auto_align <-
       }
     } else if (match_method == "supervised") {
       isolated(ms1) <- raw_df(ms1) |>
-        filter(Metabolite != "")
+        filter(!!"Metabolite" != "")
       isolated(ms2) <- raw_df(ms2) |>
-        filter(Metabolite != "")
+        filter(!!"Metabolite" != "")
     } else {
       stop("`match_method` must be either 'unsupervised' or 'supervised'.")
     }

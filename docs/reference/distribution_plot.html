@@ -8,7 +8,7 @@ of individual MS experiments"><!-- mathjax --><script src="https://cdnjs.cloudfl
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     
 
-    <nav class="navbar fixed-top navbar-light navbar-expand-lg bg-light"><div class="container">
+    <nav class="navbar fixed-top navbar-dark navbar-expand-lg bg-primary"><div class="container">
     
     <a class="navbar-brand me-2" href="../index.html">massSight</a>
 
@@ -26,7 +26,7 @@ of individual MS experiments"><!-- mathjax --><script src="https://cdnjs.cloudfl
 <li class="nav-item dropdown">
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
   <div class="dropdown-menu" aria-labelledby="dropdown-articles">
-    <a class="dropdown-item" href="../articles/iHMP_software_comp.html">Profiling software comparison using iHMP data</a>
+    <a class="dropdown-item" href="../articles/iHMP_software_comp.html">Alignment Tutorial using iHMP Data</a>
   </div>
 </li>
       </ul><form class="form-inline my-2 my-lg-0" role="search">
@@ -81,7 +81,7 @@ marginal histograms</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="auto_align.html">auto_align</a></span><span class="op">(</span><span class="va">ms1</span>, <span class="va">ms2</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="auto_combine.html">auto_combine</a></span><span class="op">(</span><span class="va">ms1</span>, <span class="va">ms2</span><span class="op">)</span></span></span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in (function (classes, fdef, mtable) {    methods &lt;- .findInheritedMethods(classes, fdef, mtable)    if (length(methods) == 1L)         return(methods[[1L]])    else if (length(methods) == 0L) {        cnames &lt;- paste0("\"", vapply(classes, as.character,             ""), "\"", collapse = ", ")        stop(gettextf("unable to find an inherited method for function %s for signature %s",             sQuote(fdef@generic), sQuote(cnames)), domain = NA)    }    else stop("Internal error in finding inherited methods; didn't return a unique method",         domain = NA)})(list(structure("nonstandardGenericFunction", package = "methods")),     new("nonstandardGenericFunction", .Data = function (x)     {        standardGeneric("raw_df")    }, generic = structure("raw_df", package = "massSight"),         package = "massSight", group = list(), valueClass = character(0),         signature = "x", default = NULL, skeleton = (function (x)         stop(gettextf("invalid call in method dispatch to '%s' (no default method)",             "raw_df"), domain = NA))(x)), &lt;environment&gt;):</span> unable to find an inherited method for function ‘raw_df’ for signature ‘"nonstandardGenericFunction"’</span>
 <span class="r-in"><span><span class="fu">distribution_plot</span><span class="op">(</span><span class="va">aligned</span>, subset <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></span>
 </code></pre></div>

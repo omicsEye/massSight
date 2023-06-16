@@ -109,17 +109,17 @@ ms2 |>
 
 ## Alignment
 
-Alignment is performed using `auto_align()`
+Alignment is performed using `auto_combine()`
 
 ``` r
-aligned <- auto_align(ms1 = ms1, 
+aligned <- auto_combine(ms1 = ms1, 
                       ms2 = ms2, 
                       iso_method = "dbscan")
 ```
 
-More information on the `auto_align()` function can be found in the
+More information on the `auto_combine()` function can be found in the
 [package
-documentation](https://omicseye.github.io/massSight/reference/auto_align.html)
+documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)
 
 ### Plotting results from alignment
 
@@ -134,7 +134,7 @@ final_plots(aligned)
 ## Run
 
 For now, manually add tsv/csv file and load data object into the global
-environment using `read_csv` or `read_table`. Then run `auto_align` on
+environment using `read_csv` or `read_table`. Then run `auto_combine` on
 the created data objects.
 
 ``` r
@@ -160,7 +160,7 @@ user_df1 <- read.delim(
 )
 
 # run alignment function to combine two datasets
-aligned <- auto_align(user_df1, user_df2)
+aligned <- auto_combine(user_df1, user_df2)
 ```
 
 ## Dev Instructions

@@ -11,7 +11,7 @@
 #' @export
 #'
 #' @examples
-#' aligned <- auto_align(ms1, ms2)
+#' aligned <- auto_combine(ms1, ms2)
 #' distribution_plot(aligned, subset = "all")
 distribution_plot <- function(ms_obj, subset = "all") {
   if (class(ms_obj) == "MSObject") {
