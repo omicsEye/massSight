@@ -69,14 +69,17 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="" class="logo" alt=""><h1>Alignment Tutorial using iHMP Data</h1>
-                        <h4 data-toc-skip class="author">Bahar Sayoldin,
-<a href="mailto:bahar.sayoldin@gmail.com" class="email">bahar.sayoldin@gmail.com</a>
-</h4>
                         <h4 data-toc-skip class="author">Chiraag Gohel,
 <a href="mailto:chiraaggohel@gwu.edu" class="email">chiraaggohel@gwu.edu</a>
 </h4>
+                        <h4 data-toc-skip class="author">Bahar Sayoldin,
+<a href="mailto:bahar.sayoldin@gmail.com" class="email">bahar.sayoldin@gmail.com</a>
+</h4>
+                        <h4 data-toc-skip class="author">Ali Rahnavard,
+<a href="mailto:rahnavard@gwu.edu" class="email">rahnavard@gwu.edu</a>
+</h4>
             
-            <h4 data-toc-skip class="date">Compiled: June 15, 2023</h4>
+            <h4 data-toc-skip class="date">Compiled: June 16, 2023</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/omicsEye/massSight/blob/HEAD/vignettes/iHMP_software_comp.Rmd" class="external-link"><code>vignettes/iHMP_software_comp.Rmd</code></a></small>
       <div class="d-none name"><code>iHMP_software_comp.Rmd</code></div>
@@ -100,6 +103,7 @@ dataset can be downloaded <a href="https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8toly
 provides helper functions for loading and visualizing data.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/omicsEye/massSight" class="external-link">massSight</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">omicsArt</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -291,11 +295,13 @@ experiments. For more information on the function, check out its <a href="https:
 <span><span class="co">#&gt; (`stat_smooth()`).</span></span>
 <span><span class="co">#&gt; Warning: Removed 7481 rows containing missing values (`geom_point()`).</span></span></code></pre></div>
 <p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-13-1.png" width="700"></p>
+<p>We recommend the use of <code><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave()</a></code> from the package
+<code>ggplot2</code> for the saving of publication quality figures.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">## Visualization </span></span>
 <span><span class="va">final_smooth</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">ggsave</span><span class="op">(</span>filename<span class="op">=</span><span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png'</span>, plot<span class="op">=</span><span class="va">final_smooth</span>, width <span class="op">=</span> <span class="fl">7.2</span>, height <span class="op">=</span> <span class="fl">3.5</span>, units <span class="op">=</span> <span class="st">"in"</span>, dpi <span class="op">=</span> <span class="fl">300</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span>filename<span class="op">=</span><span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png'</span>, plot<span class="op">=</span><span class="va">final_smooth</span>, width <span class="op">=</span> <span class="fl">7.2</span>, height <span class="op">=</span> <span class="fl">3.5</span>, units <span class="op">=</span> <span class="st">"in"</span>, dpi <span class="op">=</span> <span class="fl">300</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="using-only-c18-neg-as-a-reference">Using only C18-neg as a reference<a class="anchor" aria-label="anchor" href="#using-only-c18-neg-as-a-reference"></a>
@@ -337,7 +343,7 @@ experiments. For more information on the function, check out its <a href="https:
 <p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-17-1.png" width="700"></p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">final_smooth_ref_C18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned_c18</span><span class="op">)</span></span>
-<span><span class="fu">ggsave</span><span class="op">(</span>filename<span class="op">=</span><span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png'</span>, plot<span class="op">=</span><span class="va">final_smooth_ref_C18</span>, width <span class="op">=</span> <span class="fl">7.2</span>, height <span class="op">=</span> <span class="fl">3.5</span>, units <span class="op">=</span> <span class="st">"in"</span>, dpi <span class="op">=</span> <span class="fl">300</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span>filename<span class="op">=</span><span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png'</span>, plot<span class="op">=</span><span class="va">final_smooth_ref_C18</span>, width <span class="op">=</span> <span class="fl">7.2</span>, height <span class="op">=</span> <span class="fl">3.5</span>, units <span class="op">=</span> <span class="st">"in"</span>, dpi <span class="op">=</span> <span class="fl">300</span><span class="op">)</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>
