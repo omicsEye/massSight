@@ -127,7 +127,7 @@ The `load_data()` function used `omicsArt::numeric_dataframe()` to ensure that w
 ```{r}
 c18_keep <- filter_intensities(data = C18_CD[, 7:ncol(C18_CD)],
                                prevalence = .5)
-C18_CD_filter <- C18_CD[c18_keep, ]
+C18_CD <- C18_CD[c18_keep, ]
 C18_CD$Intensity <-
   rowMeans(omicsArt::numeric_dataframe(C18_CD[, 7:dim(C18_CD)[2]]),
            na.rm = T)
