@@ -28,15 +28,17 @@ First, `massSight` can be installed via `devtools`:
 ```{r, eval = F}
 install.packages('devtools')
 devtools::install_github("omicsEye/massSight", force = TRUE)
-devtools::install_github("omicsEye/omicsArt", force = TRUE)
 ```
 
-We can then load the necessary libraries. `omicsArt` provides helper functions for loading and visualizing data.
+We'll also need to install the package `omicsArt`. This package provides helper functions for loading, wrangling, and visualizing data. Instructions for installing `omicsArt` can be found [here](https://github.com/omicsEye/omicsArt).
+
+We can then load the necessary libraries.
 
 ```{r, message = F}
 library(massSight)
 library(ggplot2)
 library(omicsArt)
+library(kableExtra)
 ```
 
 ## Loading iHMP data
@@ -147,7 +149,16 @@ ms_C18_CD <-
   )
 ```
 
-## Aligning Datasets
+## Quick QC Check
+
+We can visualize the distributions of retention time and mass to charge ratio using `distribution_plot()`
+
+```{r}
+distribution_plot(hmp2_ms)
+distribution_plot(ms_C18_CD)
+```
+
+## Combining Datasets
 
 The `auto_combine()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)!
 

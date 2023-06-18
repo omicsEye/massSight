@@ -79,7 +79,7 @@
 <a href="mailto:rahnavard@gwu.edu" class="email">rahnavard@gwu.edu</a>
 </h4>
             
-            <h4 data-toc-skip class="date">Compiled: June 16, 2023</h4>
+            <h4 data-toc-skip class="date">Compiled: June 18, 2023</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/omicsEye/massSight/blob/HEAD/vignettes/iHMP_software_comp.Rmd" class="external-link"><code>vignettes/iHMP_software_comp.Rmd</code></a></small>
       <div class="d-none name"><code>iHMP_software_comp.Rmd</code></div>
@@ -99,12 +99,16 @@ dataset can be downloaded <a href="https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8toly
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">'devtools'</span><span class="op">)</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"omicsEye/massSight"</span>, force <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>We can then load the necessary libraries. <code>omicsArt</code>
-provides helper functions for loading and visualizing data.</p>
+<p>We’ll also need to install the package <code>omicsArt</code>. This
+package provides helper functions for loading, wrangling, and
+visualizing data. Instructions for installing <code>omicsArt</code> can
+be found <a href="https://github.com/omicsEye/omicsArt" class="external-link">here</a>.</p>
+<p>We can then load the necessary libraries.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/omicsEye/massSight" class="external-link">massSight</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">omicsArt</span><span class="op">)</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">omicsArt</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="http://haozhu233.github.io/kableExtra/" class="external-link">kableExtra</a></span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="loading-ihmp-data">Loading iHMP data<a class="anchor" aria-label="anchor" href="#loading-ihmp-data"></a>
@@ -112,22 +116,31 @@ provides helper functions for loading and visualizing data.</p>
 <p>We can use the <code><a href="../reference/load_data.html">load_data()</a></code> function to import LC-MS data
 in excel format from a variety of standard pre-processed formats.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">loaded_data</span> <span class="op">&lt;-</span> <span class="fu">massSight</span><span class="fu">::</span><span class="fu"><a href="../reference/load_data.html">load_data</a></span><span class="op">(</span>input<span class="op">=</span><span class="st">'data/HMP2_metabolomics.xlsx'</span>, </span>
-<span>                         type <span class="op">=</span> <span class="st">'all'</span>, </span>
-<span>                         sheet <span class="op">=</span> <span class="fl">1</span>, </span>
-<span>                         id <span class="op">=</span> <span class="st">'Compound_ID'</span><span class="op">)</span></span>
-<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">MZ</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">MZ</span><span class="op">)</span></span>
-<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">RT</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">RT</span><span class="op">)</span></span>
-<span><span class="va">feature_metadata2</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>,<span class="op">]</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">loaded_data</span> <span class="op">&lt;-</span></span>
+<span>  <span class="fu">massSight</span><span class="fu">::</span><span class="fu"><a href="../reference/load_data.html">load_data</a></span><span class="op">(</span></span>
+<span>    input <span class="op">=</span> <span class="st">'data/HMP2_metabolomics.xlsx'</span>,</span>
+<span>    type <span class="op">=</span> <span class="st">'all'</span>,</span>
+<span>    sheet <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>    id <span class="op">=</span> <span class="st">'Compound_ID'</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">MZ</span> <span class="op">&lt;-</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">MZ</span><span class="op">)</span></span>
+<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">RT</span> <span class="op">&lt;-</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">RT</span><span class="op">)</span></span>
+<span><span class="va">feature_metadata2</span> <span class="op">&lt;-</span></span>
+<span>  <span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>, <span class="op">]</span></span></code></pre></div>
 <p>We can then use the <code><a href="../reference/filter_intensities.html">filter_intensities()</a></code> function to
 perform quality control and remove metabolites with low prevalence.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">hmp2_keep</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/filter_intensities.html">filter_intensities</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span>, prevalence <span class="op">=</span> <span class="fl">.5</span><span class="op">)</span></span>
-<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="va">hmp2_keep</span>, <span class="op">]</span></span>
-<span><span class="va">feature_metadata2</span> <span class="op">&lt;-</span> <span class="va">feature_metadata2</span><span class="op">[</span><span class="va">hmp2_keep</span>, <span class="op">]</span></span>
-<span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">Intensity</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span>, na.rm<span class="op">=</span><span class="cn">T</span><span class="op">)</span></span>
-<span><span class="va">ref_input</span> <span class="op">&lt;-</span> <span class="va">feature_metadata2</span><span class="op">[</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">MZ</span><span class="op">)</span><span class="op">)</span> <span class="op">&amp;</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">RT</span><span class="op">)</span><span class="op">)</span>, <span class="op">]</span></span></code></pre></div>
+<span><span class="va">hmp2_keep</span> <span class="op">&lt;-</span></span>
+<span>  <span class="fu"><a href="../reference/filter_intensities.html">filter_intensities</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span>, prevalence <span class="op">=</span> <span class="fl">.5</span><span class="op">)</span></span>
+<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="va">hmp2_keep</span>,<span class="op">]</span></span>
+<span><span class="va">feature_metadata2</span> <span class="op">&lt;-</span> <span class="va">feature_metadata2</span><span class="op">[</span><span class="va">hmp2_keep</span>,<span class="op">]</span></span>
+<span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">Intensity</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span>, na.rm <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
+<span><span class="va">ref_input</span> <span class="op">&lt;-</span></span>
+<span>  <span class="va">feature_metadata2</span><span class="op">[</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">MZ</span><span class="op">)</span><span class="op">)</span> <span class="op">&amp;</span></span>
+<span>                      <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">RT</span><span class="op">)</span><span class="op">)</span>,<span class="op">]</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="create-a-masssight-object-for-the-first-dataset">Create a <code>massSight</code> object for the first dataset<a class="anchor" aria-label="anchor" href="#create-a-masssight-object-for-the-first-dataset"></a>
 </h3>
@@ -137,13 +150,15 @@ contains raw data, analyzed data, and other information regarding the
 experiment. For more information about the <code>MSObject</code>, check
 out its <a href="https://omicseye.github.io/massSight/reference/MSObject-class.html">documentation</a>.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">hmp2_ms</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span>df <span class="op">=</span> <span class="va">ref_input</span>, </span>
-<span>                     name <span class="op">=</span> <span class="st">"iHMP"</span>, </span>
-<span>                     id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>, </span>
-<span>                     rt_name <span class="op">=</span> <span class="st">"RT"</span>, </span>
-<span>                     mz_name <span class="op">=</span> <span class="st">"MZ"</span>, </span>
-<span>                     int_name <span class="op">=</span> <span class="st">"Intensity"</span>,</span>
-<span>                     metab_name<span class="op">=</span> <span class="st">"Metabolite"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">hmp2_ms</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
+<span>  df <span class="op">=</span> <span class="va">ref_input</span>,</span>
+<span>  name <span class="op">=</span> <span class="st">"iHMP"</span>,</span>
+<span>  id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>,</span>
+<span>  rt_name <span class="op">=</span> <span class="st">"RT"</span>,</span>
+<span>  mz_name <span class="op">=</span> <span class="st">"MZ"</span>,</span>
+<span>  int_name <span class="op">=</span> <span class="st">"Intensity"</span>,</span>
+<span>  metab_name <span class="op">=</span> <span class="st">"Metabolite"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <p>We can use the <code>raw_df()</code> function to access the stored
 data from the created object. Let’s see what it looks like!</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
@@ -244,10 +259,12 @@ the dataframe columns as numeric as the read dataframe has columns with
 various data types and to measure mean of rows of intensities we need to
 convert them to numeric.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">c18_keep</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/filter_intensities.html">filter_intensities</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">C18_CD</span><span class="op">[</span>,<span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">]</span>,</span>
+<code class="sourceCode R"><span><span class="va">c18_keep</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/filter_intensities.html">filter_intensities</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">C18_CD</span><span class="op">[</span>, <span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">]</span>,</span>
 <span>                               prevalence <span class="op">=</span> <span class="fl">.5</span><span class="op">)</span></span>
-<span><span class="va">C18_CD_filter</span> <span class="op">&lt;-</span> <span class="va">C18_CD</span><span class="op">[</span><span class="va">c18_keep</span>,<span class="op">]</span></span>
-<span><span class="va">C18_CD</span><span class="op">$</span><span class="va">Intensity</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="fu">omicsArt</span><span class="fu">::</span><span class="fu">numeric_dataframe</span><span class="op">(</span><span class="va">C18_CD</span><span class="op">[</span>,<span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> , na.rm<span class="op">=</span><span class="cn">T</span><span class="op">)</span></span>
+<span><span class="va">C18_CD_filter</span> <span class="op">&lt;-</span> <span class="va">C18_CD</span><span class="op">[</span><span class="va">c18_keep</span>, <span class="op">]</span></span>
+<span><span class="va">C18_CD</span><span class="op">$</span><span class="va">Intensity</span> <span class="op">&lt;-</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="fu">omicsArt</span><span class="fu">::</span><span class="fu">numeric_dataframe</span><span class="op">(</span><span class="va">C18_CD</span><span class="op">[</span>, <span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>           na.rm <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
 <span><span class="va">C18_CD</span><span class="op">$</span><span class="va">row_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span></span></code></pre></div>
 <p>We then can create an object for C18_CD which includes FFA
 metabolites processed with Compound Discovery version</p>
@@ -265,17 +282,29 @@ metabolites processed with Compound Discovery version</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="aligning-datasets">Aligning Datasets<a class="anchor" aria-label="anchor" href="#aligning-datasets"></a>
+<h2 id="quick-qc-check">Quick QC Check<a class="anchor" aria-label="anchor" href="#quick-qc-check"></a>
+</h2>
+<p>We can visualize the distributions of retention time and mass to
+charge ratio using <code><a href="../reference/distribution_plot.html">distribution_plot()</a></code></p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/distribution_plot.html">distribution_plot</a></span><span class="op">(</span><span class="va">hmp2_ms</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/distribution_plot.html">distribution_plot</a></span><span class="op">(</span><span class="va">ms_C18_CD</span><span class="op">)</span></span></code></pre></div>
+<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-12-1.png" width="700"></p>
+</div>
+<div class="section level2">
+<h2 id="combining-datasets">Combining Datasets<a class="anchor" aria-label="anchor" href="#combining-datasets"></a>
 </h2>
 <p>The <code><a href="../reference/auto_combine.html">auto_combine()</a></code> function allows users to combine two
 datasets via the modeling of RT and m/z drift between the two
 experiments. For more information on the function, check out its <a href="https://omicseye.github.io/massSight/reference/auto_combine.html">documentation</a>!</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/auto_combine.html">auto_combine</a></span><span class="op">(</span>ms1 <span class="op">=</span> <span class="va">hmp2_ms</span>, </span>
-<span>                      ms2 <span class="op">=</span> <span class="va">ms_C18_CD</span>,</span>
-<span>                      iso_method <span class="op">=</span> <span class="st">"dbscan"</span>,</span>
-<span>                      eps <span class="op">=</span> <span class="fl">.15</span>,</span>
-<span>                      smooth_method <span class="op">=</span> <span class="st">"loess"</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/auto_combine.html">auto_combine</a></span><span class="op">(</span></span>
+<span>  ms1 <span class="op">=</span> <span class="va">hmp2_ms</span>,</span>
+<span>  ms2 <span class="op">=</span> <span class="va">ms_C18_CD</span>,</span>
+<span>  iso_method <span class="op">=</span> <span class="st">"dbscan"</span>,</span>
+<span>  eps <span class="op">=</span> <span class="fl">.15</span>,</span>
+<span>  smooth_method <span class="op">=</span> <span class="st">"loess"</span></span>
+<span><span class="op">)</span></span>
 <span><span class="co">#&gt; Numbers of matched/kept features: 9189</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -283,7 +312,7 @@ experiments. For more information on the function, check out its <a href="https:
 </h2>
 <p>Visualization of alignment can be performed via the
 <code><a href="../reference/final_plots.html">final_plots()</a></code> function.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span>
 <span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
 <span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
@@ -294,43 +323,54 @@ experiments. For more information on the function, check out its <a href="https:
 <span><span class="co">#&gt; Warning: Removed 7481 rows containing non-finite values</span></span>
 <span><span class="co">#&gt; (`stat_smooth()`).</span></span>
 <span><span class="co">#&gt; Warning: Removed 7481 rows containing missing values (`geom_point()`).</span></span></code></pre></div>
-<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-13-1.png" width="700"></p>
+<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-14-1.png" width="700"></p>
 <p>We recommend the use of <code><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave()</a></code> from the package
 <code>ggplot2</code> for the saving of publication quality figures.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">## Visualization </span></span>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">## Visualization</span></span>
 <span><span class="va">final_smooth</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span>filename<span class="op">=</span><span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png'</span>, plot<span class="op">=</span><span class="va">final_smooth</span>, width <span class="op">=</span> <span class="fl">7.2</span>, height <span class="op">=</span> <span class="fl">3.5</span>, units <span class="op">=</span> <span class="st">"in"</span>, dpi <span class="op">=</span> <span class="fl">300</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span></span>
+<span>  filename <span class="op">=</span> <span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png'</span>,</span>
+<span>  plot <span class="op">=</span> <span class="va">final_smooth</span>,</span>
+<span>  width <span class="op">=</span> <span class="fl">7.2</span>,</span>
+<span>  height <span class="op">=</span> <span class="fl">3.5</span>,</span>
+<span>  units <span class="op">=</span> <span class="st">"in"</span>,</span>
+<span>  dpi <span class="op">=</span> <span class="fl">300</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="using-only-c18-neg-as-a-reference">Using only C18-neg as a reference<a class="anchor" aria-label="anchor" href="#using-only-c18-neg-as-a-reference"></a>
 </h2>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ref_input_C18</span> <span class="op">&lt;-</span> <span class="va">ref_input</span><span class="op">[</span><span class="va">ref_input</span><span class="op">$</span><span class="va">Method</span><span class="op">==</span><span class="st">"C18-neg"</span>,<span class="op">]</span></span>
-<span><span class="va">ref_C18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span>df <span class="op">=</span> <span class="va">ref_input_C18</span>, </span>
-<span>                         name <span class="op">=</span> <span class="st">"iHMP_C18"</span>, </span>
-<span>                         id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>, </span>
-<span>                         rt_name <span class="op">=</span> <span class="st">"RT"</span>, </span>
-<span>                         mz_name <span class="op">=</span> <span class="st">"MZ"</span>, </span>
-<span>                         int_name <span class="op">=</span> <span class="st">"Intensity"</span>,</span>
-<span>                         metab_name<span class="op">=</span> <span class="st">"Metabolite"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ref_input_C18</span> <span class="op">&lt;-</span> <span class="va">ref_input</span><span class="op">[</span><span class="va">ref_input</span><span class="op">$</span><span class="va">Method</span> <span class="op">==</span> <span class="st">"C18-neg"</span>, <span class="op">]</span></span>
+<span><span class="va">ref_C18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
+<span>  df <span class="op">=</span> <span class="va">ref_input_C18</span>,</span>
+<span>  name <span class="op">=</span> <span class="st">"iHMP_C18"</span>,</span>
+<span>  id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>,</span>
+<span>  rt_name <span class="op">=</span> <span class="st">"RT"</span>,</span>
+<span>  mz_name <span class="op">=</span> <span class="st">"MZ"</span>,</span>
+<span>  int_name <span class="op">=</span> <span class="st">"Intensity"</span>,</span>
+<span>  metab_name <span class="op">=</span> <span class="st">"Metabolite"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="run-auto_combine-with-dbscan">Run auto_combine with dbscan<a class="anchor" aria-label="anchor" href="#run-auto_combine-with-dbscan"></a>
 </h2>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">aligned_c18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/auto_combine.html">auto_combine</a></span><span class="op">(</span>ms1 <span class="op">=</span> <span class="va">ref_C18</span>, </span>
-<span>                          ms2 <span class="op">=</span> <span class="va">ms_C18_CD</span>, </span>
-<span>                          iso_method <span class="op">=</span> <span class="st">"dbscan"</span>,</span>
-<span>                          eps <span class="op">=</span> <span class="fl">.15</span>,</span>
-<span>                          smooth_method <span class="op">=</span> <span class="st">"loess"</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">aligned_c18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/auto_combine.html">auto_combine</a></span><span class="op">(</span></span>
+<span>  ms1 <span class="op">=</span> <span class="va">ref_C18</span>,</span>
+<span>  ms2 <span class="op">=</span> <span class="va">ms_C18_CD</span>,</span>
+<span>  iso_method <span class="op">=</span> <span class="st">"dbscan"</span>,</span>
+<span>  eps <span class="op">=</span> <span class="fl">.15</span>,</span>
+<span>  smooth_method <span class="op">=</span> <span class="st">"loess"</span></span>
+<span><span class="op">)</span></span>
 <span><span class="co">#&gt; Numbers of matched/kept features: 1001</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="visualization-1">Visualization<a class="anchor" aria-label="anchor" href="#visualization-1"></a>
 </h2>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned_c18</span><span class="op">)</span></span>
 <span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
 <span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
@@ -340,10 +380,17 @@ experiments. For more information on the function, check out its <a href="https:
 <span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
 <span><span class="co">#&gt; Warning: Removed 70 rows containing non-finite values (`stat_smooth()`).</span></span>
 <span><span class="co">#&gt; Warning: Removed 70 rows containing missing values (`geom_point()`).</span></span></code></pre></div>
-<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-17-1.png" width="700"></p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-18-1.png" width="700"></p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">final_smooth_ref_C18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned_c18</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span>filename<span class="op">=</span><span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png'</span>, plot<span class="op">=</span><span class="va">final_smooth_ref_C18</span>, width <span class="op">=</span> <span class="fl">7.2</span>, height <span class="op">=</span> <span class="fl">3.5</span>, units <span class="op">=</span> <span class="st">"in"</span>, dpi <span class="op">=</span> <span class="fl">300</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span></span>
+<span>  filename <span class="op">=</span> <span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png'</span>,</span>
+<span>  plot <span class="op">=</span> <span class="va">final_smooth_ref_C18</span>,</span>
+<span>  width <span class="op">=</span> <span class="fl">7.2</span>,</span>
+<span>  height <span class="op">=</span> <span class="fl">3.5</span>,</span>
+<span>  units <span class="op">=</span> <span class="st">"in"</span>,</span>
+<span>  dpi <span class="op">=</span> <span class="fl">300</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>

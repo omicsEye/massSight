@@ -1,36 +1,41 @@
 Package: massSight
 Title: Batch Alignment and Scaling for LC-MS Data
 Version: 0.0.0.9000
-Authors@R: 
-    c(person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
+Authors@R: c(
+    person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID")),
-    person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = c("aut"),
-           comment = c(ORCID = "YOUR-ORCID-ID")))
-Description: an `R` package for the alignment, scaling, and downstream analysis of LC-MS metabolomics data.
+    person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = "aut",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+  )
+Description: an `R` package for the alignment, scaling, and downstream
+    analysis of LC-MS metabolomics data.
 License: MIT
+URL: https://github.com/omicsEye/massSight,
+    https://omicseye.github.io/massSight/
+BugReports: https://github.com/omicsEye/massSight/issues
 Depends: 
     R (>= 2.10)
 Imports: 
+    dbscan,
     dplyr,
     GauPro,
-    stats,
+    ggExtra,
     openxlsx,
+    patchwork,
     pracma,
     purrr,
     readxl,
+    rlang,
+    stats,
     stringr,
-    xlsx,
-    patchwork,
-    rlang
+    xlsx
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: 
+    knitr
+biocViews: Omics, Software, metabolite, alignment, scale, qc
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
-URL: https://github.com/omicsEye/massSight,
-    https://omicseye.github.io/massSight/
-biocViews: Omics, Software, metabolite, alignment, scale, qc
-BugReports: https://github.com/omicsEye/massSight/issues
-Suggests: 
-    knitr,
-    rmarkdown
-VignetteBuilder: knitr
