@@ -28,6 +28,7 @@ First, `massSight` can be installed via `devtools`:
 ```{r, eval = F}
 install.packages('devtools')
 devtools::install_github("omicsEye/massSight", force = TRUE)
+devtools::install_github("omicsEye/omicsArt", force = TRUE)
 ```
 
 We can then load the necessary libraries. `omicsArt` provides helper functions for loading and visualizing data.
@@ -43,24 +44,33 @@ library(omicsArt)
 We can use the `load_data()` function to import LC-MS data in excel format from a variety of standard pre-processed formats.
 
 ```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
-loaded_data <- massSight::load_data(input='data/HMP2_metabolomics.xlsx', 
-                         type = 'all', 
-                         sheet = 1, 
-                         id = 'Compound_ID')
-loaded_data$feature_metadata$MZ <- as.numeric(loaded_data$feature_metadata$MZ)
-loaded_data$feature_metadata$RT <- as.numeric(loaded_data$feature_metadata$RT)
-feature_metadata2 <- loaded_data$feature_metadata[colnames(loaded_data$data),]
+loaded_data <-
+  massSight::load_data(
+    input = 'data/HMP2_metabolomics.xlsx',
+    type = 'all',
+    sheet = 1,
+    id = 'Compound_ID'
+  )
+loaded_data$feature_metadata$MZ <-
+  as.numeric(loaded_data$feature_metadata$MZ)
+loaded_data$feature_metadata$RT <-
+  as.numeric(loaded_data$feature_metadata$RT)
+feature_metadata2 <-
+  loaded_data$feature_metadata[colnames(loaded_data$data), ]
 ```
 
 We can then use the `filter_intensities()` function to perform quality control and remove metabolites with low prevalence. 
 
 ```{r}
 loaded_data$data <- loaded_data$data |> t() |> data.frame()
-hmp2_keep <- filter_intensities(data = loaded_data$data, prevalence = .5)
-loaded_data$data <- loaded_data$data[hmp2_keep, ]
-feature_metadata2 <- feature_metadata2[hmp2_keep, ]
-feature_metadata2$Intensity <- rowMeans(loaded_data$data, na.rm=T)
-ref_input <- feature_metadata2[(!is.na(feature_metadata2$MZ)) & (!is.na(feature_metadata2$RT)), ]
+hmp2_keep <-
+  filter_intensities(data = loaded_data$data, prevalence = .5)
+loaded_data$data <- loaded_data$data[hmp2_keep,]
+feature_metadata2 <- feature_metadata2[hmp2_keep,]
+feature_metadata2$Intensity <- rowMeans(loaded_data$data, na.rm = T)
+ref_input <-
+  feature_metadata2[(!is.na(feature_metadata2$MZ)) &
+                      (!is.na(feature_metadata2$RT)),]
 ```
 
 ### Create a `massSight` object for the first dataset
@@ -68,13 +78,15 @@ ref_input <- feature_metadata2[(!is.na(feature_metadata2$MZ)) & (!is.na(feature_
 We now have everything we need to create a `massSight` object (`MSObject`). The object serves as a container that contains raw data, analyzed data, and other information regarding the experiment. For more information about the `MSObject`, check out its [documentation](https://omicseye.github.io/massSight/reference/MSObject-class.html).
 
 ```{r}
-hmp2_ms <- create_ms_obj(df = ref_input, 
-                     name = "iHMP", 
-                     id_name = "Compound_ID", 
-                     rt_name = "RT", 
-                     mz_name = "MZ", 
-                     int_name = "Intensity",
-                     metab_name= "Metabolite")
+hmp2_ms <- create_ms_obj(
+  df = ref_input,
+  name = "iHMP",
+  id_name = "Compound_ID",
+  rt_name = "RT",
+  mz_name = "MZ",
+  int_name = "Intensity",
+  metab_name = "Metabolite"
+)
 ```
 
 
@@ -111,10 +123,12 @@ In this dataset, sample intensity values begin at column 7 until the end of the 
 The `load_data()` function used `omicsArt::numeric_dataframe()` to ensure that we converted the dataframe columns as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
 
 ```{r}
-c18_keep <- filter_intensities(data = C18_CD[,7:ncol(C18_CD)],
+c18_keep <- filter_intensities(data = C18_CD[, 7:ncol(C18_CD)],
                                prevalence = .5)
-C18_CD_filter <- C18_CD[c18_keep,]
-C18_CD$Intensity <- rowMeans(omicsArt::numeric_dataframe(C18_CD[,7:dim(C18_CD)[2]]) , na.rm=T)
+C18_CD_filter <- C18_CD[c18_keep, ]
+C18_CD$Intensity <-
+  rowMeans(omicsArt::numeric_dataframe(C18_CD[, 7:dim(C18_CD)[2]]),
+           na.rm = T)
 C18_CD$row_id <- rownames(C18_CD)
 ```
 
@@ -138,11 +152,13 @@ ms_C18_CD <-
 The `auto_combine()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)!
 
 ```{r, cache = T}
-aligned <- auto_combine(ms1 = hmp2_ms, 
-                      ms2 = ms_C18_CD,
-                      iso_method = "dbscan",
-                      eps = .15,
-                      smooth_method = "loess")
+aligned <- auto_combine(
+  ms1 = hmp2_ms,
+  ms2 = ms_C18_CD,
+  iso_method = "dbscan",
+  eps = .15,
+  smooth_method = "loess"
+)
 ```
 
 ## Visualization
@@ -156,33 +172,44 @@ final_plots(aligned)
 We recommend the use of `ggsave()` from the package `ggplot2` for the saving of publication quality figures.
 
 ```{r, eval = F}
-## Visualization 
+## Visualization
 final_smooth <- final_plots(aligned)
 
-ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png', plot=final_smooth, width = 7.2, height = 3.5, units = "in", dpi = 300)
+ggsave(
+  filename = 'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png',
+  plot = final_smooth,
+  width = 7.2,
+  height = 3.5,
+  units = "in",
+  dpi = 300
+)
 ```
 
 ## Using only C18-neg as a reference 
 
 ```{r}
-ref_input_C18 <- ref_input[ref_input$Method=="C18-neg",]
-ref_C18 <- create_ms_obj(df = ref_input_C18, 
-                         name = "iHMP_C18", 
-                         id_name = "Compound_ID", 
-                         rt_name = "RT", 
-                         mz_name = "MZ", 
-                         int_name = "Intensity",
-                         metab_name= "Metabolite")
+ref_input_C18 <- ref_input[ref_input$Method == "C18-neg", ]
+ref_C18 <- create_ms_obj(
+  df = ref_input_C18,
+  name = "iHMP_C18",
+  id_name = "Compound_ID",
+  rt_name = "RT",
+  mz_name = "MZ",
+  int_name = "Intensity",
+  metab_name = "Metabolite"
+)
 ```
 
 ## Run auto_combine with dbscan
 
 ```{r, cache = T}
-aligned_c18 <- auto_combine(ms1 = ref_C18, 
-                          ms2 = ms_C18_CD, 
-                          iso_method = "dbscan",
-                          eps = .15,
-                          smooth_method = "loess")
+aligned_c18 <- auto_combine(
+  ms1 = ref_C18,
+  ms2 = ms_C18_CD,
+  iso_method = "dbscan",
+  eps = .15,
+  smooth_method = "loess"
+)
 ```
 
 ## Visualization
@@ -193,5 +220,12 @@ final_plots(aligned_c18)
 
 ```{r, eval = F}
 final_smooth_ref_C18 <- final_plots(aligned_c18)
-ggsave(filename='manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png', plot=final_smooth_ref_C18, width = 7.2, height = 3.5, units = "in", dpi = 300)
+ggsave(
+  filename = 'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png',
+  plot = final_smooth_ref_C18,
+  width = 7.2,
+  height = 3.5,
+  units = "in",
+  dpi = 300
+)
 ```
