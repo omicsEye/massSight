@@ -48,7 +48,7 @@ library(kableExtra)
 
 We can use the `load_data()` function to import LC-MS data in excel format from a variety of standard pre-processed formats.
 
-```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+```{r, eval = F, cache = T, results = 'hide', message=FALSE, warning=FALSE}
 loaded_data <-
   massSight::load_data(
     input = 'data/HMP2_metabolomics.xlsx',
@@ -66,7 +66,7 @@ feature_metadata2 <-
 
 We can then use the `filter_intensities()` function to perform quality control and remove metabolites with low prevalence. 
 
-```{r}
+```{r, eval = F}
 loaded_data$data <- loaded_data$data |> t() |> data.frame()
 hmp2_keep <-
   filter_intensities(data = loaded_data$data, prevalence = .5)
@@ -82,7 +82,7 @@ ref_input <-
 
 We now have everything we need to create a `massSight` object (`MSObject`). The object serves as a container that contains raw data, analyzed data, and other information regarding the experiment. For more information about the `MSObject`, check out its [documentation](https://omicseye.github.io/massSight/reference/MSObject-class.html).
 
-```{r}
+```{r, eval = F}
 hmp2_ms <- create_ms_obj(
   df = ref_input,
   name = "iHMP",
@@ -97,7 +97,7 @@ hmp2_ms <- create_ms_obj(
 
 We can use the `raw_df()` function to access the stored data from the created object. Let's see what it looks like!
 
-```{r}
+```{r, eval = F}
 hmp2_ms |>
   raw_df() |>
   head() |>
@@ -106,7 +106,7 @@ hmp2_ms |>
 
 We process the second dataset similarly.
 
-```{r}
+```{r, eval = F}
 C18_CD <- read.delim(
   'data/C18neg_FFA method/iHMP_C18-FFA_CompoundDiscoverer_Exported_All_Samples_Annotated.csv',
   sep = ',',
@@ -120,14 +120,14 @@ C18_CD <- read.delim(
 
 We then check the column names to see what variable names should be used when converting the dataframe into a `massSight` object.
 
-```{r}
+```{r, eval = F}
 colnames(C18_CD) |> head(10)
 ```
 
 In this dataset, sample intensity values begin at column 7 until the end of the dataframe.
 The `load_data()` function used `omicsArt::numeric_dataframe()` to ensure that we converted the dataframe columns as numeric as the read dataframe has columns with various data types and to measure mean of rows of intensities we need to convert them to numeric.
 
-```{r}
+```{r, eval = F}
 c18_keep <- filter_intensities(data = C18_CD[, 7:ncol(C18_CD)],
                                prevalence = .5)
 C18_CD <- C18_CD[c18_keep, ]
@@ -139,7 +139,7 @@ C18_CD$row_id <- rownames(C18_CD)
 
 We then can create an object for C18_CD which includes FFA metabolites processed with Compound Discovery version
 
-```{r}
+```{r, eval = F}
 ms_C18_CD <-
   create_ms_obj(
     df = C18_CD,
@@ -156,7 +156,7 @@ ms_C18_CD <-
 
 We can visualize the distributions of retention time and mass to charge ratio using `distribution_plot()`
 
-```{r}
+```{r, eval = F}
 distribution_plot(hmp2_ms)
 distribution_plot(ms_C18_CD)
 ```
@@ -165,7 +165,7 @@ distribution_plot(ms_C18_CD)
 
 The `auto_combine()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)!
 
-```{r, cache = T}
+```{r, cache = T, eval = F}
 aligned <- auto_combine(
   ms1 = hmp2_ms,
   ms2 = ms_C18_CD,
@@ -179,7 +179,7 @@ aligned <- auto_combine(
 
 Visualization of alignment can be performed via the `final_plots()` function.
 
-```{r}
+```{r, eval = F}
 final_plots(aligned)
 ```
 
@@ -201,7 +201,7 @@ ggsave(
 
 ## Using only C18-neg as a reference 
 
-```{r}
+```{r, eval = F}
 ref_input_C18 <- ref_input[ref_input$Method == "C18-neg", ]
 ref_C18 <- create_ms_obj(
   df = ref_input_C18,
@@ -216,7 +216,7 @@ ref_C18 <- create_ms_obj(
 
 ## Run auto_combine with dbscan
 
-```{r, cache = T}
+```{r, cache = T, eval = F}
 aligned_c18 <- auto_combine(
   ms1 = ref_C18,
   ms2 = ms_C18_CD,
@@ -228,7 +228,7 @@ aligned_c18 <- auto_combine(
 
 ## Visualization
 
-```{r}
+```{r, eval = F}
 final_plots(aligned_c18)
 ```
 
