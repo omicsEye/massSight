@@ -142,7 +142,7 @@ load_data <-
     data <- as.data.frame(t(data))
 
     # make sure data frame is numeric
-    result$data <- omicsArt::numeric_dataframe(data)
+    result$data <- numeric_dataframe(data)
     return(result)
   }
 
@@ -216,7 +216,7 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   RT_profile_data <- as.data.frame(RT_profile_data)
 
   ##### Calculate average RT
-  RT_profile_data <- omicsArt::numeric_dataframe(RT_profile_data)
+  RT_profile_data <- numeric_dataframe(RT_profile_data)
   RT_profile_data[RT_profile_data <= 0.0] <- NA
   RT <- colMeans(x = RT_profile_data, na.rm = T)
   RT_profile_data <- rbind(RT = RT, RT_profile_data)
@@ -240,7 +240,7 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
 
   ##### add the average RT
   intensity_profile_data <-
-    omicsArt:::numeric_dataframe(intensity_profile_data)
+    numeric_dataframe(intensity_profile_data)
   intensity_profile_data <- rbind(RT = RT, intensity_profile_data)
 
   # clean data
@@ -312,3 +312,4 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   # borders = "rows",
   # headerStyle = hs)
 }
+

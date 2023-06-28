@@ -161,3 +161,9 @@ check_prefs <- function(sample_info,
   # TODO add error
   return(prefs_information)
 }
+
+numeric_dataframe <- function(input) {
+  input[, c(1:ncol(input))] <-
+    sapply(sapply(input[, c(1:ncol(input))], as.character), as.numeric)
+  return (input)
+}

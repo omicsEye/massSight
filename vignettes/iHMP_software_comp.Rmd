@@ -37,8 +37,11 @@ We can then load the necessary libraries.
 ```{r, message = F}
 library(massSight)
 library(ggplot2)
-library(omicsArt)
+#library(omicsArt)
 library(kableExtra)
+#iHMP_QI <- system.file("data", "HMP2_metabolomics.xlsx", package = "massSight")
+#iHMP_CD <- system.file("data", "iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv", package = "massSight")
+
 ```
 
 ## Loading iHMP data
@@ -105,7 +108,7 @@ We process the second dataset similarly.
 
 ```{r}
 C18_CD <- read.delim(
-  'data/iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv',
+  'data/C18neg_FFA method/iHMP_C18-FFA_CompoundDiscoverer_Exported_All_Samples_Annotated.csv',
   sep = ',',
   header = TRUE,
   fill = FALSE,

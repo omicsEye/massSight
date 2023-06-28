@@ -18,7 +18,7 @@ options(cli.hyperlink = FALSE)
 
 <img src="man/figures/massSight.png" align="right" width="30%"/></a>
 
-`massSight` is an R package for the alignment and scaling of LC-MS metabolomics data.
+`massSight` is an R package for combining and scaling of LC-MS metabolomics data.
 
 -   Citation: if you use `massSight`, please cite our manuscript: Chiraag Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis through multi-study data scaling, integration, and harmonization. <https://github.com/omicsEye/massSight>
 
@@ -38,7 +38,7 @@ options(cli.hyperlink = FALSE)
 ## Installation {#installation}
 
 ```{r, eval = F}         
-devtools::install_github("omicsEye/massSight")
+devtools::install_github("omicsEye/massSight", INSTALL_opts = "--no-vignettes")
 ```
 
 ## Data Preparation {#data-preparation}

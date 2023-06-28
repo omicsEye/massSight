@@ -4,8 +4,10 @@ Version: 0.0.0.9000
 Authors@R: c(
     person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID")),
+    person("Bahar", "Sayoldin", , "sayoldin@gwu.edu", role = "aut",
+           comment = c(ORCID = "0000-0003-1187-0848")),
     person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = "aut",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+           comment = c(ORCID = "0000-0002-9710-0248"))
   )
 Description: an `R` package for the alignment, scaling, and downstream
     analysis of LC-MS metabolomics data.
@@ -32,8 +34,6 @@ Imports:
 Suggests: 
     knitr,
     rmarkdown
-VignetteBuilder: 
-    knitr
 biocViews: Omics, Software, metabolite, alignment, scale, qc
 Encoding: UTF-8
 LazyData: true
