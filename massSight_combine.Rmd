@@ -1,0 +1,65 @@
+---
+title: "massSight_combine"
+output: html_document
+date: "2023-06-27"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, eval = F}
+#install.packages('devtools')
+devtools::install_github("omicsEye/massSight", force = TRUE)
+```
+```{r, message = F}
+library(massSight)
+library(ggplot2)
+#library(omicsArt)
+library(kableExtra)
+```
+# read data 
+#hp1 <- read.csv("HP-1.csv")
+```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+#df_fran <- read.delim("./FRANZOSA_IBD_2019/mtb.map2.tsv",sep = "\t")
+df_fran <- read.delim("~/Downloads/Fransoza_mtb.map.tsv",sep = "\t")
+#df_jacobs <- read.delim("./JACOBS_IBD_FAMILIES_2016/mtb.map.tsv",sep = "\t")
+df_jacobs <- read.delim("~/Downloads/Jacobs_mtb.map.tsv",sep = "\t")
+df_fran$Intensity<- 2000
+df_jacobs$Intensity<- 2000
+#df_fran[is.na(df_fran$Metabolite)] <- "NoName"
+#df_jacobs[is.na(df_jacobs$Metabolite)] <- "NoName"
+head(df_fran)
+head(df_jacobs)
+```
+## Loading data
+We can use the `load_data()` function to import LC-MS data in excel format from a variety of standard pre-processed formats.
+```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+ms1 <-
+  create_ms_obj(
+    df = df_fran,
+    name = "df_fran",
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity",
+    metab_name = "Metabolite"
+  )
+ms2 <-
+  create_ms_obj(
+    df = df_jacobs,
+    name = "df_jacobs",
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity",
+    metab_name = "Metabolite"
+  )
+```
+```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+aligned <- auto_combine(ms1 = ms1,
+                        ms2 = ms2)
+```
+```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+#View(aligned)
+View(aligned@all_matched)
+write.table(aligned@all_matched, file='hp1-df_fran.tsv', quote=FALSE, sep='\t', row.names=FALSE)
+```
