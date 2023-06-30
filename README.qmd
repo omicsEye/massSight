@@ -18,6 +18,8 @@ options(cli.hyperlink = FALSE)
 
 <img src="man/figures/massSight.png" align="right" width="30%"/></a>
 
+[![DOI](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
+
 `massSight` is an R package for combining and scaling of LC-MS metabolomics data.
 
 -   Citation: if you use `massSight`, please cite our manuscript: Chiraag Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis through multi-study data scaling, integration, and harmonization. <https://github.com/omicsEye/massSight>
@@ -50,12 +52,6 @@ devtools::install_github("omicsEye/massSight", INSTALL_opts = "--no-vignettes")
 3.  Mass to Charge Ratio
 4.  (Optional) Average Intensity across all samples
 5.  (Optional) Metabolite Name
-
-```{r, echo = F}
-df1 |>
-  head() |>
-  kableExtra::kbl(format = "simple")
-```
 
 ### The `massSight` Object {#ms-obj}
 
@@ -119,38 +115,6 @@ final_plots(aligned)
 ```
 
 ![](man/figures/final_plot_out.png)
-
-### Input files format {#input-files-format}
-
-## Run {#run}
-
-For now, manually add tsv/csv file and load data object into the global environment using `read_csv` or `read_table`. Then run `auto_combine` on the created data objects.
-
-```{r, eval = F}
-# read inputs as data frame in R
-user_df1 <- read.delim(
-  "/path-to-file/profile1.tsv",
-  sep = "\t",
-  header = T,
-  fill = F,
-  comment.char = "",
-  check.names = F,
-  row.names = 1
-)
-
-user_df1 <- read.delim(
-  "/path-to-file/profile2.tsv",
-  sep = "\t",
-  header = T,
-  fill = F,
-  comment.char = "",
-  check.names = F,
-  row.names = 1
-)
-
-# run alignment function to combine two datasets
-aligned <- auto_combine(user_df1, user_df2)
-```
 
 ## Dev Instructions {#dev-instrutions}
 

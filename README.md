@@ -131,40 +131,6 @@ final_plots(aligned)
 
 ![](man/figures/final_plot_out.png)
 
-### Input files format
-
-## Run
-
-For now, manually add tsv/csv file and load data object into the global
-environment using `read_csv` or `read_table`. Then run `auto_combine` on
-the created data objects.
-
-``` r
-# read inputs as data frame in R
-user_df1 <- read.delim(
-  "/path-to-file/profile1.tsv",
-  sep = "\t",
-  header = T,
-  fill = F,
-  comment.char = "",
-  check.names = F,
-  row.names = 1
-)
-
-user_df1 <- read.delim(
-  "/path-to-file/profile2.tsv",
-  sep = "\t",
-  header = T,
-  fill = F,
-  comment.char = "",
-  check.names = F,
-  row.names = 1
-)
-
-# run alignment function to combine two datasets
-aligned <- auto_combine(user_df1, user_df2)
-```
-
 ## Dev Instructions
 
 ### Installation

@@ -22,7 +22,8 @@ Useful links:
 
 Authors:
 \itemize{
-  \item Ali Rahnavard \email{rahnavard@gwu.edu} (\href{https://orcid.org/YOUR-ORCID-ID}{ORCID})
+  \item Bahar Sayoldin \email{sayoldin@gwu.edu} (\href{https://orcid.org/0000-0003-1187-0848}{ORCID})
+  \item Ali Rahnavard \email{rahnavard@gwu.edu} (\href{https://orcid.org/0000-0002-9710-0248}{ORCID})
 }
 
 }

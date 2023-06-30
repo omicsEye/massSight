@@ -9,12 +9,9 @@
 #' @return a scatter plot of the retention times vs mass to charge ratios with
 #' marginal histograms
 #' @export
-#'
-#' @examples
-#' aligned <- auto_combine(ms1, ms2)
-#' distribution_plot(aligned, subset = "all")
+
 distribution_plot <- function(ms_obj, subset = "all") {
-  if (class(ms_obj) == "MSObject") {
+  if (methods::is(ms_obj, "MSObject")) {
     if (subset == "all") {
       ms_df <- raw_df(ms_obj)
     } else if (subset == "isolated") {
@@ -32,7 +29,7 @@ distribution_plot <- function(ms_obj, subset = "all") {
       theme_omicsEye()
 
     return(ggExtra::ggMarginal(p, type = "histogram", ))
-  } else if (class(ms_obj) == "MergedMSObject") {
+  } else if (methods::is(ms_obj, "MergedMSObject")) {
     if (subset == "all") {
       ms_df1 <- raw_df(ms1(ms_obj))
       ms_df2 <- raw_df(ms2(ms_obj))

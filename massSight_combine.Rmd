@@ -54,10 +54,12 @@ ms2 <-
     metab_name = "Metabolite"
   )
 ```
+
 ```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
 aligned <- auto_combine(ms1 = ms1,
                         ms2 = ms2)
 ```
+
 ```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
 #View(aligned)
 View(aligned@all_matched)

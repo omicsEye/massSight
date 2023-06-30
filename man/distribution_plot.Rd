@@ -20,7 +20,3 @@ marginal histograms
 Plot distributions of retention times and mass to charge ratios
 of individual MS experiments
 }
-\examples{
-aligned <- auto_combine(ms1, ms2)
-distribution_plot(aligned, subset = "all")
-}

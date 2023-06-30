@@ -1,9 +1,9 @@
 Package: massSight
 Title: Batch Alignment and Scaling for LC-MS Data
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: c(
     person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID")),
+           comment = c(ORCID = "0000-0003-4446-9380")),
     person("Bahar", "Sayoldin", , "sayoldin@gwu.edu", role = "aut",
            comment = c(ORCID = "0000-0003-1187-0848")),
     person("Ali", "Rahnavard", , "rahnavard@gwu.edu", role = "aut",
@@ -18,13 +18,14 @@ BugReports: https://github.com/omicsEye/massSight/issues
 Depends: 
     R (>= 2.10)
 Imports: 
+    cowplot,
     dbscan,
     dplyr,
     GauPro,
     ggExtra,
+    ggplot2,
+    methods,
     openxlsx,
-    patchwork,
-    pracma,
     purrr,
     readxl,
     rlang,
