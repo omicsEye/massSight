@@ -5,6 +5,8 @@
 
 <img src="man/figures/massSight.png" align="right" width="30%"/></a>
 
+[![DOI](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
+
 `massSight` is an R package for the alignment and scaling of LC-MS
 metabolomics data.
 
