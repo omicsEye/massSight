@@ -26,11 +26,11 @@ metabolomics data.
 - [Citation](#citation)
 - [Dev Instructions](#dev-instructions)
 
-## Examples {#examples}
+## Examples
 
 Examples and extensive documentation can be found [here](omicseye.github.io/massSight/)
 
-## Installation {#installation}
+## Installation
 
 ``` r
 devtools::install_github("omicsEye/massSight")
@@ -132,7 +132,7 @@ final_plots(aligned)
 
 ![](man/figures/final_plot_out.png)
 
-## Citation {#citation}
+## Citation
 
 If you use our package, please cite us via our [Zenodo upload](https://zenodo.org/record/8101764)
 
