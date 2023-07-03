@@ -1,4 +1,3 @@
-
 #' Class to represent merged mass spectroscopy data.
 #' @slot ms1 A character indicating the name of the experiment.
 #' @slot ms2 A data frame containing the raw data.

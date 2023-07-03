@@ -312,4 +312,3 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   # borders = "rows",
   # headerStyle = hs)
 }
-

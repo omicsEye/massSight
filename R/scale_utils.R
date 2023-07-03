@@ -165,5 +165,5 @@ check_prefs <- function(sample_info,
 numeric_dataframe <- function(input) {
   input[, c(1:ncol(input))] <-
     sapply(sapply(input[, c(1:ncol(input))], as.character), as.numeric)
-  return (input)
+  return(input)
 }

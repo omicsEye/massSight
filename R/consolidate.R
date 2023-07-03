@@ -35,7 +35,7 @@ consolidate <-
         "If `use_mz` is true, `mz_threshold` must be defined"
       )
       mz_adducts <- find_adducts(df, "MZ", mz_threshold)
-      }
+    }
     if (use_mz && use_rt) {
       df <- df |>
         dplyr::filter(!(!!"Column_ID" %in% intersect(rt_adducts, mz_adducts)))
@@ -64,13 +64,13 @@ find_adducts <- function(df, var, threshold) {
   adducts <- c()
   while (i <= nrow(df)) {
     j <- i + 1
-        while (df[j, !!var] - df[i, !!var] <= threshold) {
-          adducts <- adducts |> c(df[j, "Compound_ID"])
-          j <- j + 1
-          if (j > nrow(df)) {
-            break
-          }
-        }
-        i <- j
+    while (df[j, !!var] - df[i, !!var] <= threshold) {
+      adducts <- adducts |> c(df[j, "Compound_ID"])
+      j <- j + 1
+      if (j > nrow(df)) {
+        break
       }
+    }
+    i <- j
   }
+}
