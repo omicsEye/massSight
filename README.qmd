@@ -26,7 +26,7 @@ options(cli.hyperlink = FALSE)
 
 ## Contents
 
--   [Description](#description)
+-   [Examples](#examples)
 -   [Installation](#installation)
 -   [Data Preparation](#data-preparation)
     - [The `massSight` Object](#ms-obj)
@@ -34,6 +34,10 @@ options(cli.hyperlink = FALSE)
 -   [Visualization](#visualization)
 -   [Example of real world applications](#example-of-real-world-applications)
 -   [Dev Instructions](#dev-instructions)
+
+## Examples {#examples}
+
+Examples and extensive documentation can be found [here](omicseye.github.io/massSight/)
 
 ## Description {#description}
 

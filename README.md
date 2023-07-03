@@ -17,19 +17,20 @@ metabolomics data.
 
 ## Contents
 
-- [Description](#description)
+- [Examples](#examples)
 - [Installation](#installation)
 - [Data Preparation](#data-preparation)
   - [The `massSight` Object](#ms-obj)
 - [Alignment](#align)
 - [Visualization](#visualization)
-- [Example of real world
-  applications](#example-of-real-world-applications)
+- [Citation](#citation)
 - [Dev Instructions](#dev-instructions)
 
-## Description
+## Examples {#examples}
 
-## Installation
+Examples and extensive documentation can be found [here](omicseye.github.io/massSight/)
+
+## Installation {#installation}
 
 ``` r
 devtools::install_github("omicsEye/massSight")
@@ -130,6 +131,14 @@ final_plots(aligned)
 ```
 
 ![](man/figures/final_plot_out.png)
+
+## Citation {#citation}
+
+If you use our package, please cite us via our [Zenodo upload](https://zenodo.org/record/8101764)
+
+- Chiraag Gohel, Ali Rahnavard, & Sayoldin Bahar. (2023). massSight (v0.1.0-alpha). Zenodo. https://doi.org/10.5281/zenodo.8101764
+
+Additional citation formats can be found via the Zenodo link.
 
 ## Dev Instructions
 
