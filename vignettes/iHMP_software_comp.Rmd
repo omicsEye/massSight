@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 
 ## Setup
 
-For this tutorial, we will be analyzing two datasets from the NIH human microbiome project that were processed using different techniques. The first dataset can be downloaded [here](https://gwu.box.com/v/HMP2metabolomics). The second dataset can be downloaded [here](https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz). 
+For this tutorial, we will be analyzing two datasets from the NIH human microbiome project that were processed using different techniques. The first dataset can be downloaded [here](https://gwu.box.com/shared/static/u5b2djx2sf1tq6gy3twz0x4hno1r4o58.xlsx). The second dataset can be downloaded [here](https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz). 
 
 First, `massSight` can be installed via `devtools`:
 
@@ -30,14 +30,11 @@ install.packages("devtools")
 devtools::install_github("omicsEye/massSight", force = TRUE)
 ```
 
-We'll also need to install the package `omicsArt`. This package provides helper functions for loading, wrangling, and visualizing data. Instructions for installing `omicsArt` can be found [here](https://github.com/omicsEye/omicsArt).
-
 We can then load the necessary libraries.
 
 ```{r, message = F}
 library(massSight)
 library(ggplot2)
-# library(omicsArt)
 library(kableExtra)
 # iHMP_QI <- system.file("data", "HMP2_metabolomics.xlsx", package = "massSight")
 # iHMP_CD <- system.file("data", "iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv", package = "massSight")

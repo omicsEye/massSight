@@ -17,9 +17,8 @@ load_data <-
     if (is.character(input)) {
       df <-
         readxl::read_excel(input,
-          sheet = sheet,
-          col_names = FALSE
-        )
+                           sheet = sheet,
+                           col_names = FALSE)
     } else {
       df <- input
     }
@@ -91,16 +90,15 @@ load_data <-
           name_col <- hmdb_ord[2]
         }
         df[, col] <- ifelse(is.na(df[, name_col]),
-          paste(
-            df[, compound_ord[2]],
-            "MZ",
-            round(as.numeric(df[, mz_ord[2]]), digits = 4),
-            "RT",
-            round(as.numeric(df[, rt_ord[2]]), digits = 2),
-            sep = "_"
-          ),
-          as.character(df[, name_col])
-        )
+                            paste(
+                              df[, compound_ord[2]],
+                              "MZ",
+                              round(as.numeric(df[, mz_ord[2]]), digits = 4),
+                              "RT",
+                              round(as.numeric(df[, rt_ord[2]]), digits = 2),
+                              sep = "_"
+                            ),
+                            as.character(df[, name_col]))
       }
     }
 
@@ -187,15 +185,13 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
     ))]
   samples_cols <- samples_cols[order(samples_cols)]
   cols_in_order <-
-    c(
-      c(
-        "Compound",
-        "m/z",
-        "Retention time (min)",
-        "Accepted Compound ID"
-      ),
-      samples_cols
-    )
+    c(c(
+      "Compound",
+      "m/z",
+      "Retention time (min)",
+      "Accepted Compound ID"
+    ),
+    samples_cols)
   qi_data <- qi_data[, cols_in_order]
 
 
@@ -204,9 +200,8 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
 
   RT_profile_data <-
     readxl::read_excel(TF_file,
-      sheet = 2,
-      col_names = FALSE
-    )
+                       sheet = 2,
+                       col_names = FALSE)
   colnames(RT_profile_data) <-
     sapply(RT_profile_data[1, ], as.factor)
   RT_profile_data_rownames <-
@@ -226,9 +221,8 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   ##### read first file for TR profiles #########################
   intensity_profile_data <-
     readxl::read_excel(TF_file,
-      sheet = 1,
-      col_names = FALSE
-    )
+                       sheet = 1,
+                       col_names = FALSE)
   colnames(intensity_profile_data) <-
     sapply(intensity_profile_data[1, ], as.factor)
   intensity_profile_data_rownames <-
@@ -251,15 +245,11 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   intensity_profile_clean_data <-
     intensity_profile_data[clean_rows, ]
   tf_data <- as.data.frame(t(intensity_profile_clean_data))
-  tf_data[
-    ,
-    c(
-      "Compound",
-      "m/z",
-      "Retention time (min)",
-      "Accepted Compound ID"
-    )
-  ] <- NA
+  tf_data[,
+          c("Compound",
+            "m/z",
+            "Retention time (min)",
+            "Accepted Compound ID")] <- NA
   tf_data[, "Retention time (min)"] <- tf_data[, "RT"]
 
   # rename TF metabolites if they are in QI data
@@ -290,10 +280,9 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
     )
   combined <- combined[, cols_in_order]
 
-  colnames(combined) <- c(
-    c("Compound_ID", "Software", "MZ", "RT", "Metabolite"),
-    samples_cols
-  )
+  colnames(combined) <-
+    c(c("Compound_ID", "Software", "MZ", "RT", "Metabolite"),
+      samples_cols)
   combined[combined == ""] <- NA
   combined <-
     with(combined, combined[order(Metabolite, na.last = TRUE), ])
@@ -306,9 +295,23 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   )
   options("openxlsx.borderColour" = "#4F80BD") ## set default border colour
   xlsx::write.xlsx(combined,
-    file = output_name,
-    colNames = TRUE
-  )
+                   file = output_name,
+                   colNames = TRUE)
   # borders = "rows",
   # headerStyle = hs)
+}
+
+load_ihmp_data <- function() {
+  progenesis_ihmp_df <-
+    openxlsx::read.xlsx(
+      "https://gwu.box.com/shared/static/u5b2djx2sf1tq6gy3twz0x4hno1r4o58.xlsx",
+      startRow = 2
+    )
+  cd_c18n_ihmp_df <-
+    read.csv("https://gwu.box.com/shared/static/hrgfgmlllvzvmzbzyn8tolygel9brkkz.csv")
+  cd_hilp_ihmp_df <-
+    read.csv("https://gwu.box.com/shared/static/btmmvdr6n1oiwht9huw3tc6o6cinmsq1.csv")
+  assign("progenesis_ihmp_df", progenesis_ihmp_df, envir = .GlobalEnv)
+  assign("cd_c18n_ihmp_df", cd_c18n_ihmp_df, envir = .GlobalEnv)
+  assign("cd_hilp_ihmp_df", cd_hilp_ihmp_df, envir = .GlobalEnv)
 }
