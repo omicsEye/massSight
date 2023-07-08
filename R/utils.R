@@ -301,17 +301,44 @@ combine_QI_TF <- function(QI_file, TF_file, output_name) {
   # headerStyle = hs)
 }
 
-load_ihmp_data <- function() {
-  progenesis_ihmp_df <-
-    openxlsx::read.xlsx(
-      "https://gwu.box.com/shared/static/u5b2djx2sf1tq6gy3twz0x4hno1r4o58.xlsx",
-      startRow = 2
+#' Load iHMP Data
+#'
+#' @export
+load_ihmp_data <- function(path = "data/") {
+  if (!dir.exists(path)) {
+    message(paste("Creating", path, "directory"))
+    dir.create(path)
+  }
+  progenesis_ihmp_df_path <- paste0(path, "progenesis_ihmp.xlsx")
+  cd_c18n_ihmp_path <- paste0(path, "cd_c18n_ihmp.csv")
+  cd_hilp_ihmp_path <- paste0(path, "cd_hilp_ihmp.csv")
+  message(paste0(
+    "Downloading progenesis iHMP data to ",
+    progenesis_ihmp_df_path
+  ))
+  download.file(
+    "https://gwu.box.com/shared/static/u5b2djx2sf1tq6gy3twz0x4hno1r4o58.xlsx",
+    progenesis_ihmp_df_path
+  )
+  message(
+    paste0(
+      "Downloading Compound Discoverer c18 negative iHMP data to ",
+      cd_c18n_ihmp_path
     )
+  )
   cd_c18n_ihmp_df <-
-    read.csv("https://gwu.box.com/shared/static/hrgfgmlllvzvmzbzyn8tolygel9brkkz.csv")
-  cd_hilp_ihmp_df <-
-    read.csv("https://gwu.box.com/shared/static/btmmvdr6n1oiwht9huw3tc6o6cinmsq1.csv")
-  assign("progenesis_ihmp_df", progenesis_ihmp_df, envir = .GlobalEnv)
-  assign("cd_c18n_ihmp_df", cd_c18n_ihmp_df, envir = .GlobalEnv)
-  assign("cd_hilp_ihmp_df", cd_hilp_ihmp_df, envir = .GlobalEnv)
+    download.file(
+      "https://gwu.box.com/shared/static/hrgfgmlllvzvmzbzyn8tolygel9brkkz.csv",
+      cd_c18n_ihmp_path)
+
+  message(
+    paste0(
+      "Downloading Compound Discoverer HIL positive iHMP data to ",
+      cd_hilp_ihmp_path
+    )
+  )
+  cd_c18n_ihmp_df <-
+    download.file(
+      "https://gwu.box.com/shared/static/btmmvdr6n1oiwht9huw3tc6o6cinmsq1.csv",
+      cd_hilp_ihmp_path)
 }
