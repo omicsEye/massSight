@@ -4,7 +4,7 @@
 #' @param rt_lim RT bounds
 #' @param mz_lim MZ bounds
 #'
-#' @return cowplot grid of plots
+#' @return `cowplot` grid of plots
 #' @export
 final_plots <-
   function(merged_ms_obj,

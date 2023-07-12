@@ -14,7 +14,7 @@ final_plots(merged_ms_obj, rt_lim = c(-0.5, 0.5), mz_lim = c(-15, 15))
 \item{mz_lim}{MZ bounds}
 }
 \value{
-cowplot grid of plots
+\code{cowplot} grid of plots
 }
 \description{
 Final Plots

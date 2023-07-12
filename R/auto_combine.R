@@ -2,6 +2,7 @@
 #' @title Auto Combine
 #' @description Combines two `massSight` objects, resulting in a single
 #' `MergedMSObject`.
+#'
 #' @param ms1 A `massSight` object representing the results of a preprocessed
 #' LC-MS experiment.
 #' @param ms2 A `massSight` object representing the results of a second
@@ -16,6 +17,10 @@
 #' range to be considered for aligning two metabolites.
 #' @param minimum_intensity A numeric indicating the minimum intensity
 #' to be considered for alignment.
+#' @param iso_method The isolation method used before modeling drift. Can
+#' either be "manual" or "dbscan".
+#' @param eps Epsilon value for dbscan algorithm. Only used if iso_method =
+#' "dbscan"
 #' @param rt_iso_threshold A numeric indicating the simplification
 #' parameter for RT.
 #' @param mz_iso_threshold A numeric indicating the simplification
@@ -30,8 +35,9 @@
 #' @param weights A numeric vector indicating the weights to be used for
 #' the alignment.
 #' @param keep_features A logical vector indicating whether or not to
+#' @param threshold
 #' keep features that are not matched.
-#' @return A data frame containing the combined data.
+#' @return A `MergedMSObject` containing the combined data.
 auto_combine <-
   function(ms1,
            ms2,

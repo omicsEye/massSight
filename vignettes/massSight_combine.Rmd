@@ -32,6 +32,7 @@ head(df_jacobs)
 ```
 ## Loading data
 We can use the `load_data()` function to import LC-MS data in excel format from a variety of standard pre-processed formats.
+
 ```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
 ms1 <-
   create_ms_obj(
@@ -57,7 +58,9 @@ ms2 <-
 
 ```{r}
 aligned <- auto_combine(ms1 = ms1,
-                        ms2 = ms2)
+                        ms2 = ms2,
+                        iso_method = "dbscan",
+                        eps = .15)
 ```
 
 ```{r, eval = F}
