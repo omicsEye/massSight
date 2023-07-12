@@ -18,7 +18,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Chiraag Gohel \email{chiraaggohel@gwu.edu} (\href{https://orcid.org/YOUR-ORCID-ID}{ORCID})
+\strong{Maintainer}: Chiraag Gohel \email{chiraaggohel@gwu.edu} (\href{https://orcid.org/0000-0003-4446-9380}{ORCID})
 
 Authors:
 \itemize{

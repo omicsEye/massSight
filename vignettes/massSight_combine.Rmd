@@ -55,12 +55,12 @@ ms2 <-
   )
 ```
 
-```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+```{r}
 aligned <- auto_combine(ms1 = ms1,
                         ms2 = ms2)
 ```
 
-```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
+```{r, eval = F}
 #View(aligned)
 View(aligned@all_matched)
 write.table(aligned@all_matched, file='hp1-df_fran.tsv', quote=FALSE, sep='\t', row.names=FALSE)

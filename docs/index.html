@@ -28,7 +28,7 @@
     
     <a class="navbar-brand me-2" href="index.html">massSight</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,16 +69,13 @@
 <div class="page-header"><h1 id="masssight">massSight<a class="anchor" aria-label="anchor" href="#masssight"></a>
 </h1></div>
 <p><img src="reference/figures/massSight.png" align="right" width="30%"></p>
+<p><a href="https://zenodo.org/badge/latestdoi/608216683" class="external-link"><img src="https://zenodo.org/badge/608216683.svg" alt="DOI"></a></p>
 <p><code>massSight</code> is an R package for the alignment and scaling of LC-MS metabolomics data.</p>
-<ul>
-<li>Citation: if you use <code>massSight</code>, please cite our manuscript: Chiraag Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis through multi-study data scaling, integration, and harmonization. <a href="https://github.com/omicsEye/massSight" class="external-link uri">https://github.com/omicsEye/massSight</a>
-</li>
-</ul>
 <div class="section level2">
 <h2 id="contents">Contents<a class="anchor" aria-label="anchor" href="#contents"></a>
 </h2>
 <ul>
-<li><a href="#description">Description</a></li>
+<li><a href="#examples">Examples</a></li>
 <li><a href="#installation">Installation</a></li>
 <li>
 <a href="#data-preparation">Data Preparation</a>
@@ -88,13 +85,14 @@
 </li>
 <li><a href="#align">Alignment</a></li>
 <li><a href="#visualization">Visualization</a></li>
-<li><a href="#example-of-real-world-applications">Example of real world applications</a></li>
+<li><a href="#citation">Citation</a></li>
 <li><a href="#dev-instructions">Dev Instructions</a></li>
 </ul>
 </div>
 <div class="section level2">
-<h2 id="description">Description<a class="anchor" aria-label="anchor" href="#description"></a>
+<h2 id="examples">Examples<a class="anchor" aria-label="anchor" href="#examples"></a>
 </h2>
+<p>Examples and extensive documentation can be found <a href="omicseye.github.io/massSight/">here</a></p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -279,39 +277,16 @@
 <code class="sourceCode R"><span><span class="fu"><a href="reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span></code></pre></div>
 <p><img src="reference/figures/final_plot_out.png"></p>
 </div>
-<div class="section level3">
-<h3 id="input-files-format">Input files format<a class="anchor" aria-label="anchor" href="#input-files-format"></a>
-</h3>
-</div>
 </div>
 <div class="section level2">
-<h2 id="run">Run<a class="anchor" aria-label="anchor" href="#run"></a>
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<p>For now, manually add tsv/csv file and load data object into the global environment using <code>read_csv</code> or <code>read_table</code>. Then run <code>auto_combine</code> on the created data objects.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># read inputs as data frame in R</span></span>
-<span><span class="va">user_df1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.delim</a></span><span class="op">(</span></span>
-<span>  <span class="st">"/path-to-file/profile1.tsv"</span>,</span>
-<span>  sep <span class="op">=</span> <span class="st">"\t"</span>,</span>
-<span>  header <span class="op">=</span> <span class="cn">T</span>,</span>
-<span>  fill <span class="op">=</span> <span class="cn">F</span>,</span>
-<span>  comment.char <span class="op">=</span> <span class="st">""</span>,</span>
-<span>  check.names <span class="op">=</span> <span class="cn">F</span>,</span>
-<span>  row.names <span class="op">=</span> <span class="fl">1</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">user_df1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.delim</a></span><span class="op">(</span></span>
-<span>  <span class="st">"/path-to-file/profile2.tsv"</span>,</span>
-<span>  sep <span class="op">=</span> <span class="st">"\t"</span>,</span>
-<span>  header <span class="op">=</span> <span class="cn">T</span>,</span>
-<span>  fill <span class="op">=</span> <span class="cn">F</span>,</span>
-<span>  comment.char <span class="op">=</span> <span class="st">""</span>,</span>
-<span>  check.names <span class="op">=</span> <span class="cn">F</span>,</span>
-<span>  row.names <span class="op">=</span> <span class="fl">1</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># run alignment function to combine two datasets</span></span>
-<span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_combine.html">auto_combine</a></span><span class="op">(</span><span class="va">user_df1</span>, <span class="va">user_df2</span><span class="op">)</span></span></code></pre></div>
+<p>If you use our package, please cite us via our <a href="https://zenodo.org/record/8101764" class="external-link">Zenodo upload</a></p>
+<ul>
+<li>Chiraag Gohel, Ali Rahnavard, &amp; Sayoldin Bahar. (2023). massSight (v0.1.0-alpha). Zenodo. <a href="https://doi.org/10.5281/zenodo.8101764" class="external-link uri">https://doi.org/10.5281/zenodo.8101764</a>
+</li>
+</ul>
+<p>Additional citation formats can be found via the Zenodo link.</p>
 </div>
 <div class="section level2">
 <h2 id="dev-instructions">Dev Instructions<a class="anchor" aria-label="anchor" href="#dev-instructions"></a>
@@ -365,8 +340,9 @@
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Chiraag Gohel <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/YOUR-ORCID-ID" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
-<li>Ali Rahnavard <br><small class="roles"> Author </small> <a href="https://orcid.org/YOUR-ORCID-ID" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
+<li>Chiraag Gohel <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/0000-0003-4446-9380" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
+<li>Bahar Sayoldin <br><small class="roles"> Author </small> <a href="https://orcid.org/0000-0003-1187-0848" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
+<li>Ali Rahnavard <br><small class="roles"> Author </small> <a href="https://orcid.org/0000-0002-9710-0248" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a> </li>
 </ul>
 </div>
 
@@ -378,7 +354,7 @@
 
     <footer><div class="pkgdown-footer-left">
   <p></p>
-<p>Developed by Chiraag Gohel, Ali Rahnavard.</p>
+<p>Developed by Chiraag Gohel, Bahar Sayoldin, Ali Rahnavard.</p>
 </div>
 
 <div class="pkgdown-footer-right">
