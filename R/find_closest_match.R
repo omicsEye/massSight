@@ -1,10 +1,9 @@
 find_closest_match <-
   function(query,
            ref,
-           stds,
-           multipliers) {
+           stds) {
     ref_index <- ref$Compound_ID
-    cutoffs <- multipliers[1:length(stds)] * stds
+    cutoffs <- stds
     if (cutoffs[1] > 0.0) {
       rt_hits <- ref$RT <= (query$RT + cutoffs[1]) &
         ref$RT >= (query$RT - cutoffs[1])

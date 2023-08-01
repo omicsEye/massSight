@@ -21,22 +21,19 @@
 #' either be "manual" or "dbscan".
 #' @param eps Epsilon value for dbscan algorithm. Only used if iso_method =
 #' "dbscan"
-#' @param rt_iso_threshold A numeric indicating the simplification
+#' @param rt_iso_threshold A numeric indicating the isolation
 #' parameter for RT.
-#' @param mz_iso_threshold A numeric indicating the simplification
+#' @param mz_iso_threshold A numeric indicating the isolation
 #' parameter for m/z.
 #' @param match_method A character indicating the initial matching method to
 #' be used to detect inter-batch variability. Options are "unsupervised" and
 #' "supervised".
 #' @param smooth_method A character indicating the smoothing method to
 #' be used. Options are "lowess", "spline", and "gaussian".
-#' @param multipliers A numeric vector indicating the multipliers to be
-#' used for the alignment.
 #' @param weights A numeric vector indicating the weights to be used for
 #' the alignment.
 #' @param keep_features A logical vector indicating whether or not to
-#' @param threshold
-#' keep features that are not matched.
+#' @param threshold Something
 #' @return A `MergedMSObject` containing the combined data.
 auto_combine <-
   function(ms1,
@@ -53,7 +50,6 @@ auto_combine <-
            threshold = "manual",
            match_method = "unsupervised",
            smooth_method = "loess",
-           multipliers = c(6, 6, 6),
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     # stop conditions ---------------------------------------------------------
@@ -72,6 +68,36 @@ auto_combine <-
     #     MZ = round(MZ, 4),
     #     RT = round(RT, 3)
     #   )
+
+    logr::log_open(paste0(
+      format(Sys.time(), "%Y-%m-%d_%H:%M"),
+      ".log"
+    ))
+
+    string1 <- glue(
+      "auto_combine(ms1,
+                             ms2,
+                             rt_lower = {rt_lower},
+                             rt_upper = {rt_upper},
+                             mz_lower = {mz_lower},
+                             mz_upper = {mz_upper},
+                             minimum_intensity = {minimum_intensity},
+                             iso_method = {iso_method},
+                             eps = {eps},
+                             rt_iso_threshold = {rt_iso_threshold},
+                             mz_iso_threshold = {mz_iso_threshold},
+                             threshold = {threshold},
+                             match_method = {match_method},
+                             smooth_method = {smooth_method},
+                             weights = {weights},
+                             keep_features = {keep_features}"
+    )
+
+    logr::log_print("--- massSight Run and Parameters ---",
+      console = F,
+      hide_notes = T
+    )
+    logr::log_print(cat(string1), console = F, hide_notes = T)
 
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
@@ -126,7 +152,6 @@ auto_combine <-
       ) |>
       final_results(
         keep_features = keep_features,
-        multipliers = multipliers,
         weights = weights
       )
 

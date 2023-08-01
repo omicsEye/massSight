@@ -1,7 +1,6 @@
 final_results <-
   function(align_ms_obj,
            keep_features = c(FALSE, FALSE),
-           multipliers = c(6, 6, 6),
            weights = c(1, 1, 1)) {
     df1 <- raw_df(ms1(align_ms_obj))
     df2 <- raw_df(ms2(align_ms_obj))
@@ -30,8 +29,7 @@ final_results <-
         find_closest_match(
           df1_for_align[i, ],
           df2_for_align,
-          stds,
-          multipliers
+          stds
         )
       if (!is.null(best_match)) {
         pb$tick()
@@ -40,8 +38,7 @@ final_results <-
             df2_for_align |>
               dplyr::filter(Compound_ID == best_match),
             df1_for_align,
-            stds,
-            multipliers
+            stds
           )
       } else {
         features_not_aligned <-

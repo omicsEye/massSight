@@ -19,7 +19,6 @@ auto_combine(
   threshold = "manual",
   match_method = "unsupervised",
   smooth_method = "loess",
-  multipliers = c(6, 6, 6),
   weights = c(1, 1, 1),
   keep_features = c(F, F)
 )
@@ -46,11 +45,19 @@ range to be considered for aligning two metabolites.}
 \item{minimum_intensity}{A numeric indicating the minimum intensity
 to be considered for alignment.}
 
-\item{rt_iso_threshold}{A numeric indicating the simplification
+\item{iso_method}{The isolation method used before modeling drift. Can
+either be "manual" or "dbscan".}
+
+\item{eps}{Epsilon value for dbscan algorithm. Only used if iso_method =
+"dbscan"}
+
+\item{rt_iso_threshold}{A numeric indicating the isolation
 parameter for RT.}
 
-\item{mz_iso_threshold}{A numeric indicating the simplification
+\item{mz_iso_threshold}{A numeric indicating the isolation
 parameter for m/z.}
+
+\item{threshold}{Something}
 
 \item{match_method}{A character indicating the initial matching method to
 be used to detect inter-batch variability. Options are "unsupervised" and
@@ -59,17 +66,13 @@ be used to detect inter-batch variability. Options are "unsupervised" and
 \item{smooth_method}{A character indicating the smoothing method to
 be used. Options are "lowess", "spline", and "gaussian".}
 
-\item{multipliers}{A numeric vector indicating the multipliers to be
-used for the alignment.}
-
 \item{weights}{A numeric vector indicating the weights to be used for
 the alignment.}
 
-\item{keep_features}{A logical vector indicating whether or not to
-keep features that are not matched.}
+\item{keep_features}{A logical vector indicating whether or not to}
 }
 \value{
-A data frame containing the combined data.
+A \code{MergedMSObject} containing the combined data.
 }
 \description{
 Combines two \code{massSight} objects, resulting in a single
