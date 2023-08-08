@@ -19,27 +19,21 @@ final_results <-
     best_hits_found <- c()
     features_not_aligned <- c()
     pb <-
-      progress::progress_bar$new(
-        format = "Aligning datasets [:bar] :percent :eta",
-        total = nrow(df1_for_align),
-        clear = F
-      )
+      progress::progress_bar$new(format = "Aligning datasets [:bar] :percent :eta",
+                                 total = nrow(df1_for_align),
+                                 clear = F)
     for (i in 1:nrow(df1_for_align)) {
       best_match <-
-        find_closest_match(
-          df1_for_align[i, ],
-          df2_for_align,
-          stds
-        )
+        find_closest_match(df1_for_align[i,],
+                           df2_for_align,
+                           stds)
       if (!is.null(best_match)) {
         pb$tick()
         best_reverse_match <-
-          find_closest_match(
-            df2_for_align |>
-              dplyr::filter(Compound_ID == best_match),
-            df1_for_align,
-            stds
-          )
+          find_closest_match(df2_for_align |>
+                               dplyr::filter(Compound_ID == best_match),
+                             df1_for_align,
+                             stds)
       } else {
         features_not_aligned <-
           c(features_not_aligned, df1_for_align[i, "Compound_ID"])
@@ -61,11 +55,11 @@ final_results <-
     rownames(df1) <- df1$Compound_ID
     rownames(df2) <- df2$Compound_ID
     rownames(df2_adj) <- df2_adj$Compound_ID
-    df1 <- df1[best_hits_found, ]
+    df1 <- df1[best_hits_found,]
     df2_raw <- df2
-    df2 <- df2[best_hits_df1, ]
+    df2 <- df2[best_hits_df1,]
     results_df_complete <- cbind(df1, df2)
-    df2_adj <- df2_adj[best_hits_df1, ]
+    df2_adj <- df2_adj[best_hits_df1,]
     if ("Intensity" %in% colnames(df1)) {
       if ("Metabolite" %in% colnames(df1)) {
         results_df <- data.frame(
@@ -121,10 +115,8 @@ final_results <-
         )
       }
 
-      adjusted_df <- data.frame(
-        "rt_2_adj" = df2_adj$RT,
-        "mz_2_adj" = df2_adj$MZ
-      )
+      adjusted_df <- data.frame("rt_2_adj" = df2_adj$RT,
+                                "mz_2_adj" = df2_adj$MZ)
     }
 
 
@@ -148,5 +140,12 @@ final_results <-
     # colnames(results_df_complete) <- columns
     all_matched(align_ms_obj) <- results_df
     adjusted_df(align_ms_obj) <- adjusted_df
+    metadata_1 <- metadata(ms1(align_ms_obj))
+    metadata_2 <- metadata(ms2(align_ms_obj))
+    metadata_1 <-
+      metadata_1 |> dplyr::semi_join(results_df, by = c("Compound_ID" = "df1"))
+    metadata_2 <-
+      metadata_2 |> dplyr::semi_join(results_df, by = c("Compound_ID" = "df2"))
+    metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)
     return(align_ms_obj)
   }
