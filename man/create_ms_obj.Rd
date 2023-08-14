@@ -7,13 +7,11 @@
 create_ms_obj(
   df,
   name,
-  annot = FALSE,
   id_name = "Compound_ID",
   rt_name = "RT",
   mz_name = "MZ",
   int_name = "Intensity",
-  metab_name = NULL,
-  has_metadata = FALSE
+  metab_name = "Metabolite"
 )
 }
 \arguments{
@@ -32,9 +30,6 @@ m/z values.}
 
 \item{int_name}{A character indicating the name of the column containing the
 intensities.}
-
-\item{has_metadata}{A logical indicating whether or not the data has
-metadata.}
 }
 \value{
 An MSObject.

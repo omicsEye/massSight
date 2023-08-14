@@ -1,3 +1,20 @@
+#' ML Match
+#'
+#' @description Trains, fits, and uses a machine learning model on known
+#' metabolite data to predict unknown metabolite pair matches.
+#'
+#' @param ms1 A `massSight` object representing the results of a preprocessed
+#' LC-MS experiment
+#' @param ms2 A `massSight` object representing the results of a second
+#' preprcoessed LC-MS experiment
+#' @param mz_thresh Mass to Charge threshold. Used to limit potential matches
+#' between metabolites.
+#' @param rt_thresh Retention Time threshold. Used to limit potential matches
+#' between metabolites
+#' @param seed Seed value for reproducibility
+#'
+#' @return A dataframe consisting of predicted metabolite pairs
+#' @export
 ml_match <-
   function(ms1,
            ms2,
@@ -12,6 +29,8 @@ ml_match <-
       create_pred_data(ms1, ms2, mz_thresh, rt_thresh)
     pred_fmt_data$prob_matched <-
       predict(fitted_model, pred_fmt_data, type = "prob")$matched
+    pred_fmt_data <- pred_fmt_data |>
+      dplyr::filter(prob_matched > .95)
     return(pred_fmt_data)
   }
 
@@ -106,20 +125,18 @@ create_pred_data <-
            rt_thresh = .5) {
     ms1_df_unknown <- ms1 |>
       raw_df() |>
-      dplyr::filter(Metabolite != "" |
-                      Compound_ID == Metabolite) |>
       dplyr::rename(Compound_ID_1 = Compound_ID,
                     MZ_1 = MZ,
-                    RT_1 = RT) |>
-      dplyr::select(-Metabolite,-Intensity)
+                    RT_1 = RT,
+                    Metabolite_1 = Metabolite) |>
+      dplyr::select(-Intensity)
     ms2_df_unknown <- ms2 |>
       raw_df() |>
-      dplyr::filter(Metabolite != "" |
-                      Compound_ID == Metabolite) |>
       dplyr::rename(Compound_ID_2 = Compound_ID,
                     MZ_2 = MZ,
-                    RT_2 = RT) |>
-      dplyr::select(-Metabolite,-Intensity)
+                    RT_2 = RT,
+                    Metabolite_2 = Metabolite) |>
+      dplyr::select(-Intensity)
 
     combined <- tidyr::crossing(ms1_df_unknown, ms2_df_unknown) |>
       dplyr::mutate(delta_MZ = MZ_1 - MZ_2,
