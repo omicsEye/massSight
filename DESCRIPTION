@@ -19,6 +19,9 @@ Depends:
     R (>= 3.5)
 Imports: 
     cowplot,
+    ggplot2,
+    logr,
+    glue,
     dbscan,
     dplyr,
     GauPro,
