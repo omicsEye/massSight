@@ -1,29 +1,43 @@
-
-<!-- README.md is generated from README.qmd. Please edit that file -->
-
 # massSight
 
-<img src="man/figures/massSight.png" align="right" width="30%"/></a>
-
-[![DOI](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
-
-`massSight` is an R package for the alignment and scaling of LC-MS
-metabolomics data.
-
-## Contents
-
 - [Examples](#examples)
+- [Description](#description)
 - [Installation](#installation)
 - [Data Preparation](#data-preparation)
   - [The `massSight` Object](#ms-obj)
 - [Alignment](#align)
-- [Visualization](#visualization)
-- [Citation](#citation)
-- [Dev Instructions](#dev-instructions)
+  - [`auto_combine()`](#auto_combine)
+  - [`ml_match()`](#ml_match)
+  - [Plotting results from alignment](#plotting-results-from-alignment)
+- [Dev Instructions](#dev-instrutions)
+  - [Installation](#installation-1)
+
+<!-- README.md is generated from README.qmd. Please edit that file -->
+
+<img src="man/figures/massSight.png" align="right" width="30%"/></a>
+
+<div>
+
+[![](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
+
+DOI
+
+</div>
+
+`massSight` is an R package for combining and scaling of LC-MS
+metabolomics data.
+
+- Citation: if you use `massSight`, please cite our manuscript: Chiraag
+  Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis
+  through multi-study data scaling, integration, and harmonization.
+  <https://github.com/omicsEye/massSight>
 
 ## Examples
 
-Examples and extensive documentation can be found [here](omicseye.github.io/massSight/)
+Examples and extensive documentation can be found
+[here](omicseye.github.io/massSight/)
+
+## Description
 
 ## Installation
 
@@ -42,14 +56,11 @@ contain columns corresponding to:
 4.  (Optional) Average Intensity across all samples
 5.  (Optional) Metabolite Name
 
-| Compound_ID |       MZ |       RT | Intensity | Metabolite            |
-|:------------|---------:|---------:|----------:|:----------------------|
-| CMP-2758    | 197.0665 | 3.401200 |  74498.87 | 1,7-dimethyluric acid |
-| CMP-4802    | 282.1189 | 8.627617 |  25684.75 | 1-methyladenosine     |
-| CMP-3329    | 166.0720 | 6.069083 |  28585.37 | 1-methylguanine       |
-| CMP-3294    | 298.1139 | 5.913067 |  61491.94 | 1-methylguanosine     |
-| CMP-5077    | 137.0707 | 9.114433 | 112107.07 | 1-methylnicotinamide  |
-| CMP-1830    | 347.2210 | 2.017650 |   1291.29 | 21-deoxycortisol      |
+``` r
+data(hp1)
+head(hp1) |>
+  knitr::kable()
+```
 
 ### The `massSight` Object
 
@@ -59,6 +70,9 @@ LC-MS data frames or tibbles should be converted into an `MSObject`
 using `create_ms_obj`:
 
 ``` r
+data(hp1)
+data(hp2)
+
 ms1 <-
   create_ms_obj(
     df = hp1,
@@ -93,31 +107,45 @@ An `MSObject` provides the following functions:
 ms2 |>
   raw_df() |>
   head() |>
-  kableExtra::kbl(format = "simple")
+  knitr::kable(format = "simple")
 ```
 
-| Compound_ID      |   RT |       MZ | Intensity |
-|:-----------------|-----:|---------:|----------:|
-| 1.68_121.1013m/z | 1.68 | 121.1013 | 50543.745 |
-| 3.53_197.0667m/z | 3.53 | 197.0667 | 21948.556 |
-| 7.81_282.1190m/z | 7.81 | 282.1190 | 14220.869 |
-| 5.29_166.0721m/z | 5.29 | 166.0721 | 46434.807 |
-| 5.16_298.1139m/z | 5.16 | 298.1139 | 60616.582 |
-| 9.77_126.1026m/z | 9.77 | 126.1026 |  4435.973 |
+| Compound_ID | Metabolite      |       RT |       MZ | Intensity |
+|:------------|:----------------|---------:|---------:|----------:|
+| cmp.3837    | C10 carnitine   | 7.261300 | 316.2479 | 638168.92 |
+| cmp.3903    | C10:2 carnitine | 7.395033 | 312.2165 |  50418.96 |
+| cmp.3749    | C12 carnitine   | 7.074067 | 344.2792 | 203210.69 |
+| cmp.3756    | C12:1 carnitine | 7.105283 | 342.2635 | 363021.48 |
+| cmp.3682    | C14 carnitine   | 6.926967 | 372.3107 |  93491.07 |
+| cmp.3705    | C14:2 carnitine | 6.993833 | 368.2792 | 235545.00 |
 
 ## Alignment
+
+### `auto_combine()`
 
 Alignment is performed using `auto_combine()`
 
 ``` r
-aligned <- auto_combine(ms1 = ms1, 
-                      ms2 = ms2, 
-                      iso_method = "dbscan")
+aligned <- auto_combine(
+  ms1 = ms1,
+  ms2 = ms2,
+  iso_method = "dbscan"
+)
 ```
 
 More information on the `auto_combine()` function can be found in the
 [package
 documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)
+
+### `ml_match()`
+
+``` r
+ml_match_aligned <- ml_match(ms1, 
+                             ms2, 
+                             mz_thresh = 15, 
+                             rt_thresh = 0.5, 
+                             seed = 72)
+```
 
 ### Plotting results from alignment
 
@@ -126,14 +154,6 @@ final_plots(aligned)
 ```
 
 ![](man/figures/final_plot_out.png)
-
-## Citation
-
-If you use our package, please cite us via our [Zenodo upload](https://zenodo.org/record/8101764)
-
-- Chiraag Gohel, Ali Rahnavard, & Sayoldin Bahar. (2023). massSight (v0.1.0-alpha). Zenodo. https://doi.org/10.5281/zenodo.8101764
-
-Additional citation formats can be found via the Zenodo link.
 
 ## Dev Instructions
 
