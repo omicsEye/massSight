@@ -24,7 +24,7 @@ final_results <-
                                  clear = F)
     for (i in 1:nrow(df1_for_align)) {
       best_match <-
-        find_closest_match(df1_for_align[i,],
+        find_closest_match(df1_for_align[i, ],
                            df2_for_align,
                            stds)
       if (!is.null(best_match)) {
@@ -55,11 +55,11 @@ final_results <-
     rownames(df1) <- df1$Compound_ID
     rownames(df2) <- df2$Compound_ID
     rownames(df2_adj) <- df2_adj$Compound_ID
-    df1 <- df1[best_hits_found,]
+    df1 <- df1[best_hits_found, ]
     df2_raw <- df2
-    df2 <- df2[best_hits_df1,]
+    df2 <- df2[best_hits_df1, ]
     results_df_complete <- cbind(df1, df2)
-    df2_adj <- df2_adj[best_hits_df1,]
+    df2_adj <- df2_adj[best_hits_df1, ]
     if ("Intensity" %in% colnames(df1)) {
       if ("Metabolite" %in% colnames(df1)) {
         results_df <- data.frame(
@@ -142,10 +142,16 @@ final_results <-
     adjusted_df(align_ms_obj) <- adjusted_df
     metadata_1 <- metadata(ms1(align_ms_obj))
     metadata_2 <- metadata(ms2(align_ms_obj))
-    metadata_1 <-
-      metadata_1 |> dplyr::semi_join(results_df, by = c("Compound_ID" = "df1")) #test
-    metadata_2 <-
-      metadata_2 |> dplyr::semi_join(results_df, by = c("Compound_ID" = "df2"))
-    metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)
+    if (nrow(metadata_1) > 0) {
+      metadata_1 <-
+        metadata_1 |> dplyr::semi_join(results_df, by = dplyr::join_by(Compound_ID == df1))
+    }
+    if (nrow(metadata_2) > 0) {
+      metadata_2 <-
+        metadata_2 |> dplyr::semi_join(results_df, by = dplyr::join_by(Compound_ID == df2))
+    }
+    if (nrow(metadata_1) > 0 && nrow(metadata_2) > 0){
+      metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)
+    }
     return(align_ms_obj)
   }
