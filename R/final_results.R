@@ -143,7 +143,7 @@ final_results <-
     metadata_1 <- metadata(ms1(align_ms_obj))
     metadata_2 <- metadata(ms2(align_ms_obj))
     metadata_1 <-
-      metadata_1 |> dplyr::semi_join(results_df, by = c("Compound_ID" = "df1"))
+      metadata_1 |> dplyr::semi_join(results_df, by = c("Compound_ID" = "df1")) #test
     metadata_2 <-
       metadata_2 |> dplyr::semi_join(results_df, by = c("Compound_ID" = "df2"))
     metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)

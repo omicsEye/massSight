@@ -20,8 +20,6 @@
 
 [![](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
 
-DOI
-
 </div>
 
 `massSight` is an R package for combining and scaling of LC-MS
