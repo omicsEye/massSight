@@ -8,6 +8,7 @@
 - [Alignment](#align)
   - [`auto_combine()`](#auto_combine)
   - [`ml_match()`](#ml_match)
+  - [Results](#results)
   - [Plotting results from alignment](#plotting-results-from-alignment)
 - [Dev Instructions](#dev-instrutions)
   - [Installation](#installation-1)
@@ -126,9 +127,9 @@ Alignment is performed using `auto_combine()`
 ``` r
 aligned <- auto_combine(
   ms1 = ms1,
-  ms2 = ms2,
-  iso_method = "dbscan"
+  ms2 = ms2
 )
+#> Numbers of matched/kept features: 1463
 ```
 
 More information on the `auto_combine()` function can be found in the
@@ -144,6 +145,47 @@ ml_match_aligned <- ml_match(ms1,
                              rt_thresh = 0.5, 
                              seed = 72)
 ```
+
+### Results
+
+Results from an alignment function are stored as a `MergedMSObject`.
+This object contains the following slots:
+
+- `all_matched()`: All of the final matched metabolites between the two
+  datasets. This is the main result of the various matching functions.
+
+``` r
+all_matched(aligned) |>
+  head() |>
+  knitr::kable()
+```
+
+| df1              |   RT |       MZ |   Intensity | Metabolite                                | df2      |     RT_2 |     MZ_2 | Intensity_2 | Metabolite_2 |
+|:-----------------|-----:|---------:|------------:|:------------------------------------------|:---------|---------:|---------:|------------:|:-------------|
+| 1.69_121.1014m/z | 1.69 | 121.1014 |    40329.32 | 1.2.4-trimethylbenzene                    | cmp.785  | 1.805967 | 121.1014 |    13453.95 |              |
+| 7.74_282.1194m/z | 7.74 | 282.1194 |    16491.00 | 1-methyladenosine                         | cmp.4168 | 7.864050 | 282.1194 |    43167.05 |              |
+| 5.27_166.0723m/z | 5.27 | 166.0723 |    22801.91 | 1-methylguanine                           | cmp.2810 | 5.361300 | 166.0723 |    25898.35 |              |
+| 5.09_313.0848m/z | 5.09 | 313.0848 |    42335.94 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen | cmp.2750 | 5.124100 | 313.0850 |    38069.50 |              |
+| 1.94_152.0705m/z | 1.94 | 152.0705 |    83600.28 | acetaminophen                             | cmp.1435 | 2.082950 | 152.0706 |   190502.74 |              |
+| 1.62_585.2701m/z | 1.62 | 585.2701 | 11502435.04 | bilirubin                                 | cmp.529  | 1.743567 | 585.2702 | 14402315.51 |              |
+
+- `iso_matched()`: The matched isolated metabolites between the two
+  datasets.
+
+``` r
+iso_matched(aligned) |> 
+  head() |>
+  knitr::kable()
+```
+
+| df1             |   RT |      MZ | Intensity | df2      |     RT_2 |     MZ_2 | Intensity_2 |  delta_RT | smooth_rt |      srt |   delta_MZ | smooth_mz |      smz | sintensity |
+|:----------------|-----:|--------:|----------:|:---------|---------:|---------:|------------:|----------:|----------:|---------:|-----------:|----------:|---------:|-----------:|
+| 7.98_76.0402m/z | 7.98 | 76.0402 |  13067.16 | cmp.4356 | 8.193933 | 76.04010 |   27158.674 | 0.2139333 | 0.1129026 | 7.874778 | -0.0001027 | -3.31e-05 | 76.04023 |  13256.927 |
+| 8.14_77.0799m/z | 8.14 | 77.0799 |   9291.18 | cmp.4388 | 8.283100 | 77.07982 |   11295.184 | 0.1431000 | 0.1253363 | 8.023783 | -0.0000786 | -3.23e-05 | 77.07993 |   5863.981 |
+| 4.79_79.0220m/z | 4.79 | 79.0220 |   2356.37 | cmp.2649 | 4.910117 | 79.02198 |    6818.932 | 0.1201167 | 0.0954132 | 4.687141 | -0.0000210 | -3.10e-05 | 79.02203 |   3667.853 |
+| 7.50_80.1318m/z | 7.50 | 80.1318 |  84942.05 | cmp.4025 | 7.635767 | 80.13173 |   11765.610 | 0.1357667 | 0.0814712 | 7.422708 | -0.0000662 | -3.03e-05 | 80.13183 |   6090.723 |
+| 7.86_84.9120m/z | 7.86 | 84.9120 |  10189.64 | cmp.4247 | 8.015617 | 84.91193 |    9442.532 | 0.1556167 | 0.1041765 | 7.762498 | -0.0000657 | -2.71e-05 | 84.91203 |   4964.245 |
+| 8.75_84.9605m/z | 8.75 | 84.9605 | 240071.83 | cmp.4584 | 8.978550 | 84.96037 |  287055.188 | 0.2285500 | 0.1811082 | 8.585263 | -0.0001285 | -2.70e-05 | 84.96053 | 118730.825 |
 
 ### Plotting results from alignment
 

@@ -8,7 +8,7 @@ format:
 <!-- README.md is generated from README.qmd. Please edit that file -->
 
 ```{r, include = FALSE}
-library(massSight)
+devtools::load_all()
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -126,11 +126,23 @@ ml_match_aligned <- ml_match(ms1,
 
 Results from an alignment function are stored as a `MergedMSObject`. This object contains the following slots:
 
-- `iso_matched()`: 
+- `all_matched()`: All of the final matched metabolites between the two datasets. This is the main result of the various matching functions.
 
 ```{r}
-iso_matched(aligned) |> head()
+all_matched(aligned) |>
+  head() |>
+  knitr::kable()
 ```
+
+- `iso_matched()`: The matched isolated metabolites between the two datasets.
+
+```{r}
+iso_matched(aligned) |> 
+  head() |>
+  knitr::kable()
+```
+
+
 
 ### Plotting results from alignment
 
