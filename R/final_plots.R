@@ -60,6 +60,14 @@ final_plots <-
       ggplot2::geom_smooth(method = smooth,
                            alpha = .3,
                            col = "#AA9868") +
+      ggplot2::annotate(
+        "label",
+        x = -Inf,
+        y = -Inf,
+        hjust = 0,
+        vjust = 0,
+        label = iso_pairs
+      ) +
       ggplot2::labs(title = "Isolated Matches",
                     x = "RT 1",
                     y = expression(Delta * "RT")) +
@@ -79,9 +87,16 @@ final_plots <-
         stroke = 0.05
       ) +
       ggplot2::ylim(rt_lim) +
-      ggplot2::geom_smooth(method = smooth,
-                           alpha = .3,
-                           col = "#AA9868") +
+      ggplot2::geom_hline(yintercept = 0,
+                          col = "#AA9868") +
+      ggplot2::annotate(
+        "label",
+        x = -Inf,
+        y = -Inf,
+        hjust = 0,
+        vjust = 0,
+        label = iso_pairs
+      ) +
       ggplot2::labs(title = "Scaled Matches",
                     x = "RT 1",
                     y = expression(Delta * "RT")) +
@@ -143,9 +158,8 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_smooth(method = smooth,
-                           alpha = .3,
-                           col = "#AA9868") +
+      ggplot2::geom_hline(yintercept = 0,
+                          col = "#AA9868") +
       ggplot2::labs(title = "Scaled Matches",
                     x = "MZ 1",
                     y = expression(Delta * "MZ")) +
