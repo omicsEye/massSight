@@ -35,7 +35,8 @@ Imports:
     stats,
     stringr,
     tidyr,
-    xlsx
+    xlsx,
+    caret
 Suggests: 
     knitr,
     rmarkdown

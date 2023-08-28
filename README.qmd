@@ -33,8 +33,20 @@ Examples and extensive documentation can be found [here](omicseye.github.io/mass
 
 ## Installation {#installation}
 
+First, if you don't have it installed, install `devtools` using:
+
+```{r, eval = F}
+install.packages("devtools")
+```
+
 ```{r, eval = F}         
 devtools::install_github("omicsEye/massSight")
+```
+
+You can then load the library using:
+
+```{r, eval = F}
+library(massSight)
 ```
 
 ## Data Preparation {#data-preparation}
@@ -47,7 +59,7 @@ devtools::install_github("omicsEye/massSight")
 4.  (Optional) Average Intensity across all samples
 5.  (Optional) Metabolite Name
 
-```{r, eval = F}
+```{r, eval = T, echo = F}
 data(hp1)
 head(hp1) |>
   knitr::kable()
