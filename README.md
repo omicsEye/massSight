@@ -46,6 +46,8 @@ First, if you don’t have it installed, install `devtools` using:
 install.packages("devtools")
 ```
 
+Then, in an `R` console, run:
+
 ``` r
 devtools::install_github("omicsEye/massSight")
 ```
@@ -204,11 +206,22 @@ iso_matched(aligned) |>
 
 ### Plotting results from alignment
 
+The `final_plots()` function returns plots containing information on RT
+and MZ drift for pre isolation, isolation, and final matching results.
+These plots can be used for diagnostic purposes.
+
 ``` r
-final_plots(aligned)
+plots <- final_plots(aligned)
 ```
 
 ![](man/figures/final_plot_out.png)
+
+This plot can be saved locally using `ggsave()` from the `ggplot2`
+package:
+
+``` r
+ggplot2::ggsave("plot.png", plots)
+```
 
 ## Dev Instructions
 
