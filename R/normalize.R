@@ -6,20 +6,26 @@ nn_normalize <- function(ndata,
   skipped <- 0
 
   # TODO add missing value case for sample_info
+  for (pool in prefs_to_remove) {
+    message(paste("Removing pool reference:", pool))
+    sample_information <- sample_information |>
+      dplyr::mutate(name = dplyr::case_when(
+        grepl(pool, name) ~ "do not use",
+        TRUE ~ name
+      ))
+  }
 
-  sample_information |>
-    dplyr::mutate(Platform_name = case_when(
-      Platform_name %in% prefs_to_remove ~ "do not use",
-      T ~ Platform_name
-    ))
   prefs_information <- sample_information |>
-    filter(stringr::str_detect(Collaborator_ID, pref_to_use))
+    filter(grepl(.data$Collaborator_ID, pref_to_use))
 
   prefs_raw_data <- ndata[, colnames(prefs_information)]
   prefs_present <- !is.na(prefs_raw_data)
-  for (i in 1:nrow(ndata)) {
+
+  for (i in seq_len(nrow(ndata))) {
     key <- prefs_present[i, ]
-    # TODO pool_names <-
+    pool_names <- all_p_names[key]
+    pool_injections <- prefs_information$Injection_order[key]
+    pool_values <- prefs_raw_data[i, key]
   }
 }
 

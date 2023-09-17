@@ -129,11 +129,12 @@ More information on the `auto_combine()` function can be found in the [package d
 ### `ml_match()` {#ml_match}
 
 ```{r, eval = F}
-ml_match_aligned <- ml_match(ms1, 
-                             ms2, 
-                             mz_thresh = 15, 
-                             rt_thresh = 0.5, 
-                             seed = 72)
+ml_match_aligned <- ml_match(ms1,
+  ms2,
+  mz_thresh = 15,
+  rt_thresh = 0.5,
+  seed = 72
+)
 ```
 
 ### Results
@@ -151,7 +152,7 @@ all_matched(aligned) |>
 - `iso_matched()`: The matched isolated metabolites between the two datasets.
 
 ```{r}
-iso_matched(aligned) |> 
+iso_matched(aligned) |>
   head() |>
   knitr::kable()
 ```
@@ -172,8 +173,6 @@ This plot can be saved locally using `ggsave()` from the `ggplot2` package:
 ```{r, eval = F}
 ggplot2::ggsave("plot.png", plots)
 ```
-
-
 
 ## Dev Instructions {#dev-instrutions}
 

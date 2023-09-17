@@ -148,9 +148,9 @@ smooth_normalize <-
     skipped <- 0
 
     # rename prefs we want to ignore
-    prefs_to_remove %>%
+    prefs_to_remove |>
       purrr::walk(function(pool) {
-        sample_information <- sample_information %>%
+        sample_information <- sample_information |>
           dplyr::mutate(Broad_name = dplyr::case_when(
             stringr::str_detect(Broad_name, pool) ~ "do not use",
             TRUE ~ Broad_name
@@ -160,7 +160,7 @@ smooth_normalize <-
 
     # look in the metadata, and shorten to wherever the short name
     # has PREFA or PREFB in it
-    pref_info <- sample_information %>%
+    pref_info <- sample_information |>
       filter(stringr::str_detect(Collaborator_ID, pref_to_use))
     if (!(stringr::str_detect(
       sample_information$Collaborator_ID,
@@ -168,10 +168,33 @@ smooth_normalize <-
     ))) {
       # TODO
     }
-    pref_info <- pref_info %>%
-      dplyr::arrange(Injection_order)
+    pref_info <- pref_info |>
+      dplyr::arrange(.data$Injection_order)
     all_p_names <- pref_info$Collaborator_ID
     all_p_injections <- pref_info$Injection_order
     sample_injection_order <- sample_information$Injection_order
     ref_to_use <- sample_information$Ref_to_use
+
+    for (i in seq_len(nrow(ndata))) {
+      key <- prefs_present[i, ]
+      pool_names <- all_p_names[key]
+      pool_injections <- all_p_injections[key]
+      pool_values <- ndata[i, key]
+
+      if ((1 - length(pool_names) / length(all_p_names)) * 100 >=
+        pool_missing_p) {
+        normalization_scalars <- NULL
+        skipped <- skipped + 1
+      } else {
+        # TODO line 255
+      }
+    }
+  }
+
+get_normalization_ind <- function(sample_injections,
+                                  pool_injections,
+                                  pool_names,
+                                  ref_to_use) {
+  pool_to_use_indices <- c()
+  pool_names_set <- unique(pool_names)
   }

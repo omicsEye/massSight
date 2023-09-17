@@ -1,7 +1,3 @@
-
-
-
-
 #' @export
 #' @title Create MS Object
 #' @description Create an MSObject from a data frame.

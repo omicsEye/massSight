@@ -19,21 +19,27 @@ final_results <-
     best_hits_found <- c()
     features_not_aligned <- c()
     pb <-
-      progress::progress_bar$new(format = "Aligning datasets [:bar] :percent :eta",
-                                 total = nrow(df1_for_align),
-                                 clear = F)
+      progress::progress_bar$new(
+        format = "Aligning datasets [:bar] :percent :eta",
+        total = nrow(df1_for_align),
+        clear = F
+      )
     for (i in 1:nrow(df1_for_align)) {
       best_match <-
-        find_closest_match(df1_for_align[i, ],
-                           df2_for_align,
-                           stds)
+        find_closest_match(
+          df1_for_align[i, ],
+          df2_for_align,
+          stds
+        )
       if (!is.null(best_match)) {
         pb$tick()
         best_reverse_match <-
-          find_closest_match(df2_for_align |>
-                               dplyr::filter(Compound_ID == best_match),
-                             df1_for_align,
-                             stds)
+          find_closest_match(
+            df2_for_align |>
+              dplyr::filter(Compound_ID == best_match),
+            df1_for_align,
+            stds
+          )
       } else {
         features_not_aligned <-
           c(features_not_aligned, df1_for_align[i, "Compound_ID"])
@@ -115,8 +121,10 @@ final_results <-
         )
       }
 
-      adjusted_df <- data.frame("rt_2_adj" = df2_adj$RT,
-                                "mz_2_adj" = df2_adj$MZ)
+      adjusted_df <- data.frame(
+        "rt_2_adj" = df2_adj$RT,
+        "mz_2_adj" = df2_adj$MZ
+      )
     }
 
 
@@ -150,7 +158,7 @@ final_results <-
       metadata_2 <-
         metadata_2 |> dplyr::semi_join(results_df, by = dplyr::join_by(Compound_ID == df2))
     }
-    if (nrow(metadata_1) > 0 && nrow(metadata_2) > 0){
+    if (nrow(metadata_1) > 0 && nrow(metadata_2) > 0) {
       metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)
     }
     return(align_ms_obj)

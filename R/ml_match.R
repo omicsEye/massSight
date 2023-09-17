@@ -39,10 +39,10 @@ get_shared_metabolites <- function(ms1, ms2) {
   ms2_df <- raw_df(ms2)
   ms1_known <- ms1_df |>
     dplyr::filter(Metabolite != "" &
-                    Compound_ID != Metabolite)
+      Compound_ID != Metabolite)
   ms2_known <- ms2_df |>
     dplyr::filter(Metabolite != "" &
-                    Compound_ID != Metabolite)
+      Compound_ID != Metabolite)
   known <-
     dplyr::inner_join(ms1_known, ms2_known, by = "Metabolite") |>
     dplyr::select(MZ.x, MZ.y, RT.x, RT.y, Metabolite) |>
@@ -53,11 +53,15 @@ get_shared_metabolites <- function(ms1, ms2) {
       RT_2 = RT.y,
       Metabolite_1 = Metabolite
     ) |>
-    dplyr::mutate(Class = "matched",
-                  Metabolite_2 = Metabolite_1)
-  out <- list("known" = known,
-              "ms1_known" = ms1_known,
-              "ms2_known" = ms2_known)
+    dplyr::mutate(
+      Class = "matched",
+      Metabolite_2 = Metabolite_1
+    )
+  out <- list(
+    "known" = known,
+    "ms1_known" = ms1_known,
+    "ms2_known" = ms2_known
+  )
   return(out)
 }
 
@@ -125,23 +129,29 @@ create_pred_data <-
            rt_thresh = .5) {
     ms1_df_unknown <- ms1 |>
       raw_df() |>
-      dplyr::rename(Compound_ID_1 = Compound_ID,
-                    MZ_1 = MZ,
-                    RT_1 = RT,
-                    Metabolite_1 = Metabolite) |>
+      dplyr::rename(
+        Compound_ID_1 = Compound_ID,
+        MZ_1 = MZ,
+        RT_1 = RT,
+        Metabolite_1 = Metabolite
+      ) |>
       dplyr::select(-Intensity)
     ms2_df_unknown <- ms2 |>
       raw_df() |>
-      dplyr::rename(Compound_ID_2 = Compound_ID,
-                    MZ_2 = MZ,
-                    RT_2 = RT,
-                    Metabolite_2 = Metabolite) |>
+      dplyr::rename(
+        Compound_ID_2 = Compound_ID,
+        MZ_2 = MZ,
+        RT_2 = RT,
+        Metabolite_2 = Metabolite
+      ) |>
       dplyr::select(-Intensity)
 
     combined <- tidyr::crossing(ms1_df_unknown, ms2_df_unknown) |>
-      dplyr::mutate(delta_MZ = MZ_1 - MZ_2,
-                    delta_RT = RT_1 - RT_2) |>
+      dplyr::mutate(
+        delta_MZ = MZ_1 - MZ_2,
+        delta_RT = RT_1 - RT_2
+      ) |>
       dplyr::filter(abs(delta_MZ) < mz_thresh &
-                      abs(delta_RT) < rt_thresh)
+        abs(delta_RT) < rt_thresh)
     return(combined)
   }
