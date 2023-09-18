@@ -195,6 +195,10 @@ get_normalization_ind <- function(sample_injections,
                                   pool_injections,
                                   pool_names,
                                   ref_to_use) {
-  pool_to_use_indices <- c()
   pool_names_set <- unique(pool_names)
-  }
+
+  pool_bool <- (!is.null(ref_to_use)) & (ref_to_use %in% pool_names_set)
+  pool_to_use <- pool_names[pool_bool]
+  # TODO
+  return(pool_to_use)
+}
