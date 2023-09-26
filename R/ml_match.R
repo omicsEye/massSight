@@ -30,7 +30,7 @@ ml_match <-
     pred_fmt_data$prob_matched <-
       predict(fitted_model, pred_fmt_data, type = "prob")$matched
     pred_fmt_data <- pred_fmt_data |>
-      dplyr::filter(prob_matched > .95)
+      dplyr::filter(.data$prob_matched > .95)
     return(pred_fmt_data)
   }
 
@@ -38,14 +38,14 @@ get_shared_metabolites <- function(ms1, ms2) {
   ms1_df <- raw_df(ms1)
   ms2_df <- raw_df(ms2)
   ms1_known <- ms1_df |>
-    dplyr::filter(Metabolite != "" &
-      Compound_ID != Metabolite)
+    dplyr::filter(.data$Metabolite != "" &
+      .data$Compound_ID != .data$Metabolite)
   ms2_known <- ms2_df |>
-    dplyr::filter(Metabolite != "" &
-      Compound_ID != Metabolite)
+    dplyr::filter(.data$Metabolite != "" &
+      .data$Compound_ID != .data$Metabolite)
   known <-
     dplyr::inner_join(ms1_known, ms2_known, by = "Metabolite") |>
-    dplyr::select(MZ.x, MZ.y, RT.x, RT.y, Metabolite) |>
+    dplyr::select(.data$MZ.x, .data$MZ.y, .data$RT.x, .data$RT.y, .data$Metabolite) |>
     dplyr::rename(
       MZ_1 = MZ.x,
       MZ_2 = MZ.y,
@@ -101,8 +101,8 @@ get_training_data <-
     known <- known |>
       dplyr::mutate(
         Class = as.factor(Class),
-        delta_RT = RT_1 - RT_2,
-        delta_MZ = MZ_1 - MZ_2
+        delta_RT = .data$RT_1 - .data$RT_2,
+        delta_MZ = .data$MZ_1 - .data$MZ_2
       )
     return(known)
   }
@@ -135,7 +135,7 @@ create_pred_data <-
         RT_1 = RT,
         Metabolite_1 = Metabolite
       ) |>
-      dplyr::select(-Intensity)
+      dplyr::select(-.data$Intensity)
     ms2_df_unknown <- ms2 |>
       raw_df() |>
       dplyr::rename(
@@ -144,14 +144,14 @@ create_pred_data <-
         RT_2 = RT,
         Metabolite_2 = Metabolite
       ) |>
-      dplyr::select(-Intensity)
+      dplyr::select(-.data$Intensity)
 
     combined <- tidyr::crossing(ms1_df_unknown, ms2_df_unknown) |>
       dplyr::mutate(
         delta_MZ = MZ_1 - MZ_2,
         delta_RT = RT_1 - RT_2
       ) |>
-      dplyr::filter(abs(delta_MZ) < mz_thresh &
-        abs(delta_RT) < rt_thresh)
+      dplyr::filter(abs(.data$delta_MZ) < mz_thresh &
+        abs(.data$delta_RT) < rt_thresh)
     return(combined)
   }

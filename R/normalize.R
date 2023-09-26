@@ -98,7 +98,7 @@ smooth_normalize <- function(ndata,
       smooth_y <- pool_values[unique(pools_to_use_ind)]
     } else if (smooth_method == "lowess") {
       lowess_fun <-
-        lowess(
+        stats::lowess(
           pool_injections[unique(pools_to_use_ind)],
           pool_values[unique(pools_to_use_ind)],
           .2

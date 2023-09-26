@@ -13,7 +13,7 @@ smooth_drift <- function(align_ms_obj,
     dplyr::mutate(delta_RT = RT_2 - RT)
 
   if (smooth_method == "loess") {
-    res_low <- loess(delta_RT ~ RT, data = results)
+    res_low <- stats::loess(delta_RT ~ RT, data = results)
     smooth_x_rt <- results$RT
     smooth_y_rt <- predict(res_low, smooth_x_rt)
   } else if (smooth_method == "gam") {
@@ -71,13 +71,13 @@ smooth_drift <- function(align_ms_obj,
     dplyr::mutate(delta_MZ = MZ_2 - MZ)
 
   if (smooth_method == "loess") {
-    mz_low <- loess(delta_MZ ~ MZ, data = results)
+    mz_low <- stats::loess(delta_MZ ~ MZ, data = results)
     smooth_x_mz <- results$MZ
-    smooth_y_mz <- predict(mz_low, smooth_x_mz)
+    smooth_y_mz <- stats::predict(mz_low, smooth_x_mz)
   } else if (smooth_method == "gam") {
     mz_gam <- mgcv::gam(delta_MZ ~ MZ, data = results)
     smooth_x_mz <- results$MZ
-    smooth_y_mz <- predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
+    smooth_y_mz <- stats::predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
       as.vector()
   } else if (smooth_method == "gaussian") {
     smooth_x_mz <- results$MZ

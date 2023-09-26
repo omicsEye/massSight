@@ -30,10 +30,10 @@ align_isolated_compounds <-
           pb$tick()
           df2_filter <- df2 |>
             dplyr::filter(
-              RT > df1$RT[row] + rt_minus &
-                RT < df1$RT[row] + rt_plus &
-                MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
-                MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
+              RT > df1$RT[row] + .data$rt_minus &
+                RT < df1$RT[row] + .data$rt_plus &
+                MZ > df1$MZ[row] + .data$mz_minus * df1$MZ[row] / 1e6 &
+                MZ < df1$MZ[row] + .data$mz_plus * df1$MZ[row] / 1e6
             )
           if (nrow(df2_filter) > 0) {
             for (row_2 in 1:nrow(df2_filter)) {

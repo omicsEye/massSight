@@ -111,9 +111,9 @@ auto_combine <-
           mz_sim = mz_iso_threshold
         )
         isolated(ms1) <- raw_df(ms1) |>
-          dplyr::filter(Compound_ID %in% ref_iso)
+          dplyr::filter(.data$Compound_ID %in% ref_iso)
         isolated(ms2) <- raw_df(ms2) |>
-          dplyr::filter(Compound_ID %in% query_iso)
+          dplyr::filter(.data$Compound_ID %in% query_iso)
       } else if (iso_method == "dbscan") {
         isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
         isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
@@ -122,9 +122,9 @@ auto_combine <-
       }
     } else if (match_method == "supervised") {
       isolated(ms1) <- raw_df(ms1) |>
-        filter(Metabolite != "")
+        dplyr::filter(.data$Metabolite != "")
       isolated(ms2) <- raw_df(ms2) |>
-        filter(Metabolite != "")
+        dplyr::filter(.data$Metabolite != "")
     } else {
       stop("`match_method` must be either 'unsupervised' or 'supervised'.")
     }
