@@ -36,7 +36,7 @@ final_results <-
         best_reverse_match <-
           find_closest_match(
             df2_for_align |>
-              dplyr::filter(Compound_ID == best_match),
+              dplyr::filter(.data$Compound_ID == best_match),
             df1_for_align,
             stds
           )
@@ -57,7 +57,7 @@ final_results <-
       }
     }
     df_not_found <- df1 |>
-      dplyr::filter(Compound_ID %in% features_not_aligned)
+      dplyr::filter(.data$Compound_ID %in% features_not_aligned)
     rownames(df1) <- df1$Compound_ID
     rownames(df2) <- df2$Compound_ID
     rownames(df2_adj) <- df2_adj$Compound_ID

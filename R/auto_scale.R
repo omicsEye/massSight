@@ -39,33 +39,31 @@ auto_scale <-
            smooth_method = "lowess") {
     normalization <- toupper(normalization)
     error <-
-      verify_df(
-        is_to_use,
-        normalization,
-        data,
-        sample_information,
-        pool_missing_p
-      )
+      verify_df(is_to_use,
+                normalization,
+                data,
+                sample_information,
+                pool_missing_p)
     if (length(error) > 0) {
       return(error)
     }
 
     warnings <- c()
     metadata <- data |>
-      dplyr::select("Compound_ID", "MZ", "RT", "Metabolite")
+      dplyr::select(.data$Compound_ID, .data$MZ, .data$RT, .data$Metabolite)
 
     data <- data |>
-      dplyr::select(-"MZ", -"RT", -"Metabolite")
+      dplyr::select(-.data$MZ,-.data$RT,-.data$Metabolite)
     data <- data[data %in% c(0, 1, 2, 3, 4)] <- NA
     ndata <- data
     if ("IS" %in% normalization) {
       message("Starting IS...")
       if (length(is_to_use) > 0) {
         scalars <- data |>
-          dplyr::filter("Compound_ID" %in% is_to_use) |>
-          dplyr::select(-"Compound_ID") |>
+          dplyr::filter(.data$Compound_ID %in% is_to_use) |>
+          dplyr::select(-.data$Compound_ID) |>
           t()
-        scalars <- scalars / apply(scalars, 2, median)
+        scalars <- scalars / apply(scalars, 2, stats::median)
         scalars <- colMeans(scalars)
         if (any(is.na(scalars))) {
           warnings <-
@@ -87,13 +85,11 @@ auto_scale <-
     }
     if ("NN" %in% normalization) {
       message("Starting NN...")
-      nn_normalize_res <- nn_normalize(
-        ndata,
-        sample_information,
-        pref_to_use,
-        prefs_to_remove,
-        pool_missing_p
-      )
+      nn_normalize_res <- nn_normalize(ndata,
+                                       sample_information,
+                                       pref_to_use,
+                                       prefs_to_remove,
+                                       pool_missing_p)
       ndata <- nn_normalize_res[1]
       normalized <- nn_normalize_res[2]
       rm(nn_normalize_res)
@@ -131,64 +127,9 @@ auto_scale <-
       )
     ndata <- rbind(metadata, ndata)
     ndata <- ndata |>
-      dplyr::mutate(
-        RT = round("RT", 2),
-        MZ = round("MZ", 4)
-      )
+      dplyr::mutate(RT = round(.data$RT, 2),
+                    MZ = round(.data$MZ, 4))
     return(ndata)
-  }
-
-smooth_normalize <-
-  function(ndata,
-           sample_information,
-           pref_to_use,
-           prefs_to_remove,
-           pool_missing_p,
-           smooth_method = "lowess") {
-    skipped <- 0
-
-    # rename prefs we want to ignore
-    prefs_to_remove |>
-      purrr::walk(function(pool) {
-        sample_information <- sample_information |>
-          dplyr::mutate(Broad_name = dplyr::case_when(
-            stringr::str_detect(Broad_name, pool) ~ "do not use",
-            TRUE ~ Broad_name
-          ))
-        message(paste("Removing pool reference:", pool))
-      })
-
-    # look in the metadata, and shorten to wherever the short name
-    # has PREFA or PREFB in it
-    pref_info <- sample_information |>
-      filter(stringr::str_detect(Collaborator_ID, pref_to_use))
-    if (!(stringr::str_detect(
-      sample_information$Collaborator_ID,
-      pref_to_use
-    ))) {
-      # TODO
-    }
-    pref_info <- pref_info |>
-      dplyr::arrange(.data$Injection_order)
-    all_p_names <- pref_info$Collaborator_ID
-    all_p_injections <- pref_info$Injection_order
-    sample_injection_order <- sample_information$Injection_order
-    ref_to_use <- sample_information$Ref_to_use
-
-    for (i in seq_len(nrow(ndata))) {
-      key <- prefs_present[i, ]
-      pool_names <- all_p_names[key]
-      pool_injections <- all_p_injections[key]
-      pool_values <- ndata[i, key]
-
-      if ((1 - length(pool_names) / length(all_p_names)) * 100 >=
-        pool_missing_p) {
-        normalization_scalars <- NULL
-        skipped <- skipped + 1
-      } else {
-        # TODO line 255
-      }
-    }
   }
 
 get_normalization_ind <- function(sample_injections,
@@ -197,7 +138,8 @@ get_normalization_ind <- function(sample_injections,
                                   ref_to_use) {
   pool_names_set <- unique(pool_names)
 
-  pool_bool <- (!is.null(ref_to_use)) & (ref_to_use %in% pool_names_set)
+  pool_bool <-
+    (!is.null(ref_to_use)) & (ref_to_use %in% pool_names_set)
   pool_to_use <- pool_names[pool_bool]
   # TODO
   return(pool_to_use)

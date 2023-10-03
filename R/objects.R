@@ -1,6 +1,7 @@
 #' @export
 #' @title Create MS Object
 #' @description Create an MSObject from a data frame.
+#'
 #' @param df A data frame containing the raw data.
 #' @param name A character indicating the name of the experiment.
 #' @param id_name A character indicating the name of the column containing the
@@ -10,7 +11,9 @@
 #' @param mz_name A character indicating the name of the column containing the
 #' m/z values.
 #' @param int_name A character indicating the name of the column containing the
-#' intensities.
+#' intensities
+#' @param metab_name An optional character indicating the name of the column
+#' containing the metabolite annotations
 #' @return An MSObject.
 create_ms_obj <- function(df,
                           name,
@@ -19,7 +22,7 @@ create_ms_obj <- function(df,
                           mz_name = "MZ",
                           int_name = "Intensity",
                           metab_name = "Metabolite") {
-  ms <- new("MSObject")
+  ms <- methods::new("MSObject")
   name(ms) <- name
   consolidated(ms) <- FALSE
 
@@ -44,7 +47,7 @@ create_ms_obj <- function(df,
 }
 
 create_aligned_ms_obj <- function(ms1, ms2) {
-  ms <- new(
+  ms <- methods::new(
     "MergedMSObject",
     ms1 = ms1,
     ms2 = ms2,

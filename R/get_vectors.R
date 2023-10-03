@@ -2,9 +2,9 @@ get_vectors <- function(df, rt_sim, mz_sim) {
   rt_metabolites <- c()
   mz_metabolites <- c()
   df_rt <- df |>
-    dplyr::arrange(RT)
+    dplyr::arrange(.data$RT)
   df_mz <- df |>
-    dplyr::arrange(MZ)
+    dplyr::arrange(.data$MZ)
   for (row in 1:(nrow(df_rt) - 1)) {
     rt <- df_rt[row, "RT"]
     if (row == 1) {

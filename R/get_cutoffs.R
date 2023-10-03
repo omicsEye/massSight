@@ -12,16 +12,16 @@ get_cutoffs <-
         !mad_based_outlier(data_int)
       data_int <- replace(data_int, data_int %in% c(Inf, -Inf), NA)
       cutoffs <- c(
-        sd(data_rt[not_outliers]),
-        sd(data_mz[not_outliers]),
-        sd(data_int[not_outliers])
+        stats::sd(data_rt[not_outliers]),
+        stats::sd(data_mz[not_outliers]),
+        stats::sd(data_int[not_outliers])
       )
     } else {
       not_outliers <- !mad_based_outlier(data_rt) &
         !mad_based_outlier(data_mz)
       cutoffs <- c(
-        sd(data_rt[not_outliers]),
-        sd(data_mz[not_outliers])
+        stats::sd(data_rt[not_outliers]),
+        stats::sd(data_mz[not_outliers])
       )
     }
 

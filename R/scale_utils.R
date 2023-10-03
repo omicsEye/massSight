@@ -1,12 +1,12 @@
 z_score <- function(x) {
-  return((x - mean(x)) / sd(x))
+  return((x - mean(x)) / stats::sd(x))
 }
 
 cvs <- function(x) {
-  if (mean(x) == 0 & sd(x) == 0) {
+  if (mean(x) == 0 & stats::sd(x) == 0) {
     return(0)
   } else {
-    return(sd(x) / mean(x))
+    return(stats::sd(x) / mean(x))
   }
 }
 
@@ -40,7 +40,7 @@ verify_df <-
     error_flag <- FALSE
     if (!(0 <= pool_missing_p &
       pool_missing_p <= 100)) {
-      error <- error %>%
+      error <- error |>
         append(
           paste(
             "Your pool missingness value must range from 0 to 100. You selected",
@@ -49,7 +49,7 @@ verify_df <-
         )
     }
     if ("IS" %in% norm & is_to_use == "") {
-      error <- error %>%
+      error <- error |>
         append(
           "You have selected IS normalization but have not specified any internal standards. Either specify a standard or uncheck the IS box in the previous window."
         )
@@ -68,7 +68,7 @@ verify_df <-
     if (!(c(needed_cols %in% names(data)))) {
       for (col in needed_cols) {
         if (!(col %in% names(data))) {
-          error <- error %>%
+          error <- error |>
             append(paste("There must be", col, "in your columns."))
         }
       }
@@ -83,7 +83,7 @@ verify_df <-
       is_not_found[which(is_to_use %in% data$Metabolite)]
     if (length(is_not_found) > 0) {
       purrr::walk(is_not_found, function(x) {
-        error <- error %>%
+        error <- error |>
           append(paste(
             "Your internal standard",
             x,
@@ -92,31 +92,31 @@ verify_df <-
       })
     }
 
-    prefa_sum <- sample_info$Collaborator_ID %>%
-      str_detect("PREFA") %>%
+    prefa_sum <- sample_info$Collaborator_ID |>
+      stringr::str_detect("PREFA") |>
       sum()
-    prefb_sum <- sample_info$Collaborator_ID %>%
-      str_detect("PREFB") %>%
+    prefb_sum <- sample_info$Collaborator_ID |>
+      stringr::str_detect("PREFB") |>
       sum()
 
     if (prefa_sum == 0 &
       prefb_sum == 0) {
-      error <- error %>%
+      error <- error |>
         append(
           paste(
             "PREFs are missing. I counted",
-            pref_a,
+            prefa_sum,
             "PREFAs and",
-            preb_b,
+            prefb_sum,
             "PREFBs. There must be at least one pool reference"
           )
         )
     }
     # check if 'Ref_to_use' pools are actually present in the Platfrom_name name
     bad_refs <-
-      samples_info$Ref_to_use[which(!samples_info$Ref_to_use %in% sample_info$Collaborator_ID)]
+      sample_info$Ref_to_use[which(!sample_info$Ref_to_use %in% sample_info$Collaborator_ID)]
     if (length(bad_refs) > 0) {
-      error <- error %>%
+      error <- error |>
         append(
           paste0(
             "Your 'Ref_to_use':,",
@@ -131,7 +131,7 @@ verify_df <-
 get_norm_indices <-
   function(sample_inj, pool_inj, pool_names, ref_use) {
     pool_use_indx <- c()
-    pool_names_unique <- pool_names %>% unique()
+    pool_names_unique <- pool_names |> unique()
     sample_ref_tibble <- dplyr::tibble(
       sample_inj,
       ref_use
@@ -139,10 +139,10 @@ get_norm_indices <-
 
     purrr::walk(sample_ref_tibble, function(row) {
       if (!(is.null(row$ref_use)) & row$ref_use %in% pool_names_unique) {
-        pool_use_indx <- pool_use_indx %>%
+        pool_use_indx <- pool_use_indx |>
           append(which(pool_names == row$ref_use)[1])
       } else {
-        pool_use_indx <- pool_use_indx %>%
+        pool_use_indx <- pool_use_indx |>
           append() # TODO
       }
     })
@@ -151,13 +151,13 @@ get_norm_indices <-
 check_prefs <- function(sample_info,
                         pref_to_use,
                         prefs_to_remove) {
-  sample_information |>
-    dplyr::mutate(Platfrom_name = case_when(
+  sample_info |>
+    dplyr::mutate(Platform_name = dplyr::case_when(
       Platfrom_name %in% prefs_to_remove ~ "do not use",
       T ~ Platfrom_name
     ))
-  prefs_information <- sample_information |>
-    filter(stringr::str_detect(Collaborator_ID, pref_to_use))
+  prefs_information <- sample_info |>
+    dplyr::filter(stringr::str_detect(.data$Collaborator_ID, pref_to_use))
   # TODO add error
   return(prefs_information)
 }

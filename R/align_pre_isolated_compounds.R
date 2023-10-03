@@ -31,10 +31,10 @@ align_pre_isolated_compounds <-
           pb$tick()
           df2_filter <- df2 |>
             dplyr::filter(
-              RT > df1$RT[row] + rt_minus &
-                RT < df1$RT[row] + rt_plus &
-                MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
-                MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
+              .data$RT > df1$RT[row] + rt_minus &
+                .data$RT < df1$RT[row] + rt_plus &
+                .data$MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
+                .data$MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
             )
           if (nrow(df2_filter) == 0) {
             next
@@ -71,10 +71,10 @@ align_pre_isolated_compounds <-
           pb$tick()
           df2_filter <- df2 |>
             dplyr::filter(
-              RT > df1$RT[row] + rt_minus &
-                RT < df1$RT[row] + rt_plus &
-                MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
-                MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
+              .data$RT > df1$RT[row] + rt_minus &
+                .data$RT < df1$RT[row] + rt_plus &
+                .data$MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
+                .data$MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
             )
           if (nrow(df2_filter) == 0) {
             next
@@ -118,10 +118,10 @@ align_pre_isolated_compounds <-
           pb$tick()
           df2_filter <- df2 |>
             dplyr::filter(
-              RT > (df1[row, "RT"] + rt_minus),
-              RT < (df1[row, "RT"] + rt_plus),
-              MZ > (df1[row, "MZ"] + mz_minus / 1e6),
-              MZ < (df1[row, "MZ"] + mz_plus / 1e6)
+              .data$RT > (df1[row, "RT"] + rt_minus),
+              .data$RT < (df1[row, "RT"] + rt_plus),
+              .data$MZ > (df1[row, "MZ"] + mz_minus / 1e6),
+              .data$MZ < (df1[row, "MZ"] + mz_plus / 1e6)
             )
 
           if (nrow(df2_filter > 0)) {
@@ -156,10 +156,10 @@ align_pre_isolated_compounds <-
           pb$tick()
           df2_filter <- df2 |>
             dplyr::filter(
-              RT > (df1[row, "RT"] + rt_minus),
-              RT < (df1[row, "RT"] + rt_plus),
-              MZ > (df1[row, "MZ"] + mz_minus / 1e6),
-              MZ < (df1[row, "MZ"] + mz_plus / 1e6)
+              .data$RT > (df1[row, "RT"] + rt_minus),
+              .data$RT < (df1[row, "RT"] + rt_plus),
+              .data$MZ > (df1[row, "MZ"] + mz_minus / 1e6),
+              .data$MZ < (df1[row, "MZ"] + mz_plus / 1e6)
             )
 
           if (nrow(df2_filter > 0)) {

@@ -11,7 +11,7 @@ Authors@R: c(
   )
 Description: an `R` package for the alignment, scaling, and downstream
     analysis of LC-MS metabolomics data.
-License: MIT
+License: MIT + file LICENSE
 URL: https://github.com/omicsEye/massSight,
     https://omicseye.github.io/massSight/
 BugReports: https://github.com/omicsEye/massSight/issues
@@ -25,10 +25,10 @@ Imports:
     GauPro,
     ggExtra,
     ggplot2,
-    glue,
-    logr,
     methods,
+    mgcv,
     openxlsx,
+    progress,
     purrr,
     readxl,
     rlang,
@@ -40,9 +40,12 @@ Imports:
 Suggests: 
     knitr,
     rmarkdown,
+    testthat (>= 3.0.0),
     usethis
 biocViews: Omics, Software, metabolite, alignment, scale, qc
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
+Config/testthat/edition: 3
+VignetteBuilder: knitr

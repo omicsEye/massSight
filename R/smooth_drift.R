@@ -9,17 +9,17 @@ smooth_drift <- function(align_ms_obj,
     raw_df()
   results <- iso_matched(align_ms_obj)
   results <- results |>
-    dplyr::arrange(RT) |>
-    dplyr::mutate(delta_RT = RT_2 - RT)
+    dplyr::arrange(.data$RT) |>
+    dplyr::mutate(delta_RT = .data$RT_2 - .data$RT)
 
   if (smooth_method == "loess") {
     res_low <- stats::loess(delta_RT ~ RT, data = results)
     smooth_x_rt <- results$RT
-    smooth_y_rt <- predict(res_low, smooth_x_rt)
+    smooth_y_rt <- stats::predict(res_low, smooth_x_rt)
   } else if (smooth_method == "gam") {
     spline_func <- mgcv::gam(delta_RT ~ RT, data = results)
     smooth_x_rt <- results$RT
-    smooth_y_rt <- predict(spline_func, data.frame(RT = smooth_x_rt)) |>
+    smooth_y_rt <- stats::predict(spline_func, data.frame(RT = smooth_x_rt)) |>
       as.vector()
   } else if (smooth_method == "gaussian") {
     smooth_x_rt <- results$RT
@@ -33,15 +33,15 @@ smooth_drift <- function(align_ms_obj,
     smooth_y_rt <- gp$predict(smooth_x_rt)
     message("Finished gaussian smoothing")
   }
-  smooth_x_rt_dropna <- smooth_x_rt |> na.omit()
-  smooth_y_rt_dropna <- smooth_y_rt |> na.omit()
+  smooth_x_rt_dropna <- smooth_x_rt |> stats::na.omit()
+  smooth_y_rt_dropna <- smooth_y_rt |> stats::na.omit()
   if (length(smooth_x_rt_dropna) == 0) {
     stop(
       "There were not enough matches found to generate a predicted smoothing curve for your RT. Try increasing the range of your rt cutoffs (default -0.5 to +0.5), or increasing the 'smooth rt' value (default 0.1). Or if all else fails, try a manual/custom scaling (rt_custom)."
     )
   }
 
-  suppressWarnings(f <- approx(
+  suppressWarnings(f <- stats::approx(
     x = smooth_x_rt_dropna,
     y = smooth_y_rt_dropna,
     xout = smooth_x_rt,
@@ -67,8 +67,8 @@ smooth_drift <- function(align_ms_obj,
 
   ## scale mzs ---------------------------------------------------------------
   results <- results |>
-    dplyr::arrange(MZ) |>
-    dplyr::mutate(delta_MZ = MZ_2 - MZ)
+    dplyr::arrange(.data$MZ) |>
+    dplyr::mutate(delta_MZ = .data$MZ_2 - .data$MZ)
 
   if (smooth_method == "loess") {
     mz_low <- stats::loess(delta_MZ ~ MZ, data = results)
@@ -92,15 +92,15 @@ smooth_drift <- function(align_ms_obj,
   } else {
     stop("Invalid smooth method")
   }
-  smooth_x_mz_dropna <- smooth_x_mz |> na.omit()
-  smooth_y_mz_dropna <- smooth_y_mz |> na.omit()
+  smooth_x_mz_dropna <- smooth_x_mz |> stats::na.omit()
+  smooth_y_mz_dropna <- smooth_y_mz |> stats::na.omit()
   if (length(smooth_x_mz_dropna) == 0) {
     stop(
       "There were not enough matches found to generate a predicted smoothing curve for your RT. Try increasing the range of your rt cutoffs (default -0.5 to +0.5), or increasing the 'smooth rt' value (default 0.1). Or if all else fails, try a manual/custom scaling (rt_custom)."
     )
   }
 
-  suppressWarnings(f <- approx(
+  suppressWarnings(f <- stats::approx(
     x = smooth_x_mz_dropna,
     y = smooth_y_mz_dropna,
     rule = 2,

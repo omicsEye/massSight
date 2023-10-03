@@ -150,7 +150,7 @@ load_data <-
 #' @export
 combine_QI_TF <- function(QI_file, TF_file, output_name) {
   # read the Progenesis file
-  qi_data <- read.table(
+  qi_data <- utils::read.table(
     QI_file,
     header = F,
     row.names = NULL,
@@ -329,7 +329,7 @@ load_ihmp_data <- function(path = "data/") {
     "Downloading progenesis iHMP data to ",
     progenesis_ihmp_df_path
   ))
-  download.file(
+  utils::download.file(
     "https://gwu.box.com/shared/static/u5b2djx2sf1tq6gy3twz0x4hno1r4o58.xlsx",
     progenesis_ihmp_df_path
   )
@@ -340,7 +340,7 @@ load_ihmp_data <- function(path = "data/") {
     )
   )
   cd_c18n_ihmp_df <-
-    download.file(
+    utils::download.file(
       "https://gwu.box.com/shared/static/hrgfgmlllvzvmzbzyn8tolygel9brkkz.csv",
       cd_c18n_ihmp_path
     )
@@ -352,7 +352,7 @@ load_ihmp_data <- function(path = "data/") {
     )
   )
   cd_c18n_ihmp_df <-
-    download.file(
+    utils::download.file(
       "https://gwu.box.com/shared/static/btmmvdr6n1oiwht9huw3tc6o6cinmsq1.csv",
       cd_hilp_ihmp_path
     )

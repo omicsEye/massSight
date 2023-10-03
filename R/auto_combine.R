@@ -53,10 +53,8 @@ auto_combine <-
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
     # stop conditions ---------------------------------------------------------
-    stopifnot(
-      "`smooth_method` must be either 'loess' or 'gam'" =
-        smooth_method %in% c("loess", "gam")
-    )
+    stopifnot("`smooth_method` must be either 'loess' or 'gam'" =
+                smooth_method %in% c("loess", "gam"))
     # raw_df(ms1) <- raw_df(ms1) |>
     #   dplyr::mutate(
     #     MZ = round(.data$MZ, 4),
@@ -69,47 +67,42 @@ auto_combine <-
     #     RT = round(RT, 3)
     #   )
 
-    # logr::log_open(paste0(
-    #   format(Sys.time(), "%Y-%m-%d_%H:%M"),
-    #   ".log"
-    # ))
-    #
-    # options("logr.notes" = FALSE)
-    # options("logr.traceback" = FALSE)
-    #
-    # string1 <- glue::glue(
-    #   "auto_combine(ms1,
-    #                          ms2,
-    #                          rt_lower = {rt_lower},
-    #                          rt_upper = {rt_upper},
-    #                          mz_lower = {mz_lower},
-    #                          mz_upper = {mz_upper},
-    #                          minimum_intensity = {minimum_intensity},
-    #                          iso_method = {iso_method},
-    #                          eps = {eps},
-    #                          rt_iso_threshold = {rt_iso_threshold},
-    #                          mz_iso_threshold = {mz_iso_threshold},
-    #                          threshold = {threshold},
-    #                          match_method = {match_method},
-    #                          smooth_method = {smooth_method}"
-    # )
-    #
-    # logr::log_print("--- massSight Run and Parameters ---",
-    #   console = F,
-    #   hide_notes = T
-    # )
-    # logr::log_print(cat(string1), console = F, hide_notes = T)
+    logr::log_open(paste0(format(Sys.time(), "%Y-%m-%d_%H-%M"),
+                          ".log"))
+
+    options("logr.notes" = FALSE)
+    options("logr.traceback" = FALSE)
+
+    string1 <- glue::glue(
+      "auto_combine(ms1,
+                             ms2,
+                             rt_lower = {rt_lower},
+                             rt_upper = {rt_upper},
+                             mz_lower = {mz_lower},
+                             mz_upper = {mz_upper},
+                             minimum_intensity = {minimum_intensity},
+                             iso_method = {iso_method},
+                             eps = {eps},
+                             rt_iso_threshold = {rt_iso_threshold},
+                             mz_iso_threshold = {mz_iso_threshold},
+                             threshold = {threshold},
+                             match_method = {match_method},
+                             smooth_method = {smooth_method})"
+    )
+
+    logr::log_print("--- massSight Run and Parameters ---",
+                    console = F,
+                    hide_notes = T)
+    logr::log_print(string1, console = F, hide_notes = T)
 
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
         ref_iso <- get_vectors(raw_df(ms1),
-          rt_sim = rt_iso_threshold,
-          mz_sim = mz_iso_threshold
-        )
+                               rt_sim = rt_iso_threshold,
+                               mz_sim = mz_iso_threshold)
         query_iso <- get_vectors(raw_df(ms2),
-          rt_sim = rt_iso_threshold,
-          mz_sim = mz_iso_threshold
-        )
+                                 rt_sim = rt_iso_threshold,
+                                 mz_sim = mz_iso_threshold)
         isolated(ms1) <- raw_df(ms1) |>
           dplyr::filter(.data$Compound_ID %in% ref_iso)
         isolated(ms2) <- raw_df(ms2) |>
@@ -129,7 +122,7 @@ auto_combine <-
       stop("`match_method` must be either 'unsupervised' or 'supervised'.")
     }
 
-    align_obj <- new("MergedMSObject")
+    align_obj <- methods::new("MergedMSObject")
     ms1(align_obj) <- ms1
     ms2(align_obj) <- ms2
     smooth(align_obj) <- smooth_method
@@ -147,19 +140,14 @@ auto_combine <-
         mz_minus = mz_lower,
         mz_plus = mz_upper
       ) |>
-      smooth_drift(
-        smooth_method = smooth_method,
-        minimum_int = minimum_intensity
-      ) |>
-      final_results(
-        keep_features = keep_features,
-        weights = weights
-      )
+      smooth_drift(smooth_method = smooth_method,
+                   minimum_int = minimum_intensity) |>
+      final_results(keep_features = keep_features,
+                    weights = weights)
 
-    message(paste0(
-      "Numbers of matched/kept features: ",
-      nrow(all_matched(align_obj))
-    ))
+    logr::log_print(paste0("Numbers of matched/kept features: ",
+                   nrow(all_matched(align_obj))), console = T)
 
+    logr::log_close()
     return(align_obj)
   }

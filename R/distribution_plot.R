@@ -15,7 +15,7 @@ distribution_plot <- function(ms_obj, subset = "all") {
     if (subset == "all") {
       ms_df <- raw_df(ms_obj)
     } else if (subset == "isolated") {
-      ms_df <- ref@isolated
+      ms_df <- ms_obj@isolated
       if (nrow(ms_df) == 0) {
         stop("No isolated subset detected.")
       } else {
@@ -23,7 +23,7 @@ distribution_plot <- function(ms_obj, subset = "all") {
       }
     }
     p <- ms_df |>
-      ggplot2::ggplot(ggplot2::aes(RT, MZ)) +
+      ggplot2::ggplot(ggplot2::aes(.data$RT, .data$MZ)) +
       ggplot2::geom_point(alpha = .4) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
@@ -40,12 +40,12 @@ distribution_plot <- function(ms_obj, subset = "all") {
       stop("subset must be one of 'all' or 'isolated'")
     }
     p1 <- ms_df1 |>
-      ggplot2::ggplot(ggplot2::aes(RT, MZ)) +
+      ggplot2::ggplot(ggplot2::aes(.data$RT, .data$MZ)) +
       ggplot2::geom_point(alpha = .4) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()
     p2 <- ms_df2 |>
-      ggplot2::ggplot(ggplot2::aes(RT, MZ)) +
+      ggplot2::ggplot(ggplot2::aes(.data$RT, .data$MZ)) +
       ggplot2::geom_point(alpha = .4) +
       ggplot2::theme_classic(base_size = 1.54) +
       theme_omicsEye()

@@ -16,14 +16,14 @@ nn_normalize <- function(ndata,
   }
 
   prefs_information <- sample_information |>
-    filter(grepl(.data$Collaborator_ID, pref_to_use))
+    dplyr::filter(grepl(.data$Collaborator_ID, pref_to_use))
 
   prefs_raw_data <- ndata[, colnames(prefs_information)]
   prefs_present <- !is.na(prefs_raw_data)
 
   for (i in seq_len(nrow(ndata))) {
     key <- prefs_present[i, ]
-    pool_names <- all_p_names[key]
+    # pool_names <- all_p_names[key]
     pool_injections <- prefs_information$Injection_order[key]
     pool_values <- prefs_raw_data[i, key]
   }
@@ -33,7 +33,8 @@ smooth_normalize <- function(ndata,
                              sample_information,
                              pref_to_use,
                              prefs_to_remove,
-                             pool_missing_p) {
+                             pool_missing_p,
+                             smooth_method) {
   prefs_information <-
     check_prefs(sample_information, pref_to_use, prefs_to_remove)
   prefs_raw_data <- ndata |>
@@ -85,7 +86,7 @@ smooth_normalize <- function(ndata,
       } else {
         normalization_scalars <-
           pool_values[pools_to_use_ind] /
-            median(pool_values[unique(pools_to_use_ind)])
+            stats::median(pool_values[unique(pools_to_use_ind)])
         normalized_data <- normalized_data |>
           rbind(ndata[i, ] / normalization_scalars)
         nn_normalized <- nn_normalized |>

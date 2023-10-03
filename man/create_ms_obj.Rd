@@ -29,7 +29,10 @@ retention times.}
 m/z values.}
 
 \item{int_name}{A character indicating the name of the column containing the
-intensities.}
+intensities}
+
+\item{metab_name}{An optional character indicating the name of the column
+containing the metabolite annotations}
 }
 \value{
 An MSObject.

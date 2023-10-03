@@ -176,13 +176,21 @@ setMethod(
 
 
 #' Class to represent merged mass spectroscopy data.
+#'
 #' @slot ms1 A character indicating the name of the experiment.
 #' @slot ms2 A data frame containing the raw data.
 #' @slot all_matched A data frame containing the scaled data.
 #' @slot iso_matched A data frame containing the scaled data.
 #' @slot metadata A logical indicating whether or not the data has
 #' been consolidated.
+#' @slot pre_iso_matched A data frame containing the matched pairs before
+#' initial isolation
+#' @slot scaled_values A vector of scaled values
+#' @slot adjusted_df A data frame containing the drift corrected metabolites
+#' @slot cutoffs A vector of cutoffs
+#' @slot aligned A dataframe containing the final metabolite mathces
 #' @slot smooth A string indicating the smoothing method used.
+#'
 #' @rdname MergedMSObject-class
 #' @name MergedMSObject-class
 #' @concept objects

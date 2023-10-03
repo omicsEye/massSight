@@ -21,6 +21,17 @@ Class to represent merged mass spectroscopy data.
 \item{\code{metadata}}{A logical indicating whether or not the data has
 been consolidated.}
 
+\item{\code{pre_iso_matched}}{A data frame containing the matched pairs before
+initial isolation}
+
+\item{\code{scaled_values}}{A vector of scaled values}
+
+\item{\code{adjusted_df}}{A data frame containing the drift corrected metabolites}
+
+\item{\code{cutoffs}}{A vector of cutoffs}
+
+\item{\code{aligned}}{A dataframe containing the final metabolite mathces}
+
 \item{\code{smooth}}{A string indicating the smoothing method used.}
 }}
 

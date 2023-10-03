@@ -2,6 +2,11 @@
 title: "massSight_combine"
 output: html_document
 date: "2023-06-27"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Alignment Tutorial using iHMP Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -20,9 +25,9 @@ library(kableExtra)
 #hp1 <- read.csv("HP-1.csv")
 ```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
 # df_fran <- read.delim("./FRANZOSA_IBD_2019/mtb.map2.tsv",sep = "\t")
-df_fran <- read.delim("../data/Fransoza_mtb.map.tsv", sep = "\t")
+df_fran <- read.delim("../inst/extdata/Fransoza_mtb.map.tsv", sep = "\t")
 # df_jacobs <- read.delim("./JACOBS_IBD_FAMILIES_2016/mtb.map.tsv",sep = "\t")
-df_jacobs <- read.delim("../data/Jacobs_mtb.map.tsv", sep = "\t")
+df_jacobs <- read.delim("../inst/extdata/Jacobs_mtb.map.tsv", sep = "\t")
 df_fran$Intensity <- 2000
 df_jacobs$Intensity <- 2000
 # df_fran[is.na(df_fran$Metabolite)] <- "NoName"

@@ -10,8 +10,8 @@ dedup <- function(cols, item) {
 
 mad_based_outlier <- function(points, thresh = 5) {
   points <- points[[1]]
-  diff <- sqrt((points - median(points, na.rm = T))^2)
-  med_abs_deviation <- median(diff, na.rm = T)
+  diff <- sqrt((points - stats::median(points, na.rm = T))^2)
+  med_abs_deviation <- stats::median(diff, na.rm = T)
   if (med_abs_deviation == 0) {
     mod_z_score <- rep(0, length(diff))
   } else {
@@ -73,7 +73,7 @@ rms <- function(a, b, std) {
 }
 
 scale_smooth <- function(query_values, smooth_x, smooth_y) {
-  suppressWarnings(f <- approx(
+  suppressWarnings(f <- stats::approx(
     x = smooth_x,
     y = smooth_y,
     xout = query_values,

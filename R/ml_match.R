@@ -7,14 +7,22 @@
 #' LC-MS experiment
 #' @param ms2 A `massSight` object representing the results of a second
 #' preprcoessed LC-MS experiment
-#' @param mz_thresh Mass to Charge threshold. Used to limit potential matches
+#' @param mz_thresh `numeric` Mass to Charge threshold. Used to limit potential matches
 #' between metabolites.
-#' @param rt_thresh Retention Time threshold. Used to limit potential matches
+#' @param rt_thresh `numeric` Retention Time threshold. Used to limit potential matches
 #' between metabolites
 #' @param seed Seed value for reproducibility
 #'
+#' @note This function requires semi-annotated data (some metabolites must be
+#' named)
+#'
 #' @return A dataframe consisting of predicted metabolite pairs
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' ml_match(ms1, ms2, mz_thresh = 15, rt_thresh = .5, seed = 2)
+#' }
 ml_match <-
   function(ms1,
            ms2,
@@ -28,7 +36,7 @@ ml_match <-
     pred_fmt_data <-
       create_pred_data(ms1, ms2, mz_thresh, rt_thresh)
     pred_fmt_data$prob_matched <-
-      predict(fitted_model, pred_fmt_data, type = "prob")$matched
+      stats::predict(fitted_model, pred_fmt_data, type = "prob")$matched
     pred_fmt_data <- pred_fmt_data |>
       dplyr::filter(.data$prob_matched > .95)
     return(pred_fmt_data)
@@ -47,15 +55,15 @@ get_shared_metabolites <- function(ms1, ms2) {
     dplyr::inner_join(ms1_known, ms2_known, by = "Metabolite") |>
     dplyr::select(.data$MZ.x, .data$MZ.y, .data$RT.x, .data$RT.y, .data$Metabolite) |>
     dplyr::rename(
-      MZ_1 = MZ.x,
-      MZ_2 = MZ.y,
-      RT_1 = RT.x,
-      RT_2 = RT.y,
-      Metabolite_1 = Metabolite
+      MZ_1 = .data$MZ.x,
+      MZ_2 = .data$MZ.y,
+      RT_1 = .data$RT.x,
+      RT_2 = .data$RT.y,
+      Metabolite_1 = .data$Metabolite
     ) |>
     dplyr::mutate(
       Class = "matched",
-      Metabolite_2 = Metabolite_1
+      Metabolite_2 = .data$Metabolite_1
     )
   out <- list(
     "known" = known,
@@ -78,9 +86,9 @@ get_training_data <-
       ms2_sample <-
         ms2_sample <- ms2_known |>
         dplyr::filter(
-          Metabolite != ms1_sample[1, "Metabolite"] &
-            abs(ms1_sample$MZ - MZ) < mz_thresh &
-            abs(ms1_sample$RT - RT) < rt_thresh
+          .data$Metabolite != ms1_sample[1, "Metabolite"] &
+            abs(ms1_sample$MZ - .data$MZ) < mz_thresh &
+            abs(ms1_sample$RT - .data$RT) < rt_thresh
         ) |>
         dplyr::slice_sample(n = 1)
       if (nrow(ms2_sample) == 0) {
@@ -100,7 +108,7 @@ get_training_data <-
     }
     known <- known |>
       dplyr::mutate(
-        Class = as.factor(Class),
+        Class = as.factor(.data$Class),
         delta_RT = .data$RT_1 - .data$RT_2,
         delta_MZ = .data$MZ_1 - .data$MZ_2
       )
@@ -130,26 +138,26 @@ create_pred_data <-
     ms1_df_unknown <- ms1 |>
       raw_df() |>
       dplyr::rename(
-        Compound_ID_1 = Compound_ID,
-        MZ_1 = MZ,
-        RT_1 = RT,
-        Metabolite_1 = Metabolite
+        Compound_ID_1 = .data$Compound_ID,
+        MZ_1 = .data$MZ,
+        RT_1 = .data$RT,
+        Metabolite_1 = .data$Metabolite
       ) |>
       dplyr::select(-.data$Intensity)
     ms2_df_unknown <- ms2 |>
       raw_df() |>
       dplyr::rename(
-        Compound_ID_2 = Compound_ID,
-        MZ_2 = MZ,
-        RT_2 = RT,
-        Metabolite_2 = Metabolite
+        Compound_ID_2 = .data$Compound_ID,
+        MZ_2 = .data$MZ,
+        RT_2 = .data$RT,
+        Metabolite_2 = .data$Metabolite
       ) |>
       dplyr::select(-.data$Intensity)
 
     combined <- tidyr::crossing(ms1_df_unknown, ms2_df_unknown) |>
       dplyr::mutate(
-        delta_MZ = MZ_1 - MZ_2,
-        delta_RT = RT_1 - RT_2
+        delta_MZ = .data$MZ_1 - .data$MZ_2,
+        delta_RT = .data$RT_1 - .data$RT_2
       ) |>
       dplyr::filter(abs(.data$delta_MZ) < mz_thresh &
         abs(.data$delta_RT) < rt_thresh)
