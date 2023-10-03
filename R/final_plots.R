@@ -95,7 +95,7 @@ final_plots <-
         y = -Inf,
         hjust = 0,
         vjust = 0,
-        label = iso_pairs
+        label = all_pairs
       ) +
       ggplot2::labs(title = "Scaled Matches",
                     x = "RT 1",

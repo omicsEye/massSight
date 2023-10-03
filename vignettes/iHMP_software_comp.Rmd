@@ -132,7 +132,7 @@ c18_keep <- filter_intensities(
 )
 C18_CD <- C18_CD[c18_keep, ]
 C18_CD$Intensity <-
-  rowMeans(numeric_dataframe(C18_CD[, 7:dim(C18_CD)[2]]),
+  rowMeans(C18_CD[, 7:dim(C18_CD)[2]],
     na.rm = T
   )
 C18_CD$row_id <- rownames(C18_CD)
@@ -170,8 +170,6 @@ The `auto_combine()` function allows users to combine two datasets via the model
 aligned <- auto_combine(
   ms1 = hmp2_ms,
   ms2 = ms_C18_CD,
-  iso_method = "dbscan",
-  eps = .15,
   smooth_method = "loess"
 )
 ```

@@ -25,6 +25,7 @@ Imports:
     GauPro,
     ggExtra,
     ggplot2,
+    logr,
     methods,
     mgcv,
     openxlsx,
