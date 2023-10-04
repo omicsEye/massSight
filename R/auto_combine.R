@@ -33,7 +33,7 @@
 #' @param weights A numeric vector indicating the weights to be used for
 #' the alignment.
 #' @param keep_features A logical vector indicating whether or not to
-#' @param threshold Something
+#'
 #' @return A `MergedMSObject` containing the combined data.
 auto_combine <-
   function(ms1,
@@ -47,53 +47,13 @@ auto_combine <-
            eps = .1,
            rt_iso_threshold = .5,
            mz_iso_threshold = 5,
-           threshold = "manual",
            match_method = "unsupervised",
            smooth_method = "loess",
            weights = c(1, 1, 1),
            keep_features = c(F, F)) {
-    # stop conditions ---------------------------------------------------------
-    stopifnot("`smooth_method` must be either 'loess' or 'gam'" =
-                smooth_method %in% c("loess", "gam"))
-    # raw_df(ms1) <- raw_df(ms1) |>
-    #   dplyr::mutate(
-    #     MZ = round(.data$MZ, 4),
-    #     RT = round(.data$RT, 3)
-    #   )
-    #
-    # raw_df(ms2) <- raw_df(ms2) |>
-    #   dplyr::mutate(
-    #     MZ = round(MZ, 4),
-    #     RT = round(RT, 3)
-    #   )
-
-    logr::log_open(paste0(format(Sys.time(), "%Y-%m-%d_%H-%M"),
-                          ".log"))
-
-    options("logr.notes" = FALSE)
-    options("logr.traceback" = FALSE)
-
-    string1 <- glue::glue(
-      "auto_combine(ms1,
-                             ms2,
-                             rt_lower = {rt_lower},
-                             rt_upper = {rt_upper},
-                             mz_lower = {mz_lower},
-                             mz_upper = {mz_upper},
-                             minimum_intensity = {minimum_intensity},
-                             iso_method = {iso_method},
-                             eps = {eps},
-                             rt_iso_threshold = {rt_iso_threshold},
-                             mz_iso_threshold = {mz_iso_threshold},
-                             threshold = {threshold},
-                             match_method = {match_method},
-                             smooth_method = {smooth_method})"
-    )
-
-    logr::log_print("--- massSight Run and Parameters ---",
-                    console = F,
-                    hide_notes = T)
-    logr::log_print(string1, console = F, hide_notes = T)
+    call <- modify_call(match.call(expand.dots = TRUE))
+    initialize_log(call)
+    validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
 
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
@@ -110,16 +70,12 @@ auto_combine <-
       } else if (iso_method == "dbscan") {
         isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
         isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
-      } else {
-        stop("`iso_method` must be either 'manual' or 'dbscan'")
       }
     } else if (match_method == "supervised") {
       isolated(ms1) <- raw_df(ms1) |>
         dplyr::filter(.data$Metabolite != "")
       isolated(ms2) <- raw_df(ms2) |>
         dplyr::filter(.data$Metabolite != "")
-    } else {
-      stop("`match_method` must be either 'unsupervised' or 'supervised'.")
     }
 
     align_obj <- methods::new("MergedMSObject")
@@ -146,7 +102,7 @@ auto_combine <-
                     weights = weights)
 
     logr::log_print(paste0("Numbers of matched/kept features: ",
-                   nrow(all_matched(align_obj))), console = T)
+                           nrow(all_matched(align_obj))), console = T)
 
     logr::log_close()
     return(align_obj)

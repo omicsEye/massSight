@@ -16,7 +16,6 @@ auto_combine(
   eps = 0.1,
   rt_iso_threshold = 0.5,
   mz_iso_threshold = 5,
-  threshold = "manual",
   match_method = "unsupervised",
   smooth_method = "loess",
   weights = c(1, 1, 1),
@@ -56,8 +55,6 @@ parameter for RT.}
 
 \item{mz_iso_threshold}{A numeric indicating the isolation
 parameter for m/z.}
-
-\item{threshold}{Something}
 
 \item{match_method}{A character indicating the initial matching method to
 be used to detect inter-batch variability. Options are "unsupervised" and

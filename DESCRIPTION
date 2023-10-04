@@ -19,6 +19,7 @@ Depends:
     R (>= 3.5)
 Imports: 
     caret,
+    checkmate,
     cowplot,
     dbscan,
     dplyr,

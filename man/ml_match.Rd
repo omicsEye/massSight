@@ -4,7 +4,14 @@
 \alias{ml_match}
 \title{ML Match}
 \usage{
-ml_match(ms1, ms2, mz_thresh = 15, rt_thresh = 0.5, seed = 72)
+ml_match(
+  ms1,
+  ms2,
+  mz_thresh = 15,
+  rt_thresh = 0.5,
+  prob_thresh = 0.99,
+  seed = 72
+)
 }
 \arguments{
 \item{ms1}{A \code{massSight} object representing the results of a preprocessed
