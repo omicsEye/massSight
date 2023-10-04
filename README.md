@@ -4,13 +4,15 @@
 - [Description](#description)
 - [Installation](#installation)
 - [Data Preparation](#data-preparation)
-  - [The `massSight` Object](#ms-obj)
-- [Alignment](#align)
+  - [The `massSight` Object](#the-masssight-object)
+- [Alignment](#alignment)
   - [`auto_combine()`](#auto_combine)
   - [`ml_match()`](#ml_match)
-  - [Results](#results)
+- [Results](#results)
   - [Plotting results from alignment](#plotting-results-from-alignment)
-- [Dev Instructions](#dev-instrutions)
+  - [Using `massSight` to annotate unknown
+    metabolites](#using-masssight-to-annotate-unknown-metabolites)
+- [Dev Instructions](#dev-instructions)
   - [Installation](#installation-1)
 
 <!-- README.md is generated from README.qmd. Please edit that file -->
@@ -143,10 +145,16 @@ Alignment is performed using `auto_combine()`
 
 ``` r
 aligned <- auto_combine(
-  ms1 = ms1,
-  ms2 = ms2
+  ms1,
+  ms2,
+  rt_lower = -.5,
+  rt_upper = .5,
+  mz_lower = -15,
+  mz_upper = 15,
+  iso_method = "manual",
+  smooth_method = "loess"
 )
-#> Numbers of matched/kept features: 370
+#> [1] "Numbers of matched/kept features: 1443"
 ```
 
 More information on the `auto_combine()` function can be found in the
@@ -155,15 +163,21 @@ documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)
 
 ### `ml_match()`
 
+The `ml_match()` function is an alternative method for merging LC-MS
+experiments with semi-annotated data sets.
+
 ``` r
-ml_match_aligned <- ml_match(ms1, 
-                             ms2, 
-                             mz_thresh = 15, 
-                             rt_thresh = 0.5, 
-                             seed = 72)
+ml_match_aligned <- ml_match(
+  ms1,
+  ms2,
+  mz_thresh = 15,
+  rt_thresh = 0.5,
+  prob_thresh = .99,
+  seed = 72
+)
 ```
 
-### Results
+## Results
 
 Results from an alignment function are stored as a `MergedMSObject`.
 This object contains the following slots:
@@ -177,32 +191,32 @@ all_matched(aligned) |>
   knitr::kable()
 ```
 
-| df1              |   RT |       MZ |   Intensity | Metabolite              | df2      |     RT_2 |     MZ_2 |  Intensity_2 | Metabolite_2 |
-|:-----------------|-----:|---------:|------------:|:------------------------|:---------|---------:|---------:|-------------:|:-------------|
-| 6.91_267.1700m/z | 6.91 | 267.1700 |    39354.33 | atenolol                | cmp.3676 | 6.918050 | 267.1700 |     140703.1 |              |
-| 7.29_703.5736m/z | 7.29 | 703.5736 | 34050464.62 | C16:0 SM                | cmp.3861 | 7.310333 | 703.5739 | 102344039\.7 |              |
-| 7.68_480.3445m/z | 7.68 | 480.3445 |   130447.16 | C16:1 LPC plasmalogen   | cmp.4075 | 7.734783 | 480.3446 |     558532.5 |              |
-| 7.71_524.3709m/z | 7.71 | 524.3709 | 10367615.65 | C18:0 LPC               | cmp.4096 | 7.770433 | 524.3710 |   24208681.0 |              |
-| 7.22_731.6045m/z | 7.22 | 731.6045 |  8193010.61 | C18:0 SM                | cmp.3813 | 7.234550 | 731.6050 |   19793962.6 |              |
-| 7.86_508.3760m/z | 7.86 | 508.3760 |   281006.87 | C18:1 LPC plasmalogen_A | cmp.4217 | 7.944300 | 508.3760 |     577530.9 |              |
+| df1              |   RT |       MZ |   Intensity | Metabolite                                | df2      |     RT_2 |     MZ_2 | Intensity_2 | Metabolite_2 |
+|:-----------------|-----:|---------:|------------:|:------------------------------------------|:---------|---------:|---------:|------------:|:-------------|
+| 7.74_282.1194m/z | 7.74 | 282.1194 |    16491.00 | 1-methyladenosine                         | cmp.4168 | 7.864050 | 282.1194 |    43167.05 |              |
+| 5.27_166.0723m/z | 5.27 | 166.0723 |    22801.91 | 1-methylguanine                           | cmp.2810 | 5.361300 | 166.0723 |    25898.35 |              |
+| 5.09_313.0848m/z | 5.09 | 313.0848 |    42335.94 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen | cmp.2750 | 5.124100 | 313.0850 |    38069.50 |              |
+| 1.94_152.0705m/z | 1.94 | 152.0705 |    83600.28 | acetaminophen                             | cmp.1435 | 2.082950 | 152.0706 |   190502.74 |              |
+| 1.62_585.2701m/z | 1.62 | 585.2701 | 11502435.04 | bilirubin                                 | cmp.529  | 1.743567 | 585.2702 | 14402315.51 |              |
+| 1.92_583.2546m/z | 1.92 | 583.2546 |  1393839.16 | biliverdin                                | cmp.1216 | 2.047283 | 583.2547 |  1361161.33 |              |
 
 - `iso_matched()`: The matched isolated metabolites between the two
   datasets.
 
 ``` r
-iso_matched(aligned) |> 
+iso_matched(aligned) |>
   head() |>
   knitr::kable()
 ```
 
-| df1              |   RT |       MZ | Intensity | df2      |     RT_2 |     MZ_2 | Intensity_2 |   delta_RT | smooth_rt |      srt |   delta_MZ | smooth_mz |      smz | sintensity |
-|:-----------------|-----:|---------:|----------:|:---------|---------:|---------:|------------:|-----------:|----------:|---------:|-----------:|----------:|---------:|-----------:|
-| 8.19_138.0525m/z | 8.19 | 138.0525 |  24972.37 | cmp.4390 | 8.287550 | 138.0525 |    56384.44 |  0.0975500 | 0.0839866 | 8.109608 |  0.0000451 | -4.95e-05 | 138.0525 |  17081.178 |
-| 6.60_159.0916m/z | 6.60 | 159.0916 |  17528.13 | cmp.3556 | 6.699617 | 159.0916 |    11669.18 |  0.0996167 | 0.0219970 | 6.577464 |  0.0000081 | -1.05e-05 | 159.0916 |   4198.344 |
-| 6.42_163.0991m/z | 6.42 | 163.0991 |   1382.40 | cmp.3431 | 6.445517 | 163.0991 |     9093.37 |  0.0255167 | 0.0274847 | 6.391444 | -0.0000376 | -3.40e-06 | 163.0991 |   3361.912 |
-| 6.03_182.1903m/z | 6.03 | 182.1903 |  14936.08 | cmp.3244 | 6.057683 | 182.1903 |    19013.68 |  0.0276833 | 0.0419943 | 5.986692 | -0.0000203 |  2.86e-05 | 182.1903 |   6485.731 |
-| 7.11_185.0766m/z | 7.11 | 185.0766 |   9829.32 | cmp.3753 | 7.096367 | 185.0766 |    42251.75 | -0.0136333 | 0.0213218 | 7.089485 | -0.0000241 |  3.32e-05 | 185.0766 |  13209.387 |
-| 5.68_186.1318m/z | 5.68 | 186.1318 |  46177.82 | cmp.3016 | 5.660933 | 186.1317 |    61364.89 | -0.0190667 | 0.0528671 | 5.625650 | -0.0001496 |  3.48e-05 | 186.1318 |  18418.984 |
+| df1             |   RT |      MZ | Intensity | df2      |     RT_2 |     MZ_2 | Intensity_2 |  delta_RT | smooth_rt |      srt |   delta_MZ | smooth_mz |      smz | sintensity |
+|:----------------|-----:|--------:|----------:|:---------|---------:|---------:|------------:|----------:|----------:|---------:|-----------:|----------:|---------:|-----------:|
+| 7.98_76.0402m/z | 7.98 | 76.0402 |  13067.16 | cmp.4356 | 8.193933 | 76.04010 |   27158.674 | 0.2139333 | 0.1129026 | 7.874778 | -0.0001027 | -3.31e-05 | 76.04023 |   7832.970 |
+| 8.14_77.0799m/z | 8.14 | 77.0799 |   9291.18 | cmp.4388 | 8.283100 | 77.07982 |   11295.184 | 0.1431000 | 0.1253363 | 8.023783 | -0.0000786 | -3.23e-05 | 77.07993 |   3625.042 |
+| 4.79_79.0220m/z | 4.79 | 79.0220 |   2356.37 | cmp.2649 | 4.910117 | 79.02198 |    6818.932 | 0.1201167 | 0.0954132 | 4.687141 | -0.0000210 | -3.10e-05 | 79.02203 |   2327.172 |
+| 7.50_80.1318m/z | 7.50 | 80.1318 |  84942.05 | cmp.4025 | 7.635767 | 80.13173 |   11765.610 | 0.1357667 | 0.0814712 | 7.422708 | -0.0000662 | -3.03e-05 | 80.13183 |   3757.301 |
+| 7.86_84.9120m/z | 7.86 | 84.9120 |  10189.64 | cmp.4247 | 8.015617 | 84.91193 |    9442.532 | 0.1556167 | 0.1041765 | 7.762498 | -0.0000657 | -2.71e-05 | 84.91203 |   3097.303 |
+| 8.75_84.9605m/z | 8.75 | 84.9605 | 240071.83 | cmp.4584 | 8.978550 | 84.96037 |  287055.188 | 0.2285500 | 0.1811082 | 8.585263 | -0.0001285 | -2.70e-05 | 84.96053 |  62125.356 |
 
 ### Plotting results from alignment
 
@@ -211,7 +225,9 @@ and MZ drift for pre isolation, isolation, and final matching results.
 These plots can be used for diagnostic purposes.
 
 ``` r
-plots <- final_plots(aligned)
+plots <- final_plots(aligned,
+                     rt_lim = c(-.5, 5),
+                     mz_lim = c(-15, 15))
 ```
 
 ![](man/figures/final_plot_out.png)
@@ -220,8 +236,43 @@ This plot can be saved locally using `ggsave()` from the `ggplot2`
 package:
 
 ``` r
-ggplot2::ggsave("plot.png", plots)
+ggplot2::ggsave(filename = "plot.png",
+                plot = plots)
 ```
+
+### Using `massSight` to annotate unknown metabolites
+
+``` r
+merged_df <- all_matched(aligned)
+merged_df <- merged_df |>
+  dplyr::mutate(
+    Metabolite_2 = dplyr::case_when(
+      Metabolite != "" &
+        Metabolite_2 == "" ~ Metabolite,
+      TRUE ~ Metabolite_2
+    )
+  )
+
+hp2_annotated <- merged_df |>
+  dplyr::select(contains("2")) |>
+  purrr::set_names(c("df", "RT", "MZ", "Intensity", "Metabolite"))
+
+head(hp2_annotated, 10) |>
+  knitr::kable()
+```
+
+| df       |       RT |       MZ |   Intensity | Metabolite                                |
+|:---------|---------:|---------:|------------:|:------------------------------------------|
+| cmp.4168 | 7.864050 | 282.1194 |    43167.05 | 1-methyladenosine                         |
+| cmp.2810 | 5.361300 | 166.0723 |    25898.35 | 1-methylguanine                           |
+| cmp.2750 | 5.124100 | 313.0850 |    38069.50 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen |
+| cmp.1435 | 2.082950 | 152.0706 |   190502.74 | acetaminophen                             |
+| cmp.529  | 1.743567 | 585.2702 | 14402315.51 | bilirubin                                 |
+| cmp.1216 | 2.047283 | 583.2547 |  1361161.33 | biliverdin                                |
+| cmp.4582 | 8.978550 | 146.1175 |   677778.63 | butyrobetaine                             |
+| cmp.3837 | 7.261300 | 316.2479 |   638168.92 | C10 carnitine                             |
+| cmp.3903 | 7.395033 | 312.2165 |    50418.96 | C10:2 carnitine                           |
+| cmp.3749 | 7.074067 | 344.2792 |   203210.69 | C12 carnitine                             |
 
 ## Dev Instructions
 

@@ -28,6 +28,7 @@ ml_match <-
            ms2,
            mz_thresh = 15,
            rt_thresh = .5,
+           prob_thresh = .99,
            seed = 72) {
     known_metabolites <- get_shared_metabolites(ms1, ms2)
     training_data <-
@@ -38,7 +39,7 @@ ml_match <-
     pred_fmt_data$prob_matched <-
       stats::predict(fitted_model, pred_fmt_data, type = "prob")$matched
     pred_fmt_data <- pred_fmt_data |>
-      dplyr::filter(.data$prob_matched > .95)
+      dplyr::filter(.data$prob_matched > prob_thresh)
     return(pred_fmt_data)
   }
 

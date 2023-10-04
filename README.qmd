@@ -25,13 +25,13 @@ options(cli.hyperlink = FALSE)
 
 -   Citation: if you use `massSight`, please cite our manuscript: Chiraag Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis through multi-study data scaling, integration, and harmonization. <https://github.com/omicsEye/massSight>
 
-## Examples {#examples}
+## Examples 
 
 Examples and extensive documentation can be found [here](omicseye.github.io/massSight/)
 
-## Description {#description}
+## Description 
 
-## Installation {#installation}
+## Installation
 
 First, if you don't have it installed, install `devtools` using:
 
@@ -51,7 +51,7 @@ You can then load the library using:
 library(massSight)
 ```
 
-## Data Preparation {#data-preparation}
+## Data Preparation 
 
 `massSight` works with the output of LC-MS experiments, which should contain columns corresponding to:
 
@@ -67,7 +67,7 @@ head(hp1) |>
   knitr::kable()
 ```
 
-### The `massSight` Object {#ms-obj}
+### The `massSight` Object
 
 `massSight` creates and uses the `MSObject` class to store data and results pertaining to individual LC-MS experiments. Prior to alignment, LC-MS data frames or tibbles should be converted into an `MSObject` using `create_ms_obj`:
 
@@ -111,33 +111,43 @@ ms2 |>
   knitr::kable(format = "simple")
 ```
 
-## Alignment {#align}
+## Alignment
 
 ### `auto_combine()`
 
 Alignment is performed using `auto_combine()`
 
-```{r, eval = T, cache = T}
+```{r, eval = T}
 aligned <- auto_combine(
-  ms1 = ms1,
-  ms2 = ms2
+  ms1,
+  ms2,
+  rt_lower = -.5,
+  rt_upper = .5,
+  mz_lower = -15,
+  mz_upper = 15,
+  iso_method = "manual",
+  smooth_method = "loess"
 )
 ```
 
 More information on the `auto_combine()` function can be found in the [package documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)
 
-### `ml_match()` {#ml_match}
+### `ml_match()` 
+
+The `ml_match()` function is an alternative method for merging LC-MS experiments with semi-annotated data sets. 
 
 ```{r, eval = F}
-ml_match_aligned <- ml_match(ms1,
+ml_match_aligned <- ml_match(
+  ms1,
   ms2,
   mz_thresh = 15,
   rt_thresh = 0.5,
+  prob_thresh = .99,
   seed = 72
 )
 ```
 
-### Results
+## Results
 
 Results from an alignment function are stored as a `MergedMSObject`. This object contains the following slots:
 
@@ -163,7 +173,9 @@ iso_matched(aligned) |>
 The `final_plots()` function returns plots containing information on RT and MZ drift for pre isolation, isolation, and final matching results. These plots can be used for diagnostic purposes.
 
 ```{r, eval = F}
-plots <- final_plots(aligned)
+plots <- final_plots(aligned,
+                     rt_lim = c(-.5, 5),
+                     mz_lim = c(-15, 15))
 ```
 
 ![](man/figures/final_plot_out.png)
@@ -171,10 +183,32 @@ plots <- final_plots(aligned)
 This plot can be saved locally using `ggsave()` from the `ggplot2` package: 
 
 ```{r, eval = F}
-ggplot2::ggsave("plot.png", plots)
+ggplot2::ggsave(filename = "plot.png",
+                plot = plots)
 ```
 
-## Dev Instructions {#dev-instrutions}
+### Using `massSight` to annotate unknown metabolites
+
+```{r}
+merged_df <- all_matched(aligned)
+merged_df <- merged_df |>
+  dplyr::mutate(
+    Metabolite_2 = dplyr::case_when(
+      Metabolite != "" &
+        Metabolite_2 == "" ~ Metabolite,
+      TRUE ~ Metabolite_2
+    )
+  )
+
+hp2_annotated <- merged_df |>
+  dplyr::select(contains("2")) |>
+  purrr::set_names(c("df", "RT", "MZ", "Intensity", "Metabolite"))
+
+head(hp2_annotated, 10) |>
+  knitr::kable()
+```
+
+## Dev Instructions
 
 ### Installation
 
