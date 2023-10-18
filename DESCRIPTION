@@ -42,6 +42,7 @@ Imports:
 Suggests: 
     knitr,
     rmarkdown,
+    spelling,
     testthat (>= 3.0.0),
     usethis
 biocViews: Omics, Software, metabolite, alignment, scale, qc
@@ -51,3 +52,4 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Config/testthat/edition: 3
 VignetteBuilder: knitr
+Language: en-US

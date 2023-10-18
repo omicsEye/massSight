@@ -46,6 +46,8 @@ final_plots <-
       ggplot2::theme_classic() +
       theme_omicsEye()
 
+    rt_pre_iso <- rt_pre_iso |> ggExtra::ggMarginal(type = "histogram")
+
     rt_iso <- iso_matched(merged_ms_obj) |>
       ggplot2::ggplot(ggplot2::aes(x = .data$RT,
                                    y = .data$RT_2 - .data$RT)) +
@@ -74,6 +76,8 @@ final_plots <-
       ggplot2::theme_classic() +
       theme_omicsEye()
 
+    rt_iso <- rt_iso |> ggExtra::ggMarginal(type = "histogram")
+
     rt_all <- all_matched(merged_ms_obj) |>
       dplyr::mutate(scaled_rts = adjusted_df(merged_ms_obj)$rt_2_adj -
                       all_matched(merged_ms_obj)$RT) |>
@@ -86,7 +90,6 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::ylim(rt_lim) +
       ggplot2::geom_hline(yintercept = 0,
                           col = "#AA9868") +
       ggplot2::annotate(
@@ -101,7 +104,10 @@ final_plots <-
                     x = "RT 1",
                     y = expression(Delta * "RT")) +
       ggplot2::theme_classic() +
+      ggplot2::ylim(rt_lim[1], rt_lim[2]) +
       theme_omicsEye()
+
+    rt_all <- rt_all |> ggExtra::ggMarginal(type = "histogram")
 
     mz_pre_iso <- pre_iso_matched(merged_ms_obj) |>
       dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / ((
@@ -125,6 +131,8 @@ final_plots <-
       ggplot2::theme_classic() +
       theme_omicsEye()
 
+    mz_pre_iso <- mz_pre_iso |> ggExtra::ggMarginal(type = "histogram")
+
     mz_iso <- iso_matched(merged_ms_obj) |>
       dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / ((.data$MZ + .data$MZ_2) / 2) * 1e6)) |>
       ggplot2::ggplot(ggplot2::aes(x = .data$MZ, y = .data$delta_MZ)) +
@@ -144,6 +152,8 @@ final_plots <-
                     y = expression(Delta * "MZ")) +
       ggplot2::theme_classic() +
       theme_omicsEye()
+
+    mz_iso <- mz_iso |> ggExtra::ggMarginal(type = "histogram")
 
     mz_all <- all_matched(merged_ms_obj) |>
       dplyr::mutate(scaled_mz = (
@@ -168,6 +178,8 @@ final_plots <-
       ggplot2::theme_classic() +
       ggplot2::ylim(mz_lim) +
       theme_omicsEye()
+
+    mz_all <- mz_all |> ggExtra::ggMarginal(type = "histogram")
 
     out <- cowplot::plot_grid(rt_pre_iso, rt_iso, rt_all,
                               mz_pre_iso, mz_iso, mz_all,

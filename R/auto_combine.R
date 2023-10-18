@@ -50,9 +50,11 @@ auto_combine <-
            match_method = "unsupervised",
            smooth_method = "loess",
            weights = c(1, 1, 1),
-           keep_features = c(F, F)) {
+           keep_features = c(F, F),
+           log = T) {
     call <- modify_call(match.call(expand.dots = TRUE))
-    initialize_log(call)
+    if (log)
+      initialize_log(call)
     validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
 
     if (match_method == "unsupervised") {
@@ -101,9 +103,12 @@ auto_combine <-
       final_results(keep_features = keep_features,
                     weights = weights)
 
-    logr::log_print(paste0("Numbers of matched/kept features: ",
-                           nrow(all_matched(align_obj))), console = T)
+    if (log) {
+      logr::log_print(paste0("Numbers of matched/kept features: ",
+                             nrow(all_matched(align_obj))),
+                      console = T)
 
-    logr::log_close()
+      logr::log_close()
+    }
     return(align_obj)
   }

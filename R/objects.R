@@ -27,7 +27,7 @@ create_ms_obj <- function(df,
   consolidated(ms) <- FALSE
 
   raw_data <- df |>
-    dplyr::select(id_name, metab_name, rt_name, mz_name, int_name) |>
+    dplyr::select(all_of(c(id_name, metab_name, rt_name, mz_name, int_name))) |>
     dplyr::rename(
       Compound_ID = id_name,
       Metabolite = metab_name,
