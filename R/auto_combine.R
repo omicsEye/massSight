@@ -51,7 +51,7 @@ auto_combine <-
            smooth_method = "loess",
            weights = c(1, 1, 1),
            keep_features = c(F, F),
-           log = T) {
+           log = F) {
     call <- modify_call(match.call(expand.dots = TRUE))
     if (log)
       initialize_log(call)

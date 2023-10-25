@@ -17,7 +17,7 @@ smooth_drift <- function(align_ms_obj,
     smooth_x_rt <- results$RT
     smooth_y_rt <- stats::predict(res_low, smooth_x_rt)
   } else if (smooth_method == "gam") {
-    spline_func <- mgcv::gam(delta_RT ~ RT, data = results)
+    spline_func <- mgcv::gam(delta_RT ~ s(RT), data = results)
     smooth_x_rt <- results$RT
     smooth_y_rt <- stats::predict(spline_func, data.frame(RT = smooth_x_rt)) |>
       as.vector()
@@ -75,7 +75,7 @@ smooth_drift <- function(align_ms_obj,
     smooth_x_mz <- results$MZ
     smooth_y_mz <- stats::predict(mz_low, smooth_x_mz)
   } else if (smooth_method == "gam") {
-    mz_gam <- mgcv::gam(delta_MZ ~ MZ, data = results)
+    mz_gam <- mgcv::gam(delta_MZ ~ s(MZ), data = results)
     smooth_x_mz <- results$MZ
     smooth_y_mz <- stats::predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
       as.vector()

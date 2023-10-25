@@ -19,7 +19,8 @@ auto_combine(
   match_method = "unsupervised",
   smooth_method = "loess",
   weights = c(1, 1, 1),
-  keep_features = c(F, F)
+  keep_features = c(F, F),
+  log = T
 )
 }
 \arguments{
