@@ -43,10 +43,15 @@ final_plots <-
         hjust = 1,
         vjust = 0,
         label = pre_iso_pairs,
-        size = 8/ggplot2::.pt
+        size = 8 / ggplot2::.pt
       )
 
-    rt_pre_iso <- rt_pre_iso |> ggExtra::ggMarginal(type = "histogram", xparams = list(fill = "light gray"), yparams = list(fill = "light gray"))
+    rt_pre_iso <-
+      rt_pre_iso |> ggExtra::ggMarginal(
+        type = "histogram",
+        xparams = list(fill = "light gray", size = .25),
+        yparams = list(fill = "light gray", size = .25)
+      )
 
     rt_iso <- iso_matched(merged_ms_obj) |>
       ggplot2::ggplot(ggplot2::aes(x = .data$RT,
@@ -69,14 +74,19 @@ final_plots <-
         hjust = 1,
         vjust = 0,
         label = iso_pairs,
-        size = 8/ggplot2::.pt
+        size = 8 / ggplot2::.pt
       ) +
       ggplot2::labs(title = "Isolated Matches",
                     x = "RT 1",
                     y = expression(Delta * "RT")) +
       theme_omicsEye()
 
-    rt_iso <- rt_iso |> ggExtra::ggMarginal(type = "histogram", xparams = list(fill = "light gray"), yparams = list(fill = "light gray"))
+    rt_iso <-
+      rt_iso |> ggExtra::ggMarginal(
+        type = "histogram",
+        xparams = list(fill = "light gray", size = .25),
+        yparams = list(fill = "light gray", size = .25)
+      )
 
     rt_all <- all_matched(merged_ms_obj) |>
       dplyr::mutate(scaled_rts = adjusted_df(merged_ms_obj)$rt_2_adj -
@@ -99,7 +109,7 @@ final_plots <-
         hjust = 1,
         vjust = 0,
         label = all_pairs,
-        size = 8/ggplot2::.pt
+        size = 8 / ggplot2::.pt
       ) +
       ggplot2::labs(title = "Scaled Matches",
                     x = "RT 1",
@@ -107,7 +117,12 @@ final_plots <-
       ggplot2::ylim(rt_lim[1], rt_lim[2]) +
       theme_omicsEye()
 
-    rt_all <- rt_all |> ggExtra::ggMarginal(type = "histogram", xparams = list(fill = "light gray"), yparams = list(fill = "light gray"))
+    rt_all <-
+      rt_all |> ggExtra::ggMarginal(
+        type = "histogram",
+        xparams = list(fill = "light gray", size = .25),
+        yparams = list(fill = "light gray", size = .25)
+      )
 
     mz_pre_iso <- pre_iso_matched(merged_ms_obj) |>
       dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / ((
@@ -130,10 +145,17 @@ final_plots <-
                     y = expression(Delta * "MZ")) +
       theme_omicsEye()
 
-    mz_pre_iso <- mz_pre_iso |> ggExtra::ggMarginal(type = "histogram", xparams = list(fill = "light gray"), yparams = list(fill = "light gray"))
+    mz_pre_iso <-
+      mz_pre_iso |> ggExtra::ggMarginal(
+        type = "histogram",
+        xparams = list(fill = "light gray", size = .25),
+        yparams = list(fill = "light gray", size = .25)
+      )
 
     mz_iso <- iso_matched(merged_ms_obj) |>
-      dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / ((.data$MZ + .data$MZ_2) / 2) * 1e6)) |>
+      dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / ((
+        .data$MZ + .data$MZ_2
+      ) / 2) * 1e6)) |>
       ggplot2::ggplot(ggplot2::aes(x = .data$MZ, y = .data$delta_MZ)) +
       ggplot2::geom_point(
         alpha = I(0.25),
@@ -151,7 +173,12 @@ final_plots <-
                     y = expression(Delta * "MZ")) +
       theme_omicsEye()
 
-    mz_iso <- mz_iso |> ggExtra::ggMarginal(type = "histogram", xparams = list(fill = "light gray"), yparams = list(fill = "light gray"))
+    mz_iso <-
+      mz_iso |> ggExtra::ggMarginal(
+        type = "histogram",
+        xparams = list(fill = "light gray", size = .25),
+        yparams = list(fill = "light gray", size = .25)
+      )
 
     mz_all <- all_matched(merged_ms_obj) |>
       dplyr::mutate(scaled_mz = (
@@ -176,8 +203,12 @@ final_plots <-
       ggplot2::ylim(mz_lim) +
       theme_omicsEye()
 
-    mz_all <- mz_all +
-      ggplot2::theme(plot.title = ggplot2::element_blank())|> ggExtra::ggMarginal(type = "histogram", xparams = list(fill = "light gray", size = .25), yparams = list(fill = "light gray", size = .25))
+    mz_all <-
+      mz_all |> ggExtra::ggMarginal(
+        type = "histogram",
+        xparams = list(fill = "light gray", size = .25),
+        yparams = list(fill = "light gray", size = .25)
+      )
 
     out <- cowplot::plot_grid(rt_pre_iso, rt_iso, rt_all,
                               mz_pre_iso, mz_iso, mz_all,
