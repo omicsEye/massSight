@@ -27,12 +27,12 @@ ml_match <-
   function(ms1,
            ms2,
            mz_thresh = 15,
-           rt_thresh = .5,
-           prob_thresh = .99,
+           rt_thresh = 1,
+           prob_thresh = .8,
            seed = 72) {
     known_metabolites <- get_shared_metabolites(ms1, ms2)
     training_data <-
-      get_training_data(known_metabolites, mz_thresh, rt_thresh)
+      get_training_data(known_metabolites, ms2, mz_thresh, rt_thresh)
     fitted_model <- fit_model(training_data, seed)
     pred_fmt_data <-
       create_pred_data(ms1, ms2, mz_thresh, rt_thresh)
@@ -49,6 +49,10 @@ get_shared_metabolites <- function(ms1, ms2) {
   ms1_known <- ms1_df |>
     dplyr::filter(.data$Metabolite != "" &
       .data$Compound_ID != .data$Metabolite)
+  ms1_known_scaled <- ms1_df |>
+    dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale)) |>
+    dplyr::filter(.data$Metabolite != "" &
+                    .data$Compound_ID != .data$Metabolite)
   ms2_known <- ms2_df |>
     dplyr::filter(.data$Metabolite != "" &
       .data$Compound_ID != .data$Metabolite)
@@ -69,33 +73,35 @@ get_shared_metabolites <- function(ms1, ms2) {
   out <- list(
     "known" = known,
     "ms1_known" = ms1_known,
-    "ms2_known" = ms2_known
+    "ms2_known" = ms2_known,
+    "ms1_known_scaled" = ms1_known_scaled
   )
   return(out)
 }
 
 get_training_data <-
   function(shared,
-           mz_thresh = 15,
-           rt_thresh = .5) {
+           ms2,
+           mz_thresh = 30,
+           rt_thresh = 2) {
     known <- shared$known
     ms1_known <- shared$ms1_known
     ms2_known <- shared$ms2_known
+    ms1_known_scaled <- shared$ms1_known_scaled
     for (i in 1:nrow(known)) {
-      ms1_sample <- ms1_known |>
-        dplyr::slice_sample(n = 1)
-      ms2_sample <-
-        ms2_sample <- ms2_known |>
+      ms1_sample <- ms1_known[i, ]
+      ms1_sample_scaled <- ms1_known_scaled[i, ]
+      ms2_sample <- ms2@raw_df |>
         dplyr::filter(
-          .data$Metabolite != ms1_sample[1, "Metabolite"] &
-            abs(ms1_sample$MZ - .data$MZ) < mz_thresh &
-            abs(ms1_sample$RT - .data$RT) < rt_thresh
-        ) |>
-        dplyr::slice_sample(n = 1)
-      if (nrow(ms2_sample) == 0) {
-        i <- i - 1
-        next
-      }
+          .data$Metabolite != ms1_sample_scaled[1, "Metabolite"]
+        )
+      ms2_sample_scaled <- ms2@raw_df |>
+        dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale)) |>
+        dplyr::filter(
+          .data$Metabolite != ms1_sample_scaled[1, "Metabolite"]
+        )
+      distance <- sqrt((ms1_sample$MZ - ms2_sample$MZ)^2 + (ms1_sample$RT - ms2_sample$RT)^2)
+      ms2_sample <- ms2_sample[which.min(distance),]
       row <- data.frame(
         MZ_1 = ms1_sample$MZ,
         MZ_2 = ms2_sample$MZ,
@@ -120,11 +126,11 @@ fit_model <- function(known, seed) {
   set.seed(seed)
 
   rf <- caret::train(
-    Class ~ delta_RT + delta_MZ + RT_1 + RT_2 + MZ_1 + MZ_2,
+    Class ~ delta_RT + delta_MZ,
     data = known,
     method = "rf",
     ntree = 501,
-    tuneGrid = data.frame(mtry = 1:6),
+    tuneGrid = data.frame(mtry = 1:2),
     trControl = caret::trainControl(method = "cv", number = 10)
   )
 
