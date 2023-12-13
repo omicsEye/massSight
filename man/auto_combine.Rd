@@ -7,20 +7,20 @@
 auto_combine(
   ms1,
   ms2,
-  rt_lower = -0.1,
-  rt_upper = 0.1,
-  mz_lower = -10,
-  mz_upper = 10,
+  rt_lower = -0.5,
+  rt_upper = 0.5,
+  mz_lower = -15,
+  mz_upper = 15,
   minimum_intensity = 10,
   iso_method = "manual",
   eps = 0.1,
-  rt_iso_threshold = 0.5,
+  rt_iso_threshold = 0.1,
   mz_iso_threshold = 5,
   match_method = "unsupervised",
   smooth_method = "loess",
   weights = c(1, 1, 1),
   keep_features = c(F, F),
-  log = T
+  log = F
 )
 }
 \arguments{
