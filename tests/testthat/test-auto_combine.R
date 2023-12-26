@@ -13,7 +13,8 @@ test_that("self-alignment ID's match", {
   aligned <- auto_combine(
     ms2,
     ms2,
-    log = F)
+    log = F
+  )
   out <- all_matched(aligned)
   expect_equal(out$df1, out$df2)
 })

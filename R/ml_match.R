@@ -52,7 +52,7 @@ get_shared_metabolites <- function(ms1, ms2) {
   ms1_known_scaled <- ms1_df |>
     dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale)) |>
     dplyr::filter(.data$Metabolite != "" &
-                    .data$Compound_ID != .data$Metabolite)
+      .data$Compound_ID != .data$Metabolite)
   ms2_known <- ms2_df |>
     dplyr::filter(.data$Metabolite != "" &
       .data$Compound_ID != .data$Metabolite)
@@ -101,7 +101,7 @@ get_training_data <-
           .data$Metabolite != ms1_sample_scaled[1, "Metabolite"]
         )
       distance <- sqrt((ms1_sample$MZ - ms2_sample$MZ)^2 + (ms1_sample$RT - ms2_sample$RT)^2)
-      ms2_sample <- ms2_sample[which.min(distance),]
+      ms2_sample <- ms2_sample[which.min(distance), ]
       row <- data.frame(
         MZ_1 = ms1_sample$MZ,
         MZ_2 = ms2_sample$MZ,

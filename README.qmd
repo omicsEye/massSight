@@ -174,8 +174,9 @@ The `final_plots()` function returns plots containing information on RT and MZ d
 
 ```{r, eval = F}
 plots <- final_plots(aligned,
-                     rt_lim = c(-.5, .5),
-                     mz_lim = c(-15, 15))
+  rt_lim = c(-.5, .5),
+  mz_lim = c(-15, 15)
+)
 ```
 
 ![](man/figures/final_plot_out.png)
@@ -183,8 +184,10 @@ plots <- final_plots(aligned,
 This plot can be saved locally using `ggsave()` from the `ggplot2` package: 
 
 ```{r, eval = F}
-ggplot2::ggsave(filename = "plot.png",
-                plot = plots)
+ggplot2::ggsave(
+  filename = "plot.png",
+  plot = plots
+)
 ```
 
 ### Using `massSight` to annotate unknown metabolites

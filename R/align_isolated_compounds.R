@@ -11,9 +11,11 @@ align_isolated_compounds <-
     if (match_method == "unsupervised") {
       if ("Intensity" %in% names(df1)) {
         pb <-
-          progress::progress_bar$new(format = "Matching isolated features from datasets [:bar] :percent :eta",
-                                     total = nrow(df1),
-                                     clear = F)
+          progress::progress_bar$new(
+            format = "Matching isolated features from datasets [:bar] :percent :eta",
+            total = nrow(df1),
+            clear = F
+          )
         results <- data.frame(
           "df1" = character(),
           "RT" = numeric(),
@@ -52,9 +54,11 @@ align_isolated_compounds <-
         }
       } else {
         pb <-
-          progress::progress_bar$new(format = "Matching all features from datasets [:bar] :percent :eta",
-                                     total = nrow(df1),
-                                     clear = F)
+          progress::progress_bar$new(
+            format = "Matching all features from datasets [:bar] :percent :eta",
+            total = nrow(df1),
+            clear = F
+          )
         results <- data.frame(
           "df1" = character(),
           "RT" = numeric(),
@@ -93,7 +97,7 @@ align_isolated_compounds <-
       }
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
-                  "Metabolite" %in% colnames(df2))
+        "Metabolite" %in% colnames(df2))
       vec_1 <- df1 |>
         dplyr::rename(df1 = .data$Compound_ID) |>
         dplyr::filter(.data$Metabolite != "")

@@ -24,10 +24,10 @@ find_closest_match <-
     }
 
     if (length(cutoffs) > 2 & cutoffs[3] > 0) {
-      cutoffs_2 <- 10.00000 ** cutoffs[3]
+      cutoffs_2 <- 10.00000**cutoffs[3]
       int_hits <-
         ref$Intensity < (query$Intensity * cutoffs_2) &
-        ref$Intensity > (query$Intensity / cutoffs_2)
+          ref$Intensity > (query$Intensity / cutoffs_2)
     } else {
       int_hits <- rep(TRUE, nrow(ref))
     }
@@ -40,9 +40,11 @@ find_closest_match <-
     hits_index <- ref_index[rt_hits & mz_hits & int_hits]
     hits_results <- c()
     for (i in 1:nrow(hits)) {
-      score <- rms(query,
-                   hits[i,],
-                   stds)
+      score <- rms(
+        query,
+        hits[i, ],
+        stds
+      )
       hits_results <- c(hits_results, score)
     }
     return(hits_index[hits_results == min(hits_results)])

@@ -39,11 +39,13 @@ auto_scale <-
            smooth_method = "lowess") {
     normalization <- toupper(normalization)
     error <-
-      verify_df(is_to_use,
-                normalization,
-                data,
-                sample_information,
-                pool_missing_p)
+      verify_df(
+        is_to_use,
+        normalization,
+        data,
+        sample_information,
+        pool_missing_p
+      )
     if (length(error) > 0) {
       return(error)
     }
@@ -53,7 +55,7 @@ auto_scale <-
       dplyr::select(.data$Compound_ID, .data$MZ, .data$RT, .data$Metabolite)
 
     data <- data |>
-      dplyr::select(-.data$MZ,-.data$RT,-.data$Metabolite)
+      dplyr::select(-.data$MZ, -.data$RT, -.data$Metabolite)
     data <- data[data %in% c(0, 1, 2, 3, 4)] <- NA
     ndata <- data
     if ("IS" %in% normalization) {
@@ -85,11 +87,13 @@ auto_scale <-
     }
     if ("NN" %in% normalization) {
       message("Starting NN...")
-      nn_normalize_res <- nn_normalize(ndata,
-                                       sample_information,
-                                       pref_to_use,
-                                       prefs_to_remove,
-                                       pool_missing_p)
+      nn_normalize_res <- nn_normalize(
+        ndata,
+        sample_information,
+        pref_to_use,
+        prefs_to_remove,
+        pool_missing_p
+      )
       ndata <- nn_normalize_res[1]
       normalized <- nn_normalize_res[2]
       rm(nn_normalize_res)
@@ -127,8 +131,10 @@ auto_scale <-
       )
     ndata <- rbind(metadata, ndata)
     ndata <- ndata |>
-      dplyr::mutate(RT = round(.data$RT, 2),
-                    MZ = round(.data$MZ, 4))
+      dplyr::mutate(
+        RT = round(.data$RT, 2),
+        MZ = round(.data$MZ, 4)
+      )
     return(ndata)
   }
 

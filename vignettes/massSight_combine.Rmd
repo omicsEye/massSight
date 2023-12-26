@@ -25,7 +25,7 @@ library(kableExtra)
 # read data 
 #hp1 <- read.csv("HP-1.csv")
 ```{r, cache = T, results = 'hide', message=FALSE, warning=FALSE}
-dir <- system.file("extdata", package="massSight", mustWork=TRUE)
+dir <- system.file("extdata", package = "massSight", mustWork = TRUE)
 fran_file <- file.path(dir, "Fransoza_mtb.map.tsv")
 df_fran <- read.delim(fran_file, sep = "\t")
 
@@ -68,7 +68,7 @@ ms2 <-
 aligned <- auto_combine(
   ms1 = ms1,
   ms2 = ms2,
-  rt_lower = -1, 
+  rt_lower = -1,
   rt_upper = 1,
   mz_lower = -20,
   mz_upper = 20
