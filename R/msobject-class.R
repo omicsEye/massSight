@@ -189,7 +189,7 @@ setMethod(
 #' @slot adjusted_df A data frame containing the drift corrected metabolites
 #' @slot cutoffs A vector of cutoffs
 #' @slot aligned A dataframe containing the final metabolite mathces
-#' @slot smooth A string indicating the smoothing method used.
+#' @slot smooth_method A string indicating the smooth_methoding method used.
 #'
 #' @rdname MergedMSObject-class
 #' @name MergedMSObject-class
@@ -208,7 +208,7 @@ setClass(
     cutoffs = "numeric",
     aligned = "data.frame",
     metadata = "data.frame",
-    smooth = "character"
+    smooth_method = "character"
   )
 )
 
@@ -331,14 +331,14 @@ setMethod(
 )
 
 #' @export
-setGeneric("smooth", function(x) {
-  standardGeneric("smooth")
+setGeneric("smooth_method", function(x) {
+  standardGeneric("smooth_method")
 })
 setMethod(
-  "smooth",
+  "smooth_method",
   signature = "MergedMSObject",
   definition = function(x) {
-    x@smooth
+    x@smooth_method
   }
 )
 
@@ -470,14 +470,14 @@ setMethod(
 )
 
 #' @export
-setGeneric("smooth<-", function(x, value) {
-  standardGeneric("smooth<-")
+setGeneric("smooth_method<-", function(x, value) {
+  standardGeneric("smooth_method<-")
 })
 setMethod(
-  "smooth<-",
+  "smooth_method<-",
   signature = "MergedMSObject",
   definition = function(x, value) {
-    x@smooth <- value
+    x@smooth_method <- value
     return(x)
   }
 )

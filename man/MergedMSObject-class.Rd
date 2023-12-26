@@ -32,7 +32,7 @@ initial isolation}
 
 \item{\code{aligned}}{A dataframe containing the final metabolite mathces}
 
-\item{\code{smooth}}{A string indicating the smoothing method used.}
+\item{\code{smooth_method}}{A string indicating the smooth_methoding method used.}
 }}
 
 \concept{objects}

@@ -22,12 +22,15 @@ create_ms_obj <- function(df,
                           mz_name = "MZ",
                           int_name = "Intensity",
                           metab_name = "Metabolite") {
+  compound_ids <- df[[id_name]]
+  stopifnot(length(compound_ids) == length(unique(compound_ids)),
+            "Compound IDs must be unique.")
   ms <- methods::new("MSObject")
   name(ms) <- name
   consolidated(ms) <- FALSE
 
   raw_data <- df |>
-    dplyr::select(all_of(c(id_name, metab_name, rt_name, mz_name, int_name))) |>
+    dplyr::select(dplyr::all_of(c(id_name, metab_name, rt_name, mz_name, int_name))) |>
     dplyr::rename(
       Compound_ID = id_name,
       Metabolite = metab_name,
@@ -58,7 +61,7 @@ create_aligned_ms_obj <- function(ms1, ms2) {
     cutoffs = NULL,
     aligned = NULL,
     metadata = NULL,
-    smooth = NULL
+    smooth_method = NULL
   )
   return(ms)
 }
