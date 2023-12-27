@@ -23,8 +23,8 @@ create_ms_obj <- function(df,
                           int_name = "Intensity",
                           metab_name = "Metabolite") {
   compound_ids <- df[[id_name]]
-  stopifnot(length(compound_ids) == length(unique(compound_ids)),
-            "Compound IDs must be unique.")
+  stopifnot("Compound IDs must be unique." = !any(duplicated(compound_ids))) |>
+    try()
   ms <- methods::new("MSObject")
   name(ms) <- name
   consolidated(ms) <- FALSE

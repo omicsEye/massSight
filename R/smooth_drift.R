@@ -181,6 +181,6 @@ smooth_drift <- function(align_ms_obj,
   iso_matched(align_ms_obj) <- results
   scaled_values(align_ms_obj) <- scaled_values
   cutoffs(align_ms_obj) <- deviations
-  smooth(align_ms_obj) <- smooth_method
+  smooth_method(align_ms_obj) <- smooth_method
   return(align_ms_obj)
 }

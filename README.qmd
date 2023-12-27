@@ -177,6 +177,7 @@ plots <- final_plots(aligned,
   rt_lim = c(-.5, .5),
   mz_lim = c(-15, 15)
 )
+plots
 ```
 
 ![](man/figures/final_plot_out.png)

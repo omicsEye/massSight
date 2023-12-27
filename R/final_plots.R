@@ -10,7 +10,7 @@ final_plots <-
   function(merged_ms_obj,
            rt_lim = c(-.1, .1),
            mz_lim = c(-10, 10)) {
-    smooth <- merged_ms_obj@smooth
+    smooth <- merged_ms_obj@smooth_method
     pairs_base <- "Number of pairs:"
     pre_iso_pairs <-
       paste0(pairs_base, nrow(pre_iso_matched(merged_ms_obj)))

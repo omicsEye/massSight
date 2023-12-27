@@ -67,11 +67,7 @@ ms2 <-
 ```{r}
 aligned <- auto_combine(
   ms1 = ms1,
-  ms2 = ms2,
-  rt_lower = -1,
-  rt_upper = 1,
-  mz_lower = -20,
-  mz_upper = 20
+  ms2 = ms2
 )
 ```
 
