@@ -39,7 +39,9 @@ cd2csv <- function(path, gen_id = TRUE, output_file = NULL) {
   if (gen_id) {
     final_df <- final_df |>
       dplyr::mutate(Compound_ID = paste(round(`m/z`, 2),
-                                        round(`RT [min]`, 2), sep = "_")) |>
+        round(`RT [min]`, 2),
+        sep = "_"
+      )) |>
       dplyr::select(-c(7, 8, 9)) |>
       dplyr::select(Compound_ID, dplyr::everything())
   }
@@ -50,17 +52,19 @@ cd2csv <- function(path, gen_id = TRUE, output_file = NULL) {
 }
 
 make_df_list <- function(blue_ind, orange_ind, orange_df, df) {
-  list_of_dfs <- purrr::map(1:(length(blue_ind) - 1),
-                            ~ {
-                              orange_df <- df[orange_ind[orange_ind < blue_ind[.x + 1] &
-                                                           orange_ind > blue_ind[.x]], c(5, 7)]
-                              orange_df[, 1] <- as.numeric(orange_df[[1]])
-                              orange_df |>
-                                tidyr::pivot_wider(
-                                  names_from = 2,
-                                  values_from = 1,
-                                  values_fn = mean
-                                )
-                            })
+  list_of_dfs <- purrr::map(
+    1:(length(blue_ind) - 1),
+    ~ {
+      orange_df <- df[orange_ind[orange_ind < blue_ind[.x + 1] &
+        orange_ind > blue_ind[.x]], c(5, 7)]
+      orange_df[, 1] <- as.numeric(orange_df[[1]])
+      orange_df |>
+        tidyr::pivot_wider(
+          names_from = 2,
+          values_from = 1,
+          values_fn = mean
+        )
+    }
+  )
   return(list_of_dfs)
 }

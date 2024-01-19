@@ -200,10 +200,12 @@ plot_decision_boundary <- function(matched_list) {
   plot_data$pred_prob <-
     stats::predict(matched_list$model, plot_data, type = "prob")$matched
   plot_data |>
-    dplyr::mutate(match = dplyr::case_when(pred_prob > .5 ~ "yes",
-                  T ~ "no")) |>
-  ggplot2::ggplot(
-    ggplot2::aes(x = delta_RT, y = delta_MZ, fill = match)
+    dplyr::mutate(match = dplyr::case_when(
+      pred_prob > .5 ~ "yes",
+      T ~ "no"
+    )) |>
+    ggplot2::ggplot(
+      ggplot2::aes(x = delta_RT, y = delta_MZ, fill = match)
     ) +
     ggplot2::geom_tile()
 }
