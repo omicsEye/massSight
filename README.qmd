@@ -142,7 +142,7 @@ ml_match_aligned <- ml_match(
   ms2,
   mz_thresh = 15,
   rt_thresh = 0.5,
-  prob_thresh = .99,
+  prob_thresh = .5,
   seed = 72
 )
 ```

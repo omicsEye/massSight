@@ -28,7 +28,7 @@ ml_match <-
            ms2,
            mz_thresh = 15,
            rt_thresh = 1,
-           prob_thresh = .8,
+           prob_thresh = .5,
            seed = 72) {
     known_metabolites <- get_shared_metabolites(ms1, ms2)
     training_data <-
@@ -40,7 +40,12 @@ ml_match <-
       stats::predict(fitted_model, pred_fmt_data, type = "prob")$matched
     pred_fmt_data <- pred_fmt_data |>
       dplyr::filter(.data$prob_matched > prob_thresh)
-    return(pred_fmt_data)
+    ml_match_list <- list(
+      "matched_data" = pred_fmt_data,
+      "model" = fitted_model,
+      "training_data" = training_data
+    )
+    return(ml_match_list)
   }
 
 get_shared_metabolites <- function(ms1, ms2) {
@@ -126,11 +131,11 @@ fit_model <- function(known, seed) {
   set.seed(seed)
 
   rf <- caret::train(
-    Class ~ delta_RT + delta_MZ,
+    Class ~ delta_RT + delta_MZ + RT_1 + RT_2 + MZ_1 + MZ_2,
     data = known,
     method = "rf",
     ntree = 501,
-    tuneGrid = data.frame(mtry = 1:2),
+    tuneGrid = data.frame(mtry = 1:6),
     trControl = caret::trainControl(method = "cv", number = 10)
   )
 
@@ -170,3 +175,35 @@ create_pred_data <-
         abs(.data$delta_RT) < rt_thresh)
     return(combined)
   }
+
+plot_decision_boundary <- function(matched_list) {
+  rt1_min <- min(matched_list$matched_data$RT_1)
+  rt1_max <- max(matched_list$matched_data$RT_1)
+  rt2_min <- min(matched_list$matched_data$RT_2)
+  rt2_max <- max(matched_list$matched_data$RT_2)
+  mz1_min <- min(matched_list$matched_data$MZ_1)
+  mz1_max <- max(matched_list$matched_data$MZ_1)
+  mz2_min <- min(matched_list$matched_data$MZ_2)
+  mz2_max <- max(matched_list$matched_data$MZ_2)
+  delta_mz_min <- min(matched_list$matched_data$delta_MZ)
+  delta_mz_max <- max(matched_list$matched_data$delta_MZ)
+  delta_rt_min <- min(matched_list$matched_data$delta_RT)
+  delta_rt_max <- max(matched_list$matched_data$delta_RT)
+  plot_data <- expand.grid(
+    "delta_MZ" = seq(delta_mz_min, delta_mz_max, length.out = 20),
+    "delta_RT" = seq(delta_rt_min, delta_rt_max, length.out = 20),
+    "RT_1" = seq(rt1_min, rt1_max, length.out = 20),
+    "RT_2" = seq(rt2_min, rt2_max, length.out = 20),
+    "MZ_1" = seq(mz1_min, mz1_max, length.out = 20),
+    "MZ_2" = seq(mz2_min, mz2_max, length.out = 20)
+  )
+  plot_data$pred_prob <-
+    stats::predict(matched_list$model, plot_data, type = "prob")$matched
+  plot_data |>
+    dplyr::mutate(match = dplyr::case_when(pred_prob > .5 ~ "yes",
+                  T ~ "no")) |>
+  ggplot2::ggplot(
+    ggplot2::aes(x = delta_RT, y = delta_MZ, fill = match)
+    ) +
+    ggplot2::geom_tile()
+}

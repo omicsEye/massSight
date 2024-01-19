@@ -32,6 +32,7 @@ Imports:
     openxlsx,
     progress,
     purrr,
+    Rcpp,
     readxl,
     rlang,
     stats,
@@ -53,3 +54,5 @@ RoxygenNote: 7.2.3
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Language: en-US
+LinkingTo: 
+    Rcpp
