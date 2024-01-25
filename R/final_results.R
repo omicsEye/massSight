@@ -50,7 +50,7 @@ final_results <-
       if (df1_for_align[i, "Compound_ID"] %in% best_reverse_match) {
         best_hits_df1 <- c(best_hits_df1, best_match)
         best_hits_found <-
-          c(best_hits_found, rep(df1_for_align[i, "Compound_ID"], length(best_match)))
+          c(best_hits_found, rep(df1_for_align[[i, "Compound_ID"]], length(best_match)))
       } else {
         features_not_aligned <-
           c(features_not_aligned, rownames(df1_for_align[i, "Compound_ID"]))

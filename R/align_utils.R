@@ -9,7 +9,6 @@ dedup <- function(cols, item) {
 }
 
 mad_based_outlier <- function(points, thresh = 5) {
-  points <- points[[1]]
   diff <- sqrt((points - stats::median(points, na.rm = T))^2)
   med_abs_deviation <- stats::median(diff, na.rm = T)
   if (med_abs_deviation == 0) {

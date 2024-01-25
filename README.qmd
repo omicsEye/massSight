@@ -126,7 +126,7 @@ aligned <- auto_combine(
   mz_lower = -15,
   mz_upper = 15,
   iso_method = "manual",
-  smooth_method = "loess"
+  smooth_method = "gam"
 )
 ```
 

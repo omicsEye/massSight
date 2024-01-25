@@ -45,8 +45,8 @@ cd2csv <- function(path, gen_id = TRUE, output_file = NULL) {
       dplyr::select(-c(7, 8, 9)) |>
       dplyr::select(Compound_ID, dplyr::everything())
   }
-  if (output_file) {
-    write.csv(final_df, output_file)
+  if (!is.null(output_file)) {
+    readr::write_csv(final_df, output_file)
   }
   return(final_df)
 }
