@@ -12,7 +12,7 @@ align_pre_isolated_compounds <-
         progress::progress_bar$new(
           format = "Matching all features from datasets [:bar] :percent :eta",
           total = nrow(df1),
-          clear = F
+          clear = FALSE
         )
       if ("Metabolite" %in% names(df1)) {
         results <- data.frame(

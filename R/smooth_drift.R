@@ -26,11 +26,14 @@ smooth_drift <- function(align_ms_obj,
     # TODO check for RBF Kernel
     message("Starting gaussian smoothing")
     gp <-
-      GauPro::GauPro(smooth_x_rt,
+      GauPro::gpkm(smooth_x_rt,
         results$RT_2 - results$RT,
-        parallel = F
+        kernel = "matern52",
+        parallel = TRUE,
+        normalize = TRUE,
+        verbose = 0
       )
-    smooth_y_rt <- gp$predict(smooth_x_rt)
+    smooth_y_rt <- gp$pred(smooth_x_rt)
     message("Finished gaussian smoothing")
   }
   smooth_x_rt_dropna <- smooth_x_rt |> stats::na.omit()
@@ -83,9 +86,12 @@ smooth_drift <- function(align_ms_obj,
     smooth_x_mz <- results$MZ
     message("Starting gaussian smoothing")
     gp <-
-      GauPro::GauPro(smooth_x_mz,
+      GauPro::gpkm(smooth_x_mz,
         results$MZ_2 - results$MZ,
-        parallel = FALSE
+        kernel = "matern52",
+        parallel = FALSE,
+        normalize = TRUE,
+        verbose = 0
       )
     smooth_y_mz <- gp$predict(smooth_x_mz)
     message("Finished gaussian smoothing")
