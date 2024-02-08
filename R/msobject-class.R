@@ -189,7 +189,7 @@ setMethod(
 #' @slot adjusted_df A data frame containing the drift corrected metabolites
 #' @slot cutoffs A vector of cutoffs
 #' @slot aligned A dataframe containing the final metabolite mathces
-#' @slot smooth_method A string indicating the smooth_methoding method used.
+#' @slot smooth_method A list of smoothing values
 #'
 #' @rdname MergedMSObject-class
 #' @name MergedMSObject-class
@@ -208,7 +208,7 @@ setClass(
     cutoffs = "numeric",
     aligned = "data.frame",
     metadata = "data.frame",
-    smooth_method = "character"
+    smooth_method = "list"
   )
 )
 

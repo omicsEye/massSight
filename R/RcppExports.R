@@ -5,3 +5,7 @@ findClosestMatch <- function(query, ref, stds) {
     .Call(`_massSight_findClosestMatch`, query, ref, stds)
 }
 
+getVectors <- function(df, rt_sim, mz_sim) {
+    .Call(`_massSight_getVectors`, df, rt_sim, mz_sim)
+}
+

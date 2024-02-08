@@ -125,8 +125,7 @@ aligned <- auto_combine(
   rt_upper = .5,
   mz_lower = -15,
   mz_upper = 15,
-  iso_method = "manual",
-  smooth_method = "gaussian"
+  smooth_method = "gam"
 )
 ```
 

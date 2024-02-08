@@ -8,9 +8,9 @@
 #' @export
 final_plots <-
   function(merged_ms_obj,
-           rt_lim = c(-.1, .1),
-           mz_lim = c(-10, 10)) {
-    smooth <- merged_ms_obj@smooth_method
+           rt_lim = c(-.5, .5),
+           mz_lim = c(-15, 15)) {
+    smooth_list <- merged_ms_obj@smooth_method
     pairs_base <- "Number of pairs:"
     pre_iso_pairs <-
       paste0(pairs_base, nrow(pre_iso_matched(merged_ms_obj)))
@@ -29,16 +29,9 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_smooth(
-        method = smooth,
-        alpha = .3,
-        col = "#AA9868"
-      ) +
-      ggplot2::labs(
-        title = "All Matches",
-        x = "RT 1",
-        y = expression(Delta * "RT")
-      ) +
+      ggplot2::labs(title = "All Matches",
+                    x = "RT 1",
+                    y = expression(Delta * "RT")) +
       theme_omicsEye() +
       ggplot2::annotate(
         "label",
@@ -58,10 +51,8 @@ final_plots <-
       )
 
     rt_iso <- iso_matched(merged_ms_obj) |>
-      ggplot2::ggplot(ggplot2::aes(
-        x = .data$RT,
-        y = .data$RT_2 - .data$RT
-      )) +
+      ggplot2::ggplot(ggplot2::aes(x = .data$RT,
+                                   y = .data$RT_2 - .data$RT)) +
       ggplot2::geom_point(
         alpha = I(0.25),
         shape = 21,
@@ -70,10 +61,12 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_smooth(
-        method = smooth,
-        alpha = .3,
-        col = "#AA9868"
+      ggplot2::geom_line(
+        data = data.frame("x" = smooth_list$rt_x,
+                          "y" = smooth_list$rt_y),
+        ggplot2::aes(x, y),
+        col = "#AA9868",
+        size = 1.5
       ) +
       ggplot2::annotate(
         "label",
@@ -84,11 +77,9 @@ final_plots <-
         label = iso_pairs,
         size = 8 / ggplot2::.pt
       ) +
-      ggplot2::labs(
-        title = "Isolated Matches",
-        x = "RT 1",
-        y = expression(Delta * "RT")
-      ) +
+      ggplot2::labs(title = "Isolated Matches",
+                    x = "RT 1",
+                    y = expression(Delta * "RT")) +
       theme_omicsEye()
 
     rt_iso <-
@@ -100,7 +91,7 @@ final_plots <-
 
     rt_all <- all_matched(merged_ms_obj) |>
       dplyr::mutate(scaled_rts = adjusted_df(merged_ms_obj)$rt_2_adj -
-        all_matched(merged_ms_obj)$RT) |>
+                      all_matched(merged_ms_obj)$RT) |>
       ggplot2::ggplot(ggplot2::aes(x = .data$RT, y = .data$scaled_rts)) +
       ggplot2::geom_point(
         alpha = I(0.25),
@@ -110,10 +101,8 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_hline(
-        yintercept = 0,
-        col = "#AA9868"
-      ) +
+      ggplot2::geom_hline(yintercept = 0,
+                          col = "#AA9868") +
       ggplot2::annotate(
         "label",
         x = Inf,
@@ -123,11 +112,9 @@ final_plots <-
         label = all_pairs,
         size = 8 / ggplot2::.pt
       ) +
-      ggplot2::labs(
-        title = "Scaled Matches",
-        x = "RT 1",
-        y = expression(Delta * "RT")
-      ) +
+      ggplot2::labs(title = "Scaled Matches",
+                    x = "RT 1",
+                    y = expression(Delta * "RT")) +
       ggplot2::ylim(rt_lim[1], rt_lim[2]) +
       theme_omicsEye()
 
@@ -151,16 +138,9 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_smooth(
-        method = smooth,
-        alpha = .3,
-        col = "#AA9868"
-      ) +
-      ggplot2::labs(
-        title = "All Matches",
-        x = "MZ 1",
-        y = expression(Delta * "MZ")
-      ) +
+      ggplot2::labs(title = "All Matches",
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       theme_omicsEye()
 
     mz_pre_iso <-
@@ -183,16 +163,16 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_smooth(
-        method = smooth,
-        alpha = .3,
-        col = "#AA9868"
+      ggplot2::geom_line(
+        data = data.frame("x" = smooth_list$mz_x,
+                          "y" = smooth_list$mz_y),
+        ggplot2::aes(x, y),
+        col = "#AA9868",
+        size = 1.5
       ) +
-      ggplot2::labs(
-        title = "Isolated Matches",
-        x = "MZ 1",
-        y = expression(Delta * "MZ")
-      ) +
+      ggplot2::labs(title = "Isolated Matches",
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       theme_omicsEye()
 
     mz_iso <-
@@ -217,15 +197,11 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_hline(
-        yintercept = 0,
-        col = "#AA9868"
-      ) +
-      ggplot2::labs(
-        title = "Scaled Matches",
-        x = "MZ 1",
-        y = expression(Delta * "MZ")
-      ) +
+      ggplot2::geom_hline(yintercept = 0,
+                          col = "#AA9868") +
+      ggplot2::labs(title = "Scaled Matches",
+                    x = "MZ 1",
+                    y = expression(Delta * "MZ")) +
       ggplot2::ylim(mz_lim) +
       theme_omicsEye()
 
@@ -237,13 +213,10 @@ final_plots <-
       )
 
     out <- cowplot::plot_grid(rt_pre_iso, rt_iso, rt_all,
-      mz_pre_iso, mz_iso, mz_all,
-      nrow = 2
-    ) +
-      ggplot2::theme(
-        plot.background =
-          ggplot2::element_rect(fill = "white")
-      )
+                              mz_pre_iso, mz_iso, mz_all,
+                              nrow = 2) +
+      ggplot2::theme(plot.background =
+                       ggplot2::element_rect(fill = "white"))
 
     return(out)
   }

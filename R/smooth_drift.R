@@ -21,6 +21,7 @@ smooth_drift <- function(align_ms_obj,
     smooth_x_rt <- results$RT
     smooth_y_rt <- stats::predict(spline_func, data.frame(RT = smooth_x_rt)) |>
       as.vector()
+    smooth_method(align_ms_obj) <- list(rt_x = smooth_x_rt, rt_y = smooth_y_rt)
   } else if (smooth_method == "gaussian") {
     smooth_x_rt <- results$RT
     # TODO check for RBF Kernel
@@ -29,10 +30,11 @@ smooth_drift <- function(align_ms_obj,
       GauPro::gpkm(smooth_x_rt,
         results$RT_2 - results$RT,
         kernel = "matern52",
-        parallel = TRUE,
+        parallel = FALSE,
         normalize = TRUE,
         verbose = 0
       )
+    gp$plot1D()
     smooth_y_rt <- gp$pred(smooth_x_rt)
     message("Finished gaussian smoothing")
   }
@@ -82,6 +84,8 @@ smooth_drift <- function(align_ms_obj,
     smooth_x_mz <- results$MZ
     smooth_y_mz <- stats::predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
       as.vector()
+    smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
+    smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
   } else if (smooth_method == "gaussian") {
     smooth_x_mz <- results$MZ
     message("Starting gaussian smoothing")
@@ -187,6 +191,5 @@ smooth_drift <- function(align_ms_obj,
   iso_matched(align_ms_obj) <- results
   scaled_values(align_ms_obj) <- scaled_values
   cutoffs(align_ms_obj) <- deviations
-  smooth_method(align_ms_obj) <- smooth_method
   return(align_ms_obj)
 }

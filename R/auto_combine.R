@@ -48,7 +48,7 @@ auto_combine <-
            rt_iso_threshold = .1,
            mz_iso_threshold = 5,
            match_method = "unsupervised",
-           smooth_method = "loess",
+           smooth_method = "gam",
            weights = c(1, 1, 1),
            keep_features = c(F, F),
            log = F) {
@@ -60,11 +60,11 @@ auto_combine <-
 
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
-        ref_iso <- get_vectors(raw_df(ms1),
+        ref_iso <- getVectors(raw_df(ms1),
           rt_sim = rt_iso_threshold,
           mz_sim = mz_iso_threshold
         )
-        query_iso <- get_vectors(raw_df(ms2),
+        query_iso <- getVectors(raw_df(ms2),
           rt_sim = rt_iso_threshold,
           mz_sim = mz_iso_threshold
         )
@@ -86,7 +86,6 @@ auto_combine <-
     align_obj <- methods::new("MergedMSObject")
     ms1(align_obj) <- ms1
     ms2(align_obj) <- ms2
-    smooth_method(align_obj) <- smooth_method
     align_obj <- align_obj |>
       align_pre_isolated_compounds(
         rt_minus = rt_lower,

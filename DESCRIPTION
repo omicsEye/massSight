@@ -29,7 +29,6 @@ Imports:
     logr,
     methods,
     mgcv,
-    openxlsx,
     progress,
     purrr,
     Rcpp,
@@ -38,8 +37,7 @@ Imports:
     stats,
     stringr,
     tidyr,
-    utils,
-    xlsx
+    utils
 Suggests: 
     knitr,
     rmarkdown,

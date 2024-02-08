@@ -23,9 +23,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// getVectors
+CharacterVector getVectors(DataFrame df, double rt_sim, double mz_sim);
+RcppExport SEXP _massSight_getVectors(SEXP dfSEXP, SEXP rt_simSEXP, SEXP mz_simSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< DataFrame >::type df(dfSEXP);
+    Rcpp::traits::input_parameter< double >::type rt_sim(rt_simSEXP);
+    Rcpp::traits::input_parameter< double >::type mz_sim(mz_simSEXP);
+    rcpp_result_gen = Rcpp::wrap(getVectors(df, rt_sim, mz_sim));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_massSight_findClosestMatch", (DL_FUNC) &_massSight_findClosestMatch, 3},
+    {"_massSight_getVectors", (DL_FUNC) &_massSight_getVectors, 3},
     {NULL, NULL, 0}
 };
 

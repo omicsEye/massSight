@@ -152,7 +152,9 @@ final_results <-
     metadata_2 <- metadata(ms2(align_ms_obj))
     if (nrow(metadata_1) > 0) {
       metadata_1 <-
-        metadata_1 |> dplyr::semi_join(results_df, by = dplyr::join_by(Compound_ID == df1))
+        metadata_1 |>
+        dplyr::semi_join(results_df,
+                         by = dplyr::join_by(Compound_ID == df1))
     }
     if (nrow(metadata_2) > 0) {
       metadata_2 <-
