@@ -12,22 +12,24 @@ smooth_drift <- function(align_ms_obj,
     dplyr::arrange(.data$RT) |>
     dplyr::mutate(delta_RT = .data$RT_2 - .data$RT)
 
-  if (smooth_method == "loess") {
-    res_low <- stats::loess(delta_RT ~ RT, data = results)
+  if (smooth_method == "gam") {
+    spline_func <- mgcv::gam(delta_RT ~ s(RT),
+      method = "REML",
+      data = results
+    )
     smooth_x_rt <- results$RT
-    smooth_y_rt <- stats::predict(res_low, smooth_x_rt)
-  } else if (smooth_method == "gam") {
-    spline_func <- mgcv::gam(delta_RT ~ s(RT), data = results)
-    smooth_x_rt <- results$RT
-    smooth_y_rt <- stats::predict(spline_func, data.frame(RT = smooth_x_rt)) |>
+    smooth_y_rt <-
+      stats::predict(spline_func, data.frame(RT = smooth_x_rt)) |>
       as.vector()
-    smooth_method(align_ms_obj) <- list(rt_x = smooth_x_rt, rt_y = smooth_y_rt)
+    smooth_method(align_ms_obj)[["rt_x"]] <- smooth_x_rt
+    smooth_method(align_ms_obj)[["rt_y"]] <- smooth_y_rt
   } else if (smooth_method == "gaussian") {
     smooth_x_rt <- results$RT
     # TODO check for RBF Kernel
     message("Starting gaussian smoothing")
     gp <-
-      GauPro::gpkm(smooth_x_rt,
+      GauPro::gpkm(
+        smooth_x_rt,
         results$RT_2 - results$RT,
         kernel = "matern52",
         parallel = FALSE,
@@ -46,12 +48,14 @@ smooth_drift <- function(align_ms_obj,
     )
   }
 
-  suppressWarnings(f <- stats::approx(
-    x = smooth_x_rt_dropna,
-    y = smooth_y_rt_dropna,
-    xout = smooth_x_rt,
-    rule = 2
-  ))
+  suppressWarnings(
+    f <- stats::approx(
+      x = smooth_x_rt_dropna,
+      y = smooth_y_rt_dropna,
+      xout = smooth_x_rt,
+      rule = 2
+    )
+  )
   smooth_x_rt <- results$RT
   smooth_y_rt <- f$y
   scaled_rts <-
@@ -75,14 +79,14 @@ smooth_drift <- function(align_ms_obj,
     dplyr::arrange(.data$MZ) |>
     dplyr::mutate(delta_MZ = .data$MZ_2 - .data$MZ)
 
-  if (smooth_method == "loess") {
-    mz_low <- stats::loess(delta_MZ ~ MZ, data = results)
+  if (smooth_method == "gam") {
+    mz_gam <- mgcv::gam(delta_MZ ~ s(MZ),
+      method = "REML",
+      data = results
+    )
     smooth_x_mz <- results$MZ
-    smooth_y_mz <- stats::predict(mz_low, smooth_x_mz)
-  } else if (smooth_method == "gam") {
-    mz_gam <- mgcv::gam(delta_MZ ~ s(MZ), data = results)
-    smooth_x_mz <- results$MZ
-    smooth_y_mz <- stats::predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
+    smooth_y_mz <-
+      stats::predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
       as.vector()
     smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
     smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
@@ -90,7 +94,8 @@ smooth_drift <- function(align_ms_obj,
     smooth_x_mz <- results$MZ
     message("Starting gaussian smoothing")
     gp <-
-      GauPro::gpkm(smooth_x_mz,
+      GauPro::gpkm(
+        smooth_x_mz,
         results$MZ_2 - results$MZ,
         kernel = "matern52",
         parallel = FALSE,
@@ -110,12 +115,14 @@ smooth_drift <- function(align_ms_obj,
     )
   }
 
-  suppressWarnings(f <- stats::approx(
-    x = smooth_x_mz_dropna,
-    y = smooth_y_mz_dropna,
-    rule = 2,
-    xout = smooth_x_mz
-  ))
+  suppressWarnings(
+    f <- stats::approx(
+      x = smooth_x_mz_dropna,
+      y = smooth_y_mz_dropna,
+      rule = 2,
+      xout = smooth_x_mz
+    )
+  )
 
   smooth_x_mz <- results$MZ
   smooth_y_mz <- f$y

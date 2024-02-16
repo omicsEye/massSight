@@ -35,7 +35,28 @@
 #' @param keep_features A logical vector indicating whether or not to
 #'
 #' @return A `MergedMSObject` containing the combined data.
-auto_combine <-
+setGeneric("auto_combine", function(ms1,
+                                    ms2,
+                                    rt_lower = -.5,
+                                    rt_upper = .5,
+                                    mz_lower = -15,
+                                    mz_upper = 15,
+                                    minimum_intensity = 10,
+                                    iso_method = "manual",
+                                    eps = .1,
+                                    rt_iso_threshold = .1,
+                                    mz_iso_threshold = 5,
+                                    match_method = "unsupervised",
+                                    smooth_method = "gam",
+                                    weights = c(1, 1, 1),
+                                    keep_features = c(F, F),
+                                    log = F) {
+  standardGeneric("auto_combine")
+})
+
+setMethod(
+  "auto_combine",
+  signature("MSObject", "MSObject"),
   function(ms1,
            ms2,
            rt_lower = -.5,
@@ -122,3 +143,35 @@ auto_combine <-
     }
     return(align_obj)
   }
+)
+
+setMethod(
+  "auto_combine",
+  signature("MergedMSObject", "MSObject"),
+  function(ms1, ms2) {
+    validate_parameters(
+      iso_method,
+      match_method,
+      smooth_method,
+      minimum_intensity
+    )
+
+    if (iso_method == "manual") {
+      ref_iso <- getVectors(raw_df(ms1),
+        rt_sim = rt_iso_threshold,
+        mz_sim = mz_iso_threshold
+      )
+      query_iso <- getVectors(raw_df(ms2),
+        rt_sim = rt_iso_threshold,
+        mz_sim = mz_iso_threshold
+      )
+      isolated(ms1) <- raw_df(ms1) |>
+        dplyr::filter(.data$Compound_ID %in% ref_iso)
+      isolated(ms2) <- raw_df(ms2) |>
+        dplyr::filter(.data$Compound_ID %in% query_iso)
+    } else if (iso_method == "dbscan") {
+      isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
+      isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
+    }
+  }
+)

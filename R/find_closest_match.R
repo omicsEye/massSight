@@ -5,11 +5,11 @@ find_closest_match <-
     ref_index <- ref$Compound_ID
     cutoffs <- stds
 
-      rt_hits <- ref$RT <= (query$RT + .25) &
-        ref$RT >= (query$RT - .25)
+    rt_hits <- (ref$RT <= (query$RT + .5)) &
+      (ref$RT >= (query$RT - .25))
 
-      mz_hits <- ref$MZ < (query$MZ + .25) &
-        ref$MZ > (query$MZ - .25)
+    mz_hits <- (ref$MZ < (query$MZ + .5)) &
+      (ref$MZ > (query$MZ - .5))
 
     if (!(TRUE %in% (rt_hits & mz_hits))) {
       return(NULL)

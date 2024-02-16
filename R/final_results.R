@@ -6,6 +6,8 @@ final_results <-
     df2 <- raw_df(ms2(align_ms_obj))
     scaled_df <- scaled_values(align_ms_obj)
     stds <- cutoffs(align_ms_obj)
+    df2$RT_2_adj <- scaled_df$RT
+    df2$MZ_2_adj <- scaled_df$MZ
     df2_adj <- df2
     df2_adj$RT <- scaled_df$RT
     df2_adj$MZ <- scaled_df$MZ
@@ -51,110 +53,70 @@ final_results <-
         best_hits_df1 <- c(best_hits_df1, best_match)
         best_hits_found <-
           c(best_hits_found, rep(df1_for_align[[i, "Compound_ID"]], length(best_match)))
-      } else {
-        features_not_aligned <-
-          c(features_not_aligned, rownames(df1_for_align[i, "Compound_ID"]))
       }
     }
-    df_not_found <- df1 |>
-      dplyr::filter(.data$Compound_ID %in% features_not_aligned)
-    rownames(df1) <- df1$Compound_ID
-    rownames(df2) <- df2$Compound_ID
-    rownames(df2_adj) <- df2_adj$Compound_ID
-    df1 <- df1[best_hits_found, ]
+
+    match_df <- data.frame(
+      df1 = best_hits_found,
+      df2 = best_hits_df1
+    )
     df2_raw <- df2
-    df2 <- df2[best_hits_df1, ]
-    results_df_complete <- cbind(df1, df2)
-    df2_adj <- df2_adj[best_hits_df1, ]
-    if ("Intensity" %in% colnames(df1)) {
-      if ("Metabolite" %in% colnames(df1)) {
-        results_df <- data.frame(
-          "df1" = df1$Compound_ID,
-          "RT" = df1$RT,
-          "MZ" = df1$MZ,
-          "Intensity" = df1$Intensity,
-          "Metabolite" = df1$Metabolite,
-          "df2" = df2$Compound_ID,
-          "RT_2" = df2$RT,
-          "MZ_2" = df2$MZ,
-          "Intensity_2" = df2$Intensity,
-          "Metabolite_2" = df2$Metabolite
-        )
-      } else {
-        results_df <- data.frame(
-          "df1" = df1$Compound_ID,
-          "RT" = df1$RT,
-          "MZ" = df1$MZ,
-          "Intensity" = df1$Intensity,
-          "df2" = df2$Compound_ID,
-          "RT_2" = df2$RT,
-          "MZ_2" = df2$MZ,
-          "Intensity_2" = df2$Intensity
-        )
-      }
 
-      adjusted_df <- data.frame(
-        "rt_2_adj" = df2_adj$RT,
-        "mz_2_adj" = df2_adj$MZ,
-        "int_2_adj" = df2_adj$Intensity
+    df <-
+      merge(df1,
+        match_df,
+        by.x = "Compound_ID",
+        by.y = "df1",
+        all = TRUE
+      ) |>
+      merge(df2,
+        by.x = "df2",
+        by.y = "Compound_ID",
+        all = TRUE
       )
-    } else {
-      if ("Metabolite" %in% colnames(df1)) {
-        results_df <- data.frame(
-          "df1" = df1$Compound_ID,
-          "df2" = df2$Compound_ID,
-          "RT" = df1$RT,
-          "RT_2" = df2$RT,
-          "MZ" = df1$MZ,
-          "MZ_2" = df2$MZ,
-          "Metabolite" = df1$Metabolite,
-          "Metabolite_2" = df2$Metabolite
-        )
-      } else {
-        results_df <- data.frame(
-          "df1" = df1$Compound_ID,
-          "df2" = df2$Compound_ID,
-          "RT" = df1$RT,
-          "RT_2" = df2$RT,
-          "MZ" = df1$MZ,
-          "MZ_2" = df2$MZ
-        )
-      }
 
-      adjusted_df <- data.frame(
-        "rt_2_adj" = df2_adj$RT,
-        "mz_2_adj" = df2_adj$MZ
+    df <- df %>%
+      dplyr::rename_with(
+        ~ ifelse(
+          .x %in% names(df),
+          c(
+            "Compound_ID_1",
+            "Compound_ID_2",
+            "Metabolite_1",
+            "Metabolite_2",
+            "RT_1",
+            "RT_2",
+            "MZ_1",
+            "MZ_2",
+            "Intensity_1",
+            "Intensity_2"
+          ),
+          .x
+        ),
+        .cols = c(
+          "Compound_ID",
+          "df2",
+          "Metabolite.x",
+          "Metabolite.y",
+          "RT.x",
+          "RT.y",
+          "MZ.x",
+          "MZ.y",
+          "Intensity.x",
+          "Intensity.y"
+        )
       )
-    }
 
-
-    if (keep_features[1] == T) {
-      message("keeping file 1 features")
-      columns <- colnames(results_df_complete)
-      # TODO
-    }
-
-    if (keep_features[2] == T) {
-      # TODO
-    }
-
-    # columns <- colnames(results_df_complete) |>
-    #   dedup("RT") |>
-    #   dedup("MZ") |>
-    #   dedup("Intensity") |>
-    #   dedup("Compound_ID") |>
-    #   dedup("Metabolite")
-    #
-    # colnames(results_df_complete) <- columns
-    all_matched(align_ms_obj) <- results_df
-    adjusted_df(align_ms_obj) <- adjusted_df
+    all_matched(align_ms_obj) <- df
+    adjusted_df(align_ms_obj) <- df2_adj
     metadata_1 <- metadata(ms1(align_ms_obj))
     metadata_2 <- metadata(ms2(align_ms_obj))
     if (nrow(metadata_1) > 0) {
       metadata_1 <-
         metadata_1 |>
         dplyr::semi_join(results_df,
-                         by = dplyr::join_by(Compound_ID == df1))
+          by = dplyr::join_by(Compound_ID == df1)
+        )
     }
     if (nrow(metadata_2) > 0) {
       metadata_2 <-

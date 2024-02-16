@@ -17,7 +17,7 @@ auto_combine(
   rt_iso_threshold = 0.1,
   mz_iso_threshold = 5,
   match_method = "unsupervised",
-  smooth_method = "loess",
+  smooth_method = "gam",
   weights = c(1, 1, 1),
   keep_features = c(F, F),
   log = F
