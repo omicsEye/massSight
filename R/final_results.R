@@ -109,21 +109,21 @@ final_results <-
 
     all_matched(align_ms_obj) <- df
     adjusted_df(align_ms_obj) <- df2_adj
-    metadata_1 <- metadata(ms1(align_ms_obj))
-    metadata_2 <- metadata(ms2(align_ms_obj))
-    if (nrow(metadata_1) > 0) {
-      metadata_1 <-
-        metadata_1 |>
-        dplyr::semi_join(results_df,
-          by = dplyr::join_by(Compound_ID == df1)
-        )
-    }
-    if (nrow(metadata_2) > 0) {
-      metadata_2 <-
-        metadata_2 |> dplyr::semi_join(results_df, by = dplyr::join_by(Compound_ID == df2))
-    }
-    if (nrow(metadata_1) > 0 && nrow(metadata_2) > 0) {
-      metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)
-    }
+    # metadata_1 <- metadata(ms1(align_ms_obj))
+    # metadata_2 <- metadata(ms2(align_ms_obj))
+    # if (nrow(metadata_1) > 0) {
+    #   metadata_1 <-
+    #     metadata_1 |>
+    #     dplyr::semi_join(results_df,
+    #       by = dplyr::join_by(Compound_ID == df1)
+    #     )
+    # }
+    # if (nrow(metadata_2) > 0) {
+    #   metadata_2 <-
+    #     metadata_2 |> dplyr::semi_join(results_df, by = dplyr::join_by(Compound_ID == df2))
+    # }
+    # if (nrow(metadata_1) > 0 && nrow(metadata_2) > 0) {
+    #   metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)
+    # }
     return(align_ms_obj)
   }

@@ -44,7 +44,7 @@ Suggests:
     spelling,
     testthat (>= 3.0.0),
     usethis
-biocViews: Omics, Software, metabolite, alignment, scale, qc
+biocViews: Omics, Software, metabolite, metabolomics, alignment, scaling, qc
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
