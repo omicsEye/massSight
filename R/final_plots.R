@@ -74,8 +74,7 @@ final_plots <-
           "y" = smooth_list$rt_y
         ),
         ggplot2::aes(x, y),
-        col = "#AA9868",
-        size = 1.5
+        col = "#AA9868"
       ) +
       ggplot2::annotate(
         "label",
@@ -186,8 +185,7 @@ final_plots <-
           "y" = smooth_list$mz_y
         ),
         ggplot2::aes(x, y),
-        col = "#AA9868",
-        size = 1.5
+        col = "#AA9868"
       ) +
       ggplot2::labs(
         title = "Isolated Matches",
