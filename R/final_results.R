@@ -62,14 +62,18 @@ final_results <-
     )
     df2_raw <- df2
 
+    df1_full <- df1 |>
+      merge(metadata(ms1(align_ms_obj)), by = "Compound_ID")
+    df2_full <- df2 |>
+      merge(metadata(ms2(align_ms_obj)), by = "Compound_ID")
     df <-
-      merge(df1,
+      merge(df1_full,
         match_df,
         by.x = "Compound_ID",
         by.y = "df1",
         all = TRUE
       ) |>
-      merge(df2,
+      merge(df2_full,
         by.x = "df2",
         by.y = "Compound_ID",
         all = TRUE
@@ -105,25 +109,40 @@ final_results <-
           "Intensity.x",
           "Intensity.y"
         )
+      ) |>
+      dplyr::mutate(
+        rep_Compound_ID = dplyr::case_when(
+          !is.na(Compound_ID_1) ~ Compound_ID_1,
+          is.na(Compound_ID_1) & !is.na(Compound_ID_2) ~ Compound_ID_2,
+          TRUE ~ NA
+        ),
+        rep_RT = dplyr::case_when(
+          !is.na(RT_1) ~ RT_1,
+          is.na(RT_1) & !is.na(RT_2) ~ RT_2,
+          TRUE ~ NA
+        ),
+        rep_MZ = dplyr::case_when(
+          !is.na(MZ_1) ~ MZ_1,
+          is.na(MZ_1) & !is.na(MZ_2) ~ MZ_2,
+          TRUE ~ NA
+        ),
+        rep_Intensity = dplyr::case_when(
+          !is.na(Intensity_1) ~ Intensity_1,
+          is.na(Intensity_1) & !is.na(Intensity_2) ~ Intensity_2,
+          TRUE ~ NA
+        )
+      ) |>
+      dplyr::select(
+        c(
+          "rep_Compound_ID", "rep_RT", "rep_MZ", "rep_Intensity",
+          "Compound_ID_1",
+          "Compound_ID_2", "Metabolite_1", "Metabolite_2", "RT_1", "RT_2",
+          "MZ_1", "MZ_2", "Intensity_1", "Intensity_2", dplyr::everything()
+        )
       )
 
     all_matched(align_ms_obj) <- df
     adjusted_df(align_ms_obj) <- df2_adj
-    # metadata_1 <- metadata(ms1(align_ms_obj))
-    # metadata_2 <- metadata(ms2(align_ms_obj))
-    # if (nrow(metadata_1) > 0) {
-    #   metadata_1 <-
-    #     metadata_1 |>
-    #     dplyr::semi_join(results_df,
-    #       by = dplyr::join_by(Compound_ID == df1)
-    #     )
-    # }
-    # if (nrow(metadata_2) > 0) {
-    #   metadata_2 <-
-    #     metadata_2 |> dplyr::semi_join(results_df, by = dplyr::join_by(Compound_ID == df2))
-    # }
-    # if (nrow(metadata_1) > 0 && nrow(metadata_2) > 0) {
-    #   metadata(align_ms_obj) <- cbind(metadata_1, metadata_2)
-    # }
+
     return(align_ms_obj)
   }
