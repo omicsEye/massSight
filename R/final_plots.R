@@ -10,17 +10,20 @@ final_plots <-
   function(merged_ms_obj,
            rt_lim = c(-.5, .5),
            mz_lim = c(-15, 15)) {
+    name1 <- ms1(merged_ms_obj)@name
+    name2 <- ms2(merged_ms_obj)@name
     smooth_list <- merged_ms_obj@smooth_method
     pairs_base <- "Number of pairs:"
     pre_iso_pairs <-
       paste0(pairs_base, nrow(pre_iso_matched(merged_ms_obj)))
     iso_pairs <-
       paste0(pairs_base, nrow(iso_matched(merged_ms_obj)))
-    all_pairs <-
-      paste0(pairs_base, nrow(
-        all_matched(merged_ms_obj) |> dplyr::filter(!is.na(Compound_ID_1) &
-          !is.na(Compound_ID_2))
-      ))
+    all_pairs <- iso_pairs
+    # all_pairs <-
+    #   paste0(pairs_base, nrow(
+    #     all_matched(merged_ms_obj) |> dplyr::filter(!is.na(Compound_ID_1) &
+    #       !is.na(Compound_ID_2))
+    #   ))
 
     rt_pre_iso <- pre_iso_matched(merged_ms_obj) |>
       ggplot2::ggplot(ggplot2::aes(x = .data$RT, y = .data$RT_2 - .data$RT)) +
