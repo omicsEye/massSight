@@ -39,6 +39,7 @@ Imports:
     tidyr,
     utils
 Suggests: 
+    jsonlite,
     knitr,
     rmarkdown,
     spelling,
