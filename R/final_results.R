@@ -165,8 +165,9 @@ final_results <-
       dplyr::mutate(dup_count = dplyr::row_number()) |>
       dplyr::ungroup() |>
       dplyr::mutate(rep_Compound_ID = ifelse(dup_count > 1,
-                                      paste0(rep_Compound_ID, "_", dup_count),
-                                      rep_Compound_ID)) |>
+        paste0(rep_Compound_ID, "_", dup_count),
+        rep_Compound_ID
+      )) |>
       dplyr::select(-dup_count)
 
     all_matched(align_ms_obj) <- df
