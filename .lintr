@@ -1,2 +1,5 @@
-linters: linters_with_defaults() # see vignette("lintr")
+linters: linters_with_defaults(
+  line_length_linter = NULL,  # Disable line length linter
+  object_name_linter = object_name_linter(),
+  object_usage_linter = object_usage_linter())
 encoding: "UTF-8"

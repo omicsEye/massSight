@@ -74,22 +74,27 @@ final_results <-
     )
     df2_raw <- df2
 
-    df1_full <- df1 |>
-      merge(metadata(ms1(align_ms_obj)), by = "Compound_ID")
-    df2_full <- df2 |>
-      merge(metadata(ms2(align_ms_obj)), by = "Compound_ID")
+    if (nrow(metadata(ms1(align_ms_obj))) > 0) {
+      df1 <- df1 |>
+        merge(metadata(ms1(align_ms_obj)), by = "Compound_ID")
+    }
+    if (nrow(metadata(ms2(align_ms_obj))) > 0) {
+      df2 <- df2 |>
+        merge(metadata(ms2(align_ms_obj)), by = "Compound_ID")
+    }
     df <-
-      merge(df1_full,
+      merge(df1,
         match_df,
         by.x = "Compound_ID",
         by.y = "df1",
         all = TRUE
       ) |>
-      merge(df2_full,
+      merge(df2,
         by.x = "df2",
         by.y = "Compound_ID",
         all = TRUE
       )
+
 
     df <- df %>%
       dplyr::rename_with(
@@ -98,8 +103,8 @@ final_results <-
           c(
             paste("Compound_ID", study1_name, sep = "_"),
             paste("Compound_ID", study2_name, sep = "_"),
-            paste("Metabolite", study1_name, sep = "_"),
-            paste("Metabolite", study2_name, sep = "_"),
+            # paste("Metabolite", study1_name, sep = "_"),
+            # paste("Metabolite", study2_name, sep = "_"),
             paste("RT", study1_name, sep = "_"),
             paste("RT", study2_name, sep = "_"),
             paste("MZ", study1_name, sep = "_"),
@@ -112,8 +117,8 @@ final_results <-
         .cols = c(
           "Compound_ID",
           "df2",
-          "Metabolite.x",
-          "Metabolite.y",
+          # "Metabolite.x",
+          # "Metabolite.y",
           "RT.x",
           "RT.y",
           "MZ.x",
@@ -143,18 +148,21 @@ final_results <-
           !is.na(get(Intensity_1)) ~ get(Intensity_1),
           is.na(get(Intensity_1)) & !is.na(get(Intensity_2)) ~ get(Intensity_2),
           TRUE ~ NA
-        ),
-        rep_Metabolite = dplyr::case_when(
-          !is.na(get(Metabolite_1)) ~ get(Metabolite_1),
-          is.na(get(Metabolite_1)) & !is.na(get(Metabolite_2)) ~ get(Metabolite_2),
-          TRUE ~ NA
         )
+        # ),
+        # rep_Metabolite = dplyr::case_when(
+        #   !is.na(get(Metabolite_1)) ~ get(Metabolite_1),
+        #   is.na(get(Metabolite_1)) & !is.na(get(Metabolite_2)) ~ get(Metabolite_2),
+        #   TRUE ~ NA
+        # )
       ) |>
       dplyr::select(
         c(
           "rep_Compound_ID", "rep_RT", "rep_MZ", "rep_Intensity",
-          "rep_Metabolite", Compound_ID_1,
-          Compound_ID_2, Metabolite_1, Metabolite_2, RT_1, RT_2,
+          # "rep_Metabolite",
+          Compound_ID_1,
+          Compound_ID_2, # Metabolite_1, Metabolite_2,
+          RT_1, RT_2,
           MZ_1, MZ_2, Intensity_1, Intensity_2, dplyr::everything(),
           -dplyr::contains("_adj")
         )

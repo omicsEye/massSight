@@ -75,13 +75,12 @@ setMethod(
            match_method = "unsupervised",
            smooth_method = "gam",
            weights = c(1, 1, 1),
-           keep_features = c(F, F),
+           keep_features = c(FALSE, FALSE),
            log = "log.json",
            output = NULL) {
     if (!is.null(log)) {
       time_start <- Sys.time()
       check_jsonlite()
-      Sys.tim
       log_params <- match.call(expand.dots = TRUE) |>
         modify_call() |>
         as.list() |>
@@ -96,6 +95,7 @@ setMethod(
       log_r <- R.Version()
       log_date <- Sys.time()
     }
+
     validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
 
     if (match_method == "unsupervised") {
@@ -127,12 +127,12 @@ setMethod(
     ms1(align_obj) <- ms1
     ms2(align_obj) <- ms2
     align_obj <- align_obj |>
-      align_pre_isolated_compounds(
-        rt_minus = rt_lower,
-        rt_plus = rt_upper,
-        mz_minus = mz_lower,
-        mz_plus = mz_upper
-      ) |>
+      # align_pre_isolated_compounds(
+      #   rt_minus = rt_lower,
+      #   rt_plus = rt_upper,
+      #   mz_minus = mz_lower,
+      #   mz_plus = mz_upper
+      # ) |>
       align_isolated_compounds(
         match_method = match_method,
         rt_minus = rt_lower,
@@ -202,6 +202,7 @@ setMethod(
 
       return(align_obj)
     }
+    return(align_obj)
   }
 )
 

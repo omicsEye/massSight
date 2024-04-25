@@ -6,10 +6,10 @@ find_closest_match <-
     cutoffs <- stds
 
     rt_hits <- (ref$RT <= (query$RT + .5)) &
-      (ref$RT >= (query$RT - .25))
+      (ref$RT >= (query$RT - .5))
 
-    mz_hits <- (ref$MZ < (query$MZ + .5)) &
-      (ref$MZ > (query$MZ - .5))
+    mz_hits <- (ref$MZ < (query$MZ + .1)) &
+      (ref$MZ > (query$MZ - .1))
 
     if (!(TRUE %in% (rt_hits & mz_hits))) {
       return(NULL)

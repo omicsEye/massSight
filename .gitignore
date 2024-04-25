@@ -6,6 +6,7 @@
 .httr-oauth
 .DS_Store
 .vscode/
+.lintr
 README_cache/
 *.csv
 *.xlsx
