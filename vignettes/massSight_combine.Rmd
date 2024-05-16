@@ -67,7 +67,7 @@ ms2 <-
 ```{r}
 aligned <- auto_combine(
   ms1 = ms1,
-  ms2 = ms2
+  ms2 = ms2, log = NULL
 )
 ```
 

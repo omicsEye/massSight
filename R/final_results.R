@@ -40,11 +40,7 @@ final_results <-
       )
     for (i in 1:nrow(df1_for_align)) {
       best_match <-
-        find_closest_match(
-          df1_for_align[i, ],
-          df2_for_align,
-          stds
-        )
+        find_closest_match(df1_for_align[i, ], df2_for_align, stds)
       if (!is.null(best_match)) {
         pb$tick()
         best_reverse_match <-
@@ -68,10 +64,7 @@ final_results <-
       }
     }
 
-    match_df <- data.frame(
-      df1 = best_hits_found,
-      df2 = best_hits_df1
-    )
+    match_df <- data.frame(df1 = best_hits_found, df2 = best_hits_df1)
     df2_raw <- df2
 
     if (nrow(metadata(ms1(align_ms_obj))) > 0) {
@@ -103,8 +96,8 @@ final_results <-
           c(
             paste("Compound_ID", study1_name, sep = "_"),
             paste("Compound_ID", study2_name, sep = "_"),
-            # paste("Metabolite", study1_name, sep = "_"),
-            # paste("Metabolite", study2_name, sep = "_"),
+            paste("Metabolite", study1_name, sep = "_"),
+            paste("Metabolite", study2_name, sep = "_"),
             paste("RT", study1_name, sep = "_"),
             paste("RT", study2_name, sep = "_"),
             paste("MZ", study1_name, sep = "_"),
@@ -117,8 +110,8 @@ final_results <-
         .cols = c(
           "Compound_ID",
           "df2",
-          # "Metabolite.x",
-          # "Metabolite.y",
+          "Metabolite.x",
+          #"Metabolite.y",
           "RT.x",
           "RT.y",
           "MZ.x",
@@ -131,7 +124,8 @@ final_results <-
         rep_Compound_ID = dplyr::case_when(
           !is.na(get(Compound_ID_1)) ~
             get(Compound_ID_1),
-          is.na(get(Compound_ID_1)) & !is.na(get(Compound_ID_2)) ~ get(Compound_ID_2),
+          is.na(get(Compound_ID_1)) &
+            !is.na(get(Compound_ID_2)) ~ get(Compound_ID_2),
           TRUE ~ NA
         ),
         rep_RT = dplyr::case_when(
@@ -146,24 +140,34 @@ final_results <-
         ),
         rep_Intensity = dplyr::case_when(
           !is.na(get(Intensity_1)) ~ get(Intensity_1),
-          is.na(get(Intensity_1)) & !is.na(get(Intensity_2)) ~ get(Intensity_2),
+          is.na(get(Intensity_1)) &
+            !is.na(get(Intensity_2)) ~ get(Intensity_2),
+          TRUE ~ NA
+        ),
+        rep_Metabolite = dplyr::case_when(
+          !is.na(get(Metabolite_1)) ~ get(Metabolite_1),
+          is.na(get(Metabolite_1)) &
+            !is.na(get(Metabolite_2)) ~ get(Metabolite_2),
           TRUE ~ NA
         )
-        # ),
-        # rep_Metabolite = dplyr::case_when(
-        #   !is.na(get(Metabolite_1)) ~ get(Metabolite_1),
-        #   is.na(get(Metabolite_1)) & !is.na(get(Metabolite_2)) ~ get(Metabolite_2),
-        #   TRUE ~ NA
-        # )
       ) |>
       dplyr::select(
         c(
-          "rep_Compound_ID", "rep_RT", "rep_MZ", "rep_Intensity",
-          # "rep_Metabolite",
+          "rep_Compound_ID",
+          "rep_RT",
+          "rep_MZ",
+          "rep_Intensity",
+          "rep_Metabolite",
           Compound_ID_1,
-          Compound_ID_2, # Metabolite_1, Metabolite_2,
-          RT_1, RT_2,
-          MZ_1, MZ_2, Intensity_1, Intensity_2, dplyr::everything(),
+          Compound_ID_2,
+          Metabolite_1, Metabolite_2,
+          RT_1,
+          RT_2,
+          MZ_1,
+          MZ_2,
+          Intensity_1,
+          Intensity_2,
+          dplyr::everything(),
           -dplyr::contains("_adj")
         )
       )
@@ -172,7 +176,8 @@ final_results <-
       dplyr::group_by(rep_Compound_ID) |>
       dplyr::mutate(dup_count = dplyr::row_number()) |>
       dplyr::ungroup() |>
-      dplyr::mutate(rep_Compound_ID = ifelse(dup_count > 1,
+      dplyr::mutate(rep_Compound_ID = ifelse(
+        dup_count > 1,
         paste0(rep_Compound_ID, "_", dup_count),
         rep_Compound_ID
       )) |>
