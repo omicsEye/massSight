@@ -14,6 +14,7 @@
 #' intensities
 #' @param metab_name An optional character indicating the name of the column
 #' containing the metabolite annotations
+#' @importFrom data.table :=
 #' @return An MSObject.
 create_ms_obj <- function(df,
                           name,
@@ -28,21 +29,21 @@ create_ms_obj <- function(df,
   ms <- methods::new("MSObject")
   name(ms) <- name
   consolidated(ms) <- FALSE
-
-  raw_data <- df |>
-    dplyr::select(dplyr::all_of(c(id_name, metab_name, rt_name, mz_name, int_name))) |>
-    dplyr::rename(
-      Compound_ID = id_name,
-      Metabolite = metab_name,
-      RT = rt_name,
-      MZ = mz_name,
-      Intensity = int_name
-    )
+  if (typeof(df) != "data.table") {
+    df = data.table::as.data.table(df)
+  }
+  raw_data <- data.table::setDT(df)[, c(
+    Compound_ID = data.table::.SD[[id_name]],
+    Metabolite = data.table::.SD[[metab_name]],
+    RT = data.table::.SD[[rt_name]],
+    MZ = data.table::.SD[[mz_name]],
+    Intensity = data.table::.SD[[int_name]]
+  ), .SDcols = c(id_name, metab_name, rt_name, mz_name, int_name)]
   raw_df(ms) <- raw_data
 
-  meta_data <- df |>
-    dplyr::select(-dplyr::any_of(c(rt_name, mz_name, int_name, metab_name))) |>
-    dplyr::rename(Compound_ID = id_name)
+  meta_data <- data.table::copy(raw_data)
+  meta_data[, c(metab_name, rt_name, mz_name, int_name) := NULL]
+
   if (ncol(meta_data) != 1) {
     metadata(ms) <- meta_data
   }
