@@ -88,8 +88,7 @@ final_results <-
         all = TRUE
       )
 
-
-    df <- df %>%
+    df <- df |>
       dplyr::rename_with(
         ~ ifelse(
           .x %in% names(df),
@@ -111,7 +110,7 @@ final_results <-
           "Compound_ID",
           "df2",
           "Metabolite.x",
-          #"Metabolite.y",
+          "Metabolite.y",
           "RT.x",
           "RT.y",
           "MZ.x",
@@ -158,15 +157,16 @@ final_results <-
           "rep_MZ",
           "rep_Intensity",
           "rep_Metabolite",
-          Compound_ID_1,
-          Compound_ID_2,
-          Metabolite_1, Metabolite_2,
-          RT_1,
-          RT_2,
-          MZ_1,
-          MZ_2,
-          Intensity_1,
-          Intensity_2,
+          !!sym(Compound_ID_1),
+          !!sym(Compound_ID_2),
+          !!sym(Metabolite_1), 
+          !!sym(Metabolite_2),
+          !!sym(RT_1),
+          !!sym(RT_2),
+          !!sym(MZ_1),
+          !!sym(MZ_2),
+          !!sym(Intensity_1),
+          !!sym(Intensity_2),
           dplyr::everything(),
           -dplyr::contains("_adj")
         )

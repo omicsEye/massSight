@@ -21,6 +21,7 @@ Imports:
     caret,
     checkmate,
     cowplot,
+    data.table,
     dbscan,
     dplyr,
     GauPro,
