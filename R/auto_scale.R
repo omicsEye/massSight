@@ -66,7 +66,6 @@ auto_scale <- function(data,
           warnings, "There are missing or zero values in your internal standards. ",
           "The following samples were not IS normalized, and their IS values were filled with the half-minimum:"
         )
-        # TODO: line 516
       }
 
       ndata <- ndata / scalars
