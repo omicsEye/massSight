@@ -40,6 +40,7 @@ cd2csv <- function(path, gen_id = TRUE, output_file = NULL) {
     final_df <- final_df |>
       dplyr::mutate(Compound_ID = paste(round(`m/z`, 2),
         round(`RT [min]`, 2),
+        `Area (Max.)`,
         sep = "_"
       )) |>
       dplyr::select(-c(7, 8, 9)) |>
@@ -56,11 +57,11 @@ make_df_list <- function(blue_ind, orange_ind, orange_df, df) {
     1:(length(blue_ind) - 1),
     ~ {
       orange_df <- df[orange_ind[orange_ind < blue_ind[.x + 1] &
-        orange_ind > blue_ind[.x]], c(5, 7)]
+        orange_ind > blue_ind[.x]], c(5, 6, 7)]
       orange_df[, 1] <- as.numeric(orange_df[[1]])
       orange_df |>
         tidyr::pivot_wider(
-          names_from = 2,
+          names_from = c(2, 3),
           values_from = 1,
           values_fn = mean
         )

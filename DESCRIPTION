@@ -1,6 +1,6 @@
 Package: massSight
 Title: Batch Alignment and Scaling for LC-MS Data
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: c(
     person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-4446-9380")),
@@ -21,6 +21,7 @@ Imports:
     caret,
     checkmate,
     cowplot,
+    data.table,
     dbscan,
     dplyr,
     GauPro,
@@ -39,6 +40,7 @@ Imports:
     tidyr,
     utils
 Suggests: 
+    jsonlite,
     knitr,
     rmarkdown,
     spelling,

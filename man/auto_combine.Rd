@@ -20,7 +20,8 @@ auto_combine(
   smooth_method = "gam",
   weights = c(1, 1, 1),
   keep_features = c(F, F),
-  log = F
+  log = NULL,
+  output = NULL
 )
 }
 \arguments{
@@ -68,6 +69,11 @@ be used. Options are "lowess", "spline", and "gaussian".}
 the alignment.}
 
 \item{keep_features}{A logical vector indicating whether or not to}
+
+\item{log}{A character indicating the name of the log file.}
+
+\item{output}{A character indicating the directory to save the output. If NULL,
+the output will be saved in the current working directory.}
 }
 \value{
 A \code{MergedMSObject} containing the combined data.

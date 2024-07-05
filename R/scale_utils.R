@@ -30,123 +30,100 @@ find_indx <- function(df, word = "Metabolite") {
   }
 }
 
-verify_df <-
-  function(data,
-           sample_info,
-           is_to_use,
-           norm,
-           pool_missing_p) {
-    error <- c()
-    error_flag <- FALSE
-    if (!(0 <= pool_missing_p &
-      pool_missing_p <= 100)) {
-      error <- error |>
-        append(
-          paste(
-            "Your pool missingness value must range from 0 to 100. You selected",
-            pool_missing_p
-          )
-        )
-    }
-    if ("IS" %in% norm & is_to_use == "") {
-      error <- error |>
-        append(
-          "You have selected IS normalization but have not specified any internal standards. Either specify a standard or uncheck the IS box in the previous window."
-        )
-    }
-    needed_cols <-
-      c(
-        "Compound_ID",
-        "MZ",
-        "RT",
-        "Metabolite",
-        "Platfrom_name",
-        "Collaborator_ID",
-        "Injection_order",
-        "Ref_to_use"
-      )
-    if (!(c(needed_cols %in% names(data)))) {
-      for (col in needed_cols) {
-        if (!(col %in% names(data))) {
-          error <- error |>
-            append(paste("There must be", col, "in your columns."))
-        }
-      }
+verify_df <- function(is_to_use, normalization, data, sample_information, pool_missing_p) {
+  error <- character()
+  error_flag <- FALSE
+
+  if (!(0.0 <= pool_missing_p && pool_missing_p <= 100.0)) {
+    error <- c(error, sprintf("Your pool missingness value must range from 0 to 100. You selected %s\n", pool_missing_p))
+  }
+
+  if ("IS" %in% normalization && is_to_use == "") {
+    error <- c(error, "You have selected IS normalization but have not specified any internal standards. Either specify a standard or uncheck the IS box in the previous window.\n")
+  }
+
+  # Check column labels
+  required_columns <- c("Compound_ID", "MZ", "RT", "Metabolite")
+  for (col in required_columns) {
+    if (!(col %in% colnames(data))) {
+      error <- c(error, sprintf("There must be '%s' in your columns.\n", col))
       error_flag <- TRUE
     }
-    if (error_flag) {
-      message(error)
-    }
-    # TODO py line 92
-
-    is_not_found <-
-      is_not_found[which(is_to_use %in% data$Metabolite)]
-    if (length(is_not_found) > 0) {
-      purrr::walk(is_not_found, function(x) {
-        error <- error |>
-          append(paste(
-            "Your internal standard",
-            x,
-            "was not found in the 'Metabolite' column"
-          )) # TODO
-      })
-    }
-
-    prefa_sum <- sample_info$Collaborator_ID |>
-      stringr::str_detect("PREFA") |>
-      sum()
-    prefb_sum <- sample_info$Collaborator_ID |>
-      stringr::str_detect("PREFB") |>
-      sum()
-
-    if (prefa_sum == 0 &
-      prefb_sum == 0) {
-      error <- error |>
-        append(
-          paste(
-            "PREFs are missing. I counted",
-            prefa_sum,
-            "PREFAs and",
-            prefb_sum,
-            "PREFBs. There must be at least one pool reference"
-          )
-        )
-    }
-    # check if 'Ref_to_use' pools are actually present in the Platfrom_name name
-    bad_refs <-
-      sample_info$Ref_to_use[which(!sample_info$Ref_to_use %in% sample_info$Collaborator_ID)]
-    if (length(bad_refs) > 0) {
-      error <- error |>
-        append(
-          paste0(
-            "Your 'Ref_to_use':,",
-            bad_refs,
-            "was not found in the 'Collaborator_ID' column"
-          )
-        )
-    }
-    return(error)
   }
 
-get_norm_indices <-
-  function(sample_inj, pool_inj, pool_names, ref_use) {
-    pool_use_indx <- c()
-    pool_names_unique <- pool_names |> unique()
-    sample_ref_tibble <- dplyr::tibble(
-      sample_inj,
-      ref_use
-    )
-
-    purrr::walk(sample_ref_tibble, function(row) {
-      if (!(is.null(row$ref_use)) & row$ref_use %in% pool_names_unique) {
-        pool_use_indx <- pool_use_indx |>
-          append(which(pool_names == row$ref_use)[1])
-      } else {
-        pool_use_indx <- pool_use_indx |>
-          append() # TODO
-      }
-    })
+  required_sample_info_columns <- c("Broad_name", "Collaborator_ID", "Injection_order", "Ref_to_use")
+  for (col in required_sample_info_columns) {
+    if (!(col %in% colnames(sample_information))) {
+      error <- c(error, sprintf("There must be '%s' in your sample info columns.\n", col))
+      error_flag <- TRUE
+    }
   }
+
+  if (error_flag) {
+    return(paste(error, collapse = ""))
+  }
+
+  # Check sample information compared to sample labels
+  metabolite_col <- which(colnames(data) == "Metabolite")
+  for (i in seq_along(data[, (metabolite_col + 1):ncol(data)])) {
+    column_name <- colnames(data)[metabolite_col + i]
+    sample_info <- sample_information$Broad_name[i]
+    if (column_name != sample_info) {
+      error <- c(error, sprintf("There is at least one mismatch in your sample setup or sample name, starting with '%s' and '%s'.\n", column_name, sample_info))
+      break
+    }
+  }
+
+  # Check if internal standards are present
+  for (IS in is_to_use) {
+    if (!(IS %in% data$Metabolite)) {
+      error <- c(error, sprintf("Your internal standard '%s' was not found in the 'Metabolite' column.\n", IS))
+    }
+  }
+
+  # Check if there are prefs
+  prefa_count <- sum(grepl("PREFA", sample_information$Collaborator_ID))
+  prefb_count <- sum(grepl("PREFB", sample_information$Collaborator_ID))
+  if (prefa_count == 0 && prefb_count == 0) {
+    error <- c(error, sprintf("PREFs are missing. I counted %s PREFAs and %s PREFBs. There must be at least one pool reference.\n", prefa_count, prefb_count))
+  }
+
+  # Check if 'Ref_to_use' pools are actually present in the Broad_name name
+  for (pref in unique(sample_information$Ref_to_use)) {
+    if (!is.na(pref) && !(pref %in% sample_information$Collaborator_ID)) {
+      error <- c(error, sprintf("Your 'Ref_to_use' '%s' was not found in the 'Collaborator_ID' column.\n", pref))
+    }
+  }
+
+  return(paste(error, collapse = ""))
+}
+
+get_normalization_indices <- function(sample_injection, pool_injection, pool_names, ref_to_use) {
+  pool_to_use_indices <- integer()
+
+  pool_names_set <- unique(pool_names)
+
+  for (i in seq_along(sample_injection)) {
+    injection <- sample_injection[i]
+    ref_to_use_single <- ref_to_use[i]
+
+    if (!is.na(ref_to_use_single) && ref_to_use_single %in% pool_names_set) {
+      pool_to_use_indices <- c(pool_to_use_indices, which(pool_names == ref_to_use_single)[1])
+    } else {
+      tryCatch(
+        {
+          closest_pool_index <- which.min(abs(pool_injection - injection))
+          pool_to_use_indices <- c(pool_to_use_indices, closest_pool_index)
+        },
+        error = function(e) {
+          return(NULL)
+        }
+      )
+    }
+  }
+
+  return(pool_to_use_indices)
+}
 
 check_prefs <- function(sample_info,
                         pref_to_use,

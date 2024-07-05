@@ -21,7 +21,7 @@ options(cli.hyperlink = FALSE)
 
 [![](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
 
-`massSight` is an R package for combining and scaling of LC-MS metabolomics data.
+`massSight` is an R package for combining and scaling LC-MS metabolomics data.
 
 -   Citation: if you use `massSight`, please cite our manuscript: Chiraag Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis through multi-study data scaling, integration, and harmonization. <https://github.com/omicsEye/massSight>
 
@@ -125,7 +125,8 @@ aligned <- auto_combine(
   rt_upper = .5,
   mz_lower = -15,
   mz_upper = 15,
-  smooth_method = "gam"
+  smooth_method = "gam",
+  log = NULL
 )
 ```
 
@@ -194,22 +195,18 @@ ggplot2::ggsave(
 
 ```{r}
 merged_df <- all_matched(aligned)
-merged_df <- merged_df |>
-  dplyr::mutate(
-    Metabolite_2 = dplyr::case_when(
-      Metabolite != "" &
-        Metabolite_2 == "" ~ Metabolite,
-      TRUE ~ Metabolite_2
-    )
-  )
-
 hp2_annotated <- merged_df |>
-  dplyr::select(contains("2")) |>
-  purrr::set_names(c("df", "RT", "MZ", "Intensity", "Metabolite"))
+  dplyr::select(Compound_ID_hp2, rep_Metabolite) |>
+  dplyr::inner_join(hp2, by = c("Compound_ID_hp2" = "Compound_ID"))
 
-head(hp2_annotated, 10) |>
+hp2_annotated |> 
+  dplyr::filter(rep_Metabolite != "") |>
+  dplyr::arrange(rep_Metabolite) |>
+  head(10) |>
   knitr::kable()
 ```
+
+Here, `rep_Metabolite` is the metabolite name from the reference dataset.
 
 ## Dev Instructions
 

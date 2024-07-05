@@ -30,7 +30,7 @@ First, `massSight` can be installed via `devtools`:
 
 ```{r, eval = F}
 install.packages("devtools")
-devtools::install_github("omicsEye/massSight", force = TRUE)
+devtools::install_github("omicsEye/massSight")
 library(massSight)
 ```
 
@@ -171,7 +171,8 @@ The `auto_combine()` function allows users to combine two datasets via the model
 aligned <- auto_combine(
   ms1 = hmp2_ms,
   ms2 = ms_C18_CD,
-  smooth_method = "loess"
+  smooth_method = "gam",
+  log = NULL
 )
 ```
 

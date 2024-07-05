@@ -1,5 +1,6 @@
 # massSight
 
+
 - [Examples](#examples)
 - [Description](#description)
 - [Installation](#installation)
@@ -19,14 +20,10 @@
 
 <img src="man/figures/massSight.png" align="right" width="30%"/></a>
 
-<div>
-
 [![](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
 
-</div>
-
-`massSight` is an R package for combining and scaling of LC-MS
-metabolomics data.
+`massSight` is an R package for combining and scaling LC-MS metabolomics
+data.
 
 - Citation: if you use `massSight`, please cite our manuscript: Chiraag
   Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis
@@ -151,10 +148,9 @@ aligned <- auto_combine(
   rt_upper = .5,
   mz_lower = -15,
   mz_upper = 15,
-  iso_method = "manual",
-  smooth_method = "loess"
+  smooth_method = "gam",
+  log = NULL
 )
-#> [1] "Numbers of matched/kept features: 1443"
 ```
 
 More information on the `auto_combine()` function can be found in the
@@ -172,7 +168,7 @@ ml_match_aligned <- ml_match(
   ms2,
   mz_thresh = 15,
   rt_thresh = 0.5,
-  prob_thresh = .99,
+  prob_thresh = .5,
   seed = 72
 )
 ```
@@ -191,14 +187,14 @@ all_matched(aligned) |>
   knitr::kable()
 ```
 
-| df1              |   RT |       MZ |   Intensity | Metabolite                                | df2      |     RT_2 |     MZ_2 | Intensity_2 | Metabolite_2 |
-|:-----------------|-----:|---------:|------------:|:------------------------------------------|:---------|---------:|---------:|------------:|:-------------|
-| 7.74_282.1194m/z | 7.74 | 282.1194 |    16491.00 | 1-methyladenosine                         | cmp.4168 | 7.864050 | 282.1194 |    43167.05 |              |
-| 5.27_166.0723m/z | 5.27 | 166.0723 |    22801.91 | 1-methylguanine                           | cmp.2810 | 5.361300 | 166.0723 |    25898.35 |              |
-| 5.09_313.0848m/z | 5.09 | 313.0848 |    42335.94 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen | cmp.2750 | 5.124100 | 313.0850 |    38069.50 |              |
-| 1.94_152.0705m/z | 1.94 | 152.0705 |    83600.28 | acetaminophen                             | cmp.1435 | 2.082950 | 152.0706 |   190502.74 |              |
-| 1.62_585.2701m/z | 1.62 | 585.2701 | 11502435.04 | bilirubin                                 | cmp.529  | 1.743567 | 585.2702 | 14402315.51 |              |
-| 1.92_583.2546m/z | 1.92 | 583.2546 |  1393839.16 | biliverdin                                | cmp.1216 | 2.047283 | 583.2547 |  1361161.33 |              |
+| rep_Compound_ID | rep_RT | rep_MZ | rep_Intensity | rep_Metabolite | Compound_ID_hp1 | Compound_ID_hp2 | Metabolite_hp1 | Metabolite_hp2 | RT_hp1 | RT_hp2 | MZ_hp1 | MZ_hp2 | Intensity_hp1 | Intensity_hp2 |
+|:---|---:|---:|---:|:---|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|
+| 0.63_74.0995m/z | 0.630000 | 74.0995 | 0.40 |  | 0.63_74.0995m/z | cmp.1 |  |  | 0.63 | 1.003550 | 74.0995 | 74.09722 | 0.40 | 5683858.19 |
+| cmp.10 | 1.003550 | 429.4048 | 14695.70 |  | NA | cmp.10 | NA |  | NA | 1.003550 | NA | 429.40477 | NA | 14695.70 |
+| 1.14_262.0378m/z | 1.140000 | 262.0378 | 17383.20 |  | 1.14_262.0378m/z | cmp.100 |  |  | 1.14 | 1.199700 | 262.0378 | 262.03783 | 17383.20 | 20343.60 |
+| cmp.1000 | 1.918017 | 540.5345 | 38459.42 |  | NA | cmp.1000 | NA |  | NA | 1.918017 | NA | 540.53450 | NA | 38459.42 |
+| 1.74_348.0645m/z | 1.740000 | 348.0645 | 59393.19 |  | 1.74_348.0645m/z | cmp.1001 |  |  | 1.74 | 1.918017 | 348.0645 | 348.06456 | 59393.19 | 41235.47 |
+| 1.86_478.1970m/z | 1.860000 | 478.1970 | 132193.24 |  | 1.86_478.1970m/z | cmp.1002 |  |  | 1.86 | 1.918017 | 478.1970 | 478.19718 | 132193.24 | 35052.10 |
 
 - `iso_matched()`: The matched isolated metabolites between the two
   datasets.
@@ -209,14 +205,14 @@ iso_matched(aligned) |>
   knitr::kable()
 ```
 
-| df1             |   RT |      MZ | Intensity | df2      |     RT_2 |     MZ_2 | Intensity_2 |  delta_RT | smooth_rt |      srt |   delta_MZ | smooth_mz |      smz | sintensity |
-|:----------------|-----:|--------:|----------:|:---------|---------:|---------:|------------:|----------:|----------:|---------:|-----------:|----------:|---------:|-----------:|
-| 7.98_76.0402m/z | 7.98 | 76.0402 |  13067.16 | cmp.4356 | 8.193933 | 76.04010 |   27158.674 | 0.2139333 | 0.1129026 | 7.874778 | -0.0001027 | -3.31e-05 | 76.04023 |   7832.970 |
-| 8.14_77.0799m/z | 8.14 | 77.0799 |   9291.18 | cmp.4388 | 8.283100 | 77.07982 |   11295.184 | 0.1431000 | 0.1253363 | 8.023783 | -0.0000786 | -3.23e-05 | 77.07993 |   3625.042 |
-| 4.79_79.0220m/z | 4.79 | 79.0220 |   2356.37 | cmp.2649 | 4.910117 | 79.02198 |    6818.932 | 0.1201167 | 0.0954132 | 4.687141 | -0.0000210 | -3.10e-05 | 79.02203 |   2327.172 |
-| 7.50_80.1318m/z | 7.50 | 80.1318 |  84942.05 | cmp.4025 | 7.635767 | 80.13173 |   11765.610 | 0.1357667 | 0.0814712 | 7.422708 | -0.0000662 | -3.03e-05 | 80.13183 |   3757.301 |
-| 7.86_84.9120m/z | 7.86 | 84.9120 |  10189.64 | cmp.4247 | 8.015617 | 84.91193 |    9442.532 | 0.1556167 | 0.1041765 | 7.762498 | -0.0000657 | -2.71e-05 | 84.91203 |   3097.303 |
-| 8.75_84.9605m/z | 8.75 | 84.9605 | 240071.83 | cmp.4584 | 8.978550 | 84.96037 |  287055.188 | 0.2285500 | 0.1811082 | 8.585263 | -0.0001285 | -2.70e-05 | 84.96053 |  62125.356 |
+| df1 | RT | MZ | Intensity | df2 | RT_2 | MZ_2 | Intensity_2 | delta_RT | smooth_rt | srt | delta_MZ | smooth_mz | smz | sintensity |
+|:---|---:|---:|---:|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 7.98_76.0402m/z | 7.98 | 76.0402 | 13067.16 | cmp.4356 | 8.193933 | 76.04010 | 27158.674 | 0.2139333 | 0.1462600 | 7.848138 | -0.0001027 | -9.2e-06 | 76.04021 | 7832.970 |
+| 8.14_77.0799m/z | 8.14 | 77.0799 | 9291.18 | cmp.4388 | 8.283100 | 77.07982 | 11295.184 | 0.1431000 | 0.1617242 | 7.992453 | -0.0000786 | -8.9e-06 | 77.07991 | 3625.042 |
+| 4.79_79.0220m/z | 4.79 | 79.0220 | 2356.37 | cmp.2649 | 4.910117 | 79.02198 | 6818.932 | 0.1201167 | 0.1440289 | 4.627987 | -0.0000210 | -8.1e-06 | 79.02201 | 2327.172 |
+| 7.50_80.1318m/z | 7.50 | 80.1318 | 84942.05 | cmp.4025 | 7.635767 | 80.13173 | 11765.610 | 0.1357667 | 0.0897390 | 7.419991 | -0.0000662 | -7.7e-06 | 80.13181 | 3757.301 |
+| 7.86_84.9120m/z | 7.86 | 84.9120 | 10189.64 | cmp.4247 | 8.015617 | 84.91193 | 9442.532 | 0.1556167 | 0.1332109 | 7.740726 | -0.0000657 | -6.0e-06 | 84.91201 | 3097.303 |
+| 8.75_84.9605m/z | 8.75 | 84.9605 | 240071.83 | cmp.4584 | 8.978550 | 84.96037 | 287055.188 | 0.2285500 | 0.1999628 | 8.559125 | -0.0001285 | -5.9e-06 | 84.96051 | 62125.356 |
 
 ### Plotting results from alignment
 
@@ -226,8 +222,10 @@ These plots can be used for diagnostic purposes.
 
 ``` r
 plots <- final_plots(aligned,
-                     rt_lim = c(-.5, 5),
-                     mz_lim = c(-15, 15))
+  rt_lim = c(-.5, .5),
+  mz_lim = c(-15, 15)
+)
+plots
 ```
 
 ![](man/figures/final_plot_out.png)
@@ -236,43 +234,42 @@ This plot can be saved locally using `ggsave()` from the `ggplot2`
 package:
 
 ``` r
-ggplot2::ggsave(filename = "plot.png",
-                plot = plots)
+ggplot2::ggsave(
+  filename = "plot.png",
+  plot = plots
+)
 ```
 
 ### Using `massSight` to annotate unknown metabolites
 
 ``` r
 merged_df <- all_matched(aligned)
-merged_df <- merged_df |>
-  dplyr::mutate(
-    Metabolite_2 = dplyr::case_when(
-      Metabolite != "" &
-        Metabolite_2 == "" ~ Metabolite,
-      TRUE ~ Metabolite_2
-    )
-  )
-
 hp2_annotated <- merged_df |>
-  dplyr::select(contains("2")) |>
-  purrr::set_names(c("df", "RT", "MZ", "Intensity", "Metabolite"))
+  dplyr::select(Compound_ID_hp2, rep_Metabolite) |>
+  dplyr::inner_join(hp2, by = c("Compound_ID_hp2" = "Compound_ID"))
 
-head(hp2_annotated, 10) |>
+hp2_annotated |> 
+  dplyr::filter(rep_Metabolite != "") |>
+  dplyr::arrange(rep_Metabolite) |>
+  head(10) |>
   knitr::kable()
 ```
 
-| df       |       RT |       MZ |   Intensity | Metabolite                                |
-|:---------|---------:|---------:|------------:|:------------------------------------------|
-| cmp.4168 | 7.864050 | 282.1194 |    43167.05 | 1-methyladenosine                         |
-| cmp.2810 | 5.361300 | 166.0723 |    25898.35 | 1-methylguanine                           |
-| cmp.2750 | 5.124100 | 313.0850 |    38069.50 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen |
-| cmp.1435 | 2.082950 | 152.0706 |   190502.74 | acetaminophen                             |
-| cmp.529  | 1.743567 | 585.2702 | 14402315.51 | bilirubin                                 |
-| cmp.1216 | 2.047283 | 583.2547 |  1361161.33 | biliverdin                                |
-| cmp.4582 | 8.978550 | 146.1175 |   677778.63 | butyrobetaine                             |
-| cmp.3837 | 7.261300 | 316.2479 |   638168.92 | C10 carnitine                             |
-| cmp.3903 | 7.395033 | 312.2165 |    50418.96 | C10:2 carnitine                           |
-| cmp.3749 | 7.074067 | 344.2792 |   203210.69 | C12 carnitine                             |
+| Compound_ID_hp2 | rep_Metabolite | Metabolite | RT | MZ | Intensity |
+|:---|:---|:---|---:|---:|---:|
+| cmp.2157 | 1,7-dimethyluric acid |  | 3.817950 | 197.0669 | 140175.90 |
+| cmp.4168 | 1-methyladenosine |  | 7.864050 | 282.1194 | 43167.05 |
+| cmp.2810 | 1-methylguanine |  | 5.361300 | 166.0723 | 25898.35 |
+| cmp.2782 | 1-methylguanosine |  | 5.267700 | 298.1145 | 70138.72 |
+| cmp.785 | 1.2.4-trimethylbenzene |  | 1.805967 | 121.1014 | 13453.95 |
+| cmp.2750 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen |  | 5.124100 | 313.0850 | 38069.50 |
+| cmp.4740 | 3-methylhistidine |  | 10.289133 | 170.0923 | 490315.34 |
+| cmp.2091 | 4-acetamidobutanoate |  | 3.595050 | 146.0811 | 78624.40 |
+| cmp.2828 | 5-acetylamino-6-amino-3-methyluracil |  | 5.424667 | 199.0824 | 29391.98 |
+| cmp.2446 | 6.8-dihydroxypurine |  | 4.544583 | 153.0407 | 10692.24 |
+
+Here, `rep_Metabolite` is the metabolite name from the reference
+dataset.
 
 ## Dev Instructions
 

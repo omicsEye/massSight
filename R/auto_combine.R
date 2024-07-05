@@ -33,6 +33,9 @@
 #' @param weights A numeric vector indicating the weights to be used for
 #' the alignment.
 #' @param keep_features A logical vector indicating whether or not to
+#' @param log A character indicating the name of the log file.
+#' @param output A character indicating the directory to save the output. If NULL,
+#' the output will be saved in the current working directory.
 #'
 #' @return A `MergedMSObject` containing the combined data.
 setGeneric("auto_combine", function(ms1,
@@ -50,7 +53,8 @@ setGeneric("auto_combine", function(ms1,
                                     smooth_method = "gam",
                                     weights = c(1, 1, 1),
                                     keep_features = c(F, F),
-                                    log = F) {
+                                    log = NULL,
+                                    output = NULL) {
   standardGeneric("auto_combine")
 })
 
@@ -71,12 +75,27 @@ setMethod(
            match_method = "unsupervised",
            smooth_method = "gam",
            weights = c(1, 1, 1),
-           keep_features = c(F, F),
-           log = F) {
-    call <- modify_call(match.call(expand.dots = TRUE))
-    if (log) {
-      initialize_log(call)
+           keep_features = c(FALSE, FALSE),
+           log = "log.json",
+           output = NULL) {
+    if (!is.null(log)) {
+      time_start <- Sys.time()
+      check_jsonlite()
+      log_params <- match.call(expand.dots = TRUE) |>
+        modify_call() |>
+        as.list() |>
+        (\(x) x[-1])() |>
+        lapply(\(x) {
+          if (is.language(x)) {
+            return(deparse(x))
+          } else {
+            return(x)
+          }
+        })
+      log_r <- R.Version()
+      log_date <- Sys.time()
     }
+
     validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
 
     if (match_method == "unsupervised") {
@@ -108,12 +127,12 @@ setMethod(
     ms1(align_obj) <- ms1
     ms2(align_obj) <- ms2
     align_obj <- align_obj |>
-      align_pre_isolated_compounds(
-        rt_minus = rt_lower,
-        rt_plus = rt_upper,
-        mz_minus = mz_lower,
-        mz_plus = mz_upper
-      ) |>
+      # align_pre_isolated_compounds(
+      #   rt_minus = rt_lower,
+      #   rt_plus = rt_upper,
+      #   mz_minus = mz_lower,
+      #   mz_plus = mz_upper
+      # ) |>
       align_isolated_compounds(
         match_method = match_method,
         rt_minus = rt_lower,
@@ -130,16 +149,58 @@ setMethod(
         weights = weights
       )
 
-    if (log) {
-      logr::log_print(
-        paste0(
-          "Numbers of matched/kept features: ",
-          nrow(all_matched(align_obj))
-        ),
-        console = T
+    if (!is.null(log)) {
+      final_results <- all_matched(align_obj)
+      compound_id_1 <- paste("Compound_ID", name(ms1), sep = "_")
+      compound_id_2 <- paste("Compound_ID", name(ms2), sep = "_")
+      n1 <- final_results |>
+        dplyr::filter(!is.na(!!rlang::sym(compound_id_1)) &
+          is.na(!!rlang::sym(compound_id_2))) |>
+        nrow()
+      n2 <- final_results |>
+        dplyr::filter(is.na(!!rlang::sym(compound_id_1)) &
+          !is.na(!!rlang::sym(compound_id_2))) |>
+        nrow()
+      n12 <- final_results |>
+        dplyr::filter(!is.na(!!rlang::sym(compound_id_1)) &
+          !is.na(!!rlang::sym(compound_id_2))) |>
+        nrow()
+
+      metabolite_1 <- paste("Metabolite", name(ms1), sep = "_")
+      metabolite_2 <- paste("Metabolite", name(ms2), sep = "_")
+      m_correct <- final_results |>
+        dplyr::filter(!!rlang::sym(metabolite_1) == !!rlang::sym(metabolite_2)) |>
+        nrow()
+      m_total <- final_results |>
+        dplyr::filter(!is.na(!!rlang::sym(metabolite_1)) &
+          !is.na(!!rlang::sym(metabolite_2))) |>
+        nrow()
+
+      log_results <- list(
+        "Dataset 1 Unmatched" = n1,
+        "Dataset 2 Unmatched" = n2,
+        "Matched" = n12,
+        "Correct Matched Annotated Metabolites" = m_correct,
+        "Total Matched Annotated Metabolites" = m_total,
+        "Percentage Correct Matched Annotated Metabolites" = m_correct / m_total
       )
 
-      logr::log_close()
+      time_end <- Sys.time()
+      time <- time_end - time_start
+      date$runtime <- time
+
+      log_file <- list(
+        date = log_date,
+        r_version = log_r,
+        parameters = log_params,
+        results = log_results
+      )
+      log_file <-
+        jsonlite::toJSON(log_file, auto_unbox = TRUE, pretty = TRUE)
+
+      writeLines(log_file, log)
+
+      return(align_obj)
     }
     return(align_obj)
   }

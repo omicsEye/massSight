@@ -1,3 +1,8 @@
+# massSight 0.2.1
+
+* Fixed bug in `final_plots()` that prevented the display of all matched metabolites
+* Removed pre-isolation matching from `auto_combine()`
+
 # massSight 0.2.0
 
 * Added more robust plotting features
