@@ -57,8 +57,8 @@ auto_scale <- function(data,
     is_index <- which(compound_ids %in% is_to_use)
 
     if (length(is_index) > 0) {
-      scalars <- data[is_index, ]
-      scalars <- t(scalars / apply(scalars, 2, stats::median))
+      scalars <- data[is_index, -1]
+      scalars <- t(scalars / as.numeric(apply(scalars, 1, stats::median)))
       scalars <- rowMeans(scalars, na.rm = TRUE)
 
       if (any(is.na(scalars))) {
@@ -68,7 +68,7 @@ auto_scale <- function(data,
         )
       }
 
-      ndata <- ndata / scalars
+      ndata <- ndata[,-1] / scalars
       message("IS complete")
     } else {
       return("Please specify an internal standards if you are using IS normalization.")
