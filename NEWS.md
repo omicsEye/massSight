@@ -1,3 +1,5 @@
+# massSight 0.2.1
+
 # massSight 0.2.0
 
 * Added more robust plotting features
