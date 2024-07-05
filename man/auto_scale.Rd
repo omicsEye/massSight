@@ -5,18 +5,24 @@
 \title{Auto Scale}
 \usage{
 auto_scale(
-  is_to_use,
-  pref_to_use,
-  prefs_to_remove,
-  normalization,
   data,
   sample_information,
-  pool_missing_p,
-  fill_method,
+  is_to_use = "",
+  pref_to_use = "PREFA",
+  prefs_to_remove = "",
+  normalization = c("IS", "NN"),
+  pool_missing_p = 100,
+  fill_method = "none",
   smooth_method = "lowess"
 )
 }
 \arguments{
+\item{data}{A data frame of the data to be normalized. This should be the
+output of the \code{read_data} function.}
+
+\item{sample_information}{A data frame of the sample information. This should
+be the output of the \code{read_sample_information} function.}
+
 \item{is_to_use}{A vector of the internal standards to use for normalization.
 If you do not want to use internal standards, leave this blank.}
 
@@ -30,12 +36,6 @@ blank.}
 
 \item{normalization}{A string of the normalization method to use. This can be
 "IS", "NN", or "SMOOTH".}
-
-\item{data}{A data frame of the data to be normalized. This should be the
-output of the \code{read_data} function.}
-
-\item{sample_information}{A data frame of the sample information. This should
-be the output of the \code{read_sample_information} function.}
 
 \item{pool_missing_p}{A boolean indicating whether or not to pool missing
 values. If TRUE, missing values will be pooled. If FALSE, missing values will
