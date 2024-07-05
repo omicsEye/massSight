@@ -1,3 +1,5 @@
+# massSight (development version)
+
 # massSight 0.2.1
 
 * Fixed bug in `final_plots()` that prevented the display of all matched metabolites
