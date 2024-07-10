@@ -28,6 +28,7 @@ Imports:
     ggExtra,
     ggplot2,
     logr,
+    magrittr,
     methods,
     mgcv,
     progress,

@@ -10,7 +10,7 @@ vignette: >
   %\VignetteIndexEntry{Alignment Tutorial using iHMP Data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-build: no
+  %\BuildVignettes{FALSE}
 ---
 
 ```{r, include = FALSE}
@@ -30,8 +30,15 @@ First, `massSight` can be installed via `devtools`:
 
 ```{r, eval = F}
 install.packages("devtools")
+
 devtools::install_github("omicsEye/massSight")
+```
+
+Then, we can load the necessary libraries
+
+```{r, eval = F}
 library(massSight)
+library(ggplot2)
 ```
 
 We can then download the iHMP datasets.
@@ -221,9 +228,8 @@ ref_C18 <- create_ms_obj(
 aligned_c18 <- auto_combine(
   ms1 = ref_C18,
   ms2 = ms_C18_CD,
-  iso_method = "dbscan",
-  eps = .15,
-  smooth_method = "loess"
+  smooth_method = "gam",
+  log = NULL
 )
 ```
 

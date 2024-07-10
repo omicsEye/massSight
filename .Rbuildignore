@@ -7,3 +7,6 @@
 ^pkgdown$
 ^data-raw$
 ^inst\R
+^massSight-benchmarking$
+^massSight.wiki$
+^\.lintr$

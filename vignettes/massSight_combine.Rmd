@@ -7,7 +7,7 @@ vignette: >
   %\VignetteIndexEntry{Alignment Tutorial using iHMP Data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-build: no
+  %\BuildVignettes{FALSE}
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)

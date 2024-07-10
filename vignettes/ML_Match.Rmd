@@ -5,6 +5,7 @@ vignette: >
   %\VignetteIndexEntry{ML_Match}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+  %\BuildVignettes{FALSE}
 ---
 
 ```{r, include = FALSE}

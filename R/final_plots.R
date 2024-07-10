@@ -29,7 +29,7 @@ final_plots <-
       dplyr::inner_join(
         adjusted_df(merged_ms_obj) |>
           dplyr::select(Compound_ID, RT_2_adj, MZ_2_adj),
-        by = setNames("Compound_ID", ci_name2)
+        by = stats::setNames("Compound_ID", ci_name2)
       )
 
     all_pairs <- paste0(pairs_base, nrow(all_matched))
