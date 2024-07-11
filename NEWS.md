@@ -1,5 +1,7 @@
 # massSight (development version)
 
+* Working `auto_scale()` function for the scaling of metabolite features
+
 # massSight 0.2.1
 
 * Fixed bug in `final_plots()` that prevented the display of all matched metabolites

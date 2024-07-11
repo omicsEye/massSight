@@ -10,3 +10,5 @@
 ^massSight-benchmarking$
 ^massSight.wiki$
 ^\.lintr$
+^log$
+^\.vscode$

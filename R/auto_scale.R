@@ -56,7 +56,7 @@ auto_scale <- function(data,
 
     if (length(is_index) > 0) {
       scalars <- t(data[is_index, ])
-      scalars <- scalars / apply(scalars, 2, median, na.rm = TRUE)
+      scalars <- scalars / apply(scalars, 2, stats::median, na.rm = TRUE)
       scalars <- rowMeans(scalars, na.rm = TRUE)
 
       if (any(is.na(scalars))) {

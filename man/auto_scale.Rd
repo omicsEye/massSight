@@ -37,17 +37,14 @@ blank.}
 \item{normalization}{A string of the normalization method to use. This can be
 "IS", "NN", or "SMOOTH".}
 
-\item{pool_missing_p}{A boolean indicating whether or not to pool missing
-values. If TRUE, missing values will be pooled. If FALSE, missing values will
-be filled with the half-minimum.}
+\item{pool_missing_p}{A numeric value indicating the percentage of missing
+pools allowed before skipping normalization (0-100).}
 
 \item{fill_method}{A string indicating how to fill missing values. This can
-be "half-min" or "mean". If "half-min", missing values will be filled with
-the half-minimum. If "mean", missing values will be filled with the mean.}
+be "half-min" or "none".}
 
 \item{smooth_method}{A string indicating the smoothing method to use. This
-can be "lowess" or "loess". If "lowess", a local polynomial regression will
-be used. If "loess", a local polynomial regression will be used.}
+can be "lowess", "line", "spline", or "gaussian".}
 }
 \value{
 A data frame of the normalized data.
