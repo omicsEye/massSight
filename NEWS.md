@@ -1,6 +1,7 @@
 # massSight (development version)
 
 * Working `auto_scale()` function for the scaling of metabolite features
+* Fixed logging feature for `auto_combine()`
 
 # massSight 0.2.1
 
