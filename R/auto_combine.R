@@ -127,12 +127,6 @@ setMethod(
     ms1(align_obj) <- ms1
     ms2(align_obj) <- ms2
     align_obj <- align_obj |>
-      # align_pre_isolated_compounds(
-      #   rt_minus = rt_lower,
-      #   rt_plus = rt_upper,
-      #   mz_minus = mz_lower,
-      #   mz_plus = mz_upper
-      # ) |>
       align_isolated_compounds(
         match_method = match_method,
         rt_minus = rt_lower,
@@ -186,14 +180,13 @@ setMethod(
       )
 
       time_end <- Sys.time()
-      time <- time_end - time_start
-      date$runtime <- time
 
       log_file <- list(
         date = log_date,
         r_version = log_r,
         parameters = log_params,
-        results = log_results
+        results = log_results,
+        runtime = as.numeric(time_end - time_start)
       )
       log_file <-
         jsonlite::toJSON(log_file, auto_unbox = TRUE, pretty = TRUE)
