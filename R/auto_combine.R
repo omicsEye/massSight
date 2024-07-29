@@ -32,7 +32,6 @@
 #' be used. Options are "lowess", "spline", and "gaussian".
 #' @param weights A numeric vector indicating the weights to be used for
 #' the alignment.
-#' @param keep_features A logical vector indicating whether or not to
 #' @param log A character indicating the name of the log file.
 #' @param output A character indicating the directory to save the output. If NULL,
 #' the output will be saved in the current working directory.
@@ -52,7 +51,6 @@ setGeneric("auto_combine", function(ms1,
                                     match_method = "unsupervised",
                                     smooth_method = "gam",
                                     weights = c(1, 1, 1),
-                                    keep_features = c(F, F),
                                     log = NULL,
                                     output = NULL) {
   standardGeneric("auto_combine")
@@ -75,7 +73,6 @@ setMethod(
            match_method = "unsupervised",
            smooth_method = "gam",
            weights = c(1, 1, 1),
-           keep_features = c(FALSE, FALSE),
            log = "log.json",
            output = NULL) {
     if (!is.null(log)) {
@@ -144,7 +141,6 @@ setMethod(
         minimum_int = minimum_intensity
       ) |>
       final_results(
-        keep_features = keep_features,
         weights = weights
       )
 

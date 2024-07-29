@@ -1,6 +1,5 @@
 final_results <-
   function(align_ms_obj,
-           keep_features = c(FALSE, FALSE),
            weights = c(1, 1, 1)) {
     study1_name <- name(ms1(align_ms_obj))
     study2_name <- name(ms2(align_ms_obj))
