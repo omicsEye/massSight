@@ -169,6 +169,7 @@ smooth_drift <- function(align_ms_obj,
       "Intensity" = results$sintensity
     )
     scaled_values <- data.frame(
+      "Compound_ID" = df2$Compound_ID,
       "RT" = scaled_rts,
       "MZ" = scaled_mzs,
       "Intensity" = scaled_intensity

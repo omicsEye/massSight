@@ -1,6 +1,6 @@
 dedup <- function(cols, item) {
   item_locations <- which(cols == item)
-  for (i in 1:length(item_locations)) {
+  for (i in seq_along(item_locations)) {
     if (i != 1) {
       cols[item_locations[i]] <- paste0(item, "_", i)
     }
@@ -9,8 +9,8 @@ dedup <- function(cols, item) {
 }
 
 mad_based_outlier <- function(points, thresh = 5) {
-  diff <- sqrt((points - stats::median(points, na.rm = T))^2)
-  med_abs_deviation <- stats::median(diff, na.rm = T)
+  diff <- sqrt((points - stats::median(points, na.rm = TRUE))^2)
+  med_abs_deviation <- stats::median(diff, na.rm = TRUE)
   if (med_abs_deviation == 0) {
     mod_z_score <- rep(0, length(diff))
   } else {

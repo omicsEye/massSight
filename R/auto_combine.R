@@ -147,6 +147,7 @@ setMethod(
     if (!is.null(log)) {
       log_parameters(log, log_params, log_r, log_date, align_obj, ms1, ms2, time_start)
     }
+    return(align_obj)
   }
 )
 

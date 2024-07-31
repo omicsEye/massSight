@@ -3,7 +3,6 @@ find_closest_match <-
            ref,
            stds) {
     ref_index <- ref$Compound_ID
-    cutoffs <- stds
 
     rt_hits <- (ref$RT <= (query$RT + .5)) &
       (ref$RT >= (query$RT - .5))
@@ -11,7 +10,9 @@ find_closest_match <-
     mz_hits <- (ref$MZ < (query$MZ + .1)) &
       (ref$MZ > (query$MZ - .1))
 
-    if (!(TRUE %in% (rt_hits & mz_hits))) {
+    combined_hits <- rt_hits & mz_hits
+
+    if (!(TRUE %in% (combined_hits))) {
       return(NULL)
     }
 
@@ -20,7 +21,7 @@ find_closest_match <-
       dplyr::filter(rt_hits & mz_hits)
     hits_index <- ref_index[rt_hits & mz_hits]
     hits_results <- c()
-    for (i in 1:nrow(hits)) {
+    for (i in seq_len(nrow(hits))) {
       score <- rms(
         query,
         hits[i, ],

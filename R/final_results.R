@@ -35,9 +35,9 @@ final_results <-
       progress::progress_bar$new(
         format = "Aligning datasets [:bar] :percent :eta",
         total = nrow(df1_for_align),
-        clear = F
+        clear = FALSE
       )
-    for (i in 1:nrow(df1_for_align)) {
+    for (i in seq_len(nrow(df1_for_align))) {
       best_match <-
         find_closest_match(df1_for_align[i, ], df2_for_align, stds)
       if (!is.null(best_match)) {

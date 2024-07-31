@@ -1,7 +1,7 @@
 get_cutoffs <-
   function(df1,
            df2,
-           has_int = T) {
+           has_int = TRUE) {
     data_rt <- df2$RT - df1$RT
     data_mz <- (df2$MZ - df1$MZ) / df1$MZ * 1e6
 
