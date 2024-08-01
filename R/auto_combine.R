@@ -251,7 +251,7 @@ rms <- function(a, b, std) {
     mz_contribution <- (ppm_difference / std[2])^2
   }
 
-  score <- mean(c(rt_contribution, mz_contribution))
+  score <- rt_contribution * .2 + mz_contribution * .8
   return(score)
 }
 

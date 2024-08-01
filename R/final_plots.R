@@ -94,7 +94,7 @@ final_plots <-
       ggplot2::labs(title = "Scaled Matches",
                     x = "RT 1",
                     y = expression(Delta * "RT")) +
-      ggplot2::ylim(rt_lim) +
+      ggplot2::ylim((c(-1, 1))) +
       theme_omicsEye()
 
     rt_all <-
