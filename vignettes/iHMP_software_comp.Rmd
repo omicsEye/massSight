@@ -31,6 +31,8 @@ First, `massSight` can be installed via `devtools`:
 ```{r, eval = F}
 install.packages("devtools")
 devtools::install_github("omicsEye/massSight")
+```
+```{r, eval = F}
 library(massSight)
 ```
 
@@ -191,7 +193,7 @@ We recommend the use of `ggsave()` from the package `ggplot2` for the saving of 
 final_smooth <- final_plots(aligned)
 
 ggsave(
-  filename = "manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png",
+  filename = "~/Downloads/fig_iHMP_software_comp/final_smooth_ref_all.png",
   plot = final_smooth,
   width = 7.2,
   height = 3.5,
@@ -221,9 +223,8 @@ ref_C18 <- create_ms_obj(
 aligned_c18 <- auto_combine(
   ms1 = ref_C18,
   ms2 = ms_C18_CD,
-  iso_method = "dbscan",
-  eps = .15,
-  smooth_method = "loess"
+  smooth_method = "gam",
+  log = NULL
 )
 ```
 
@@ -236,7 +237,7 @@ final_plots(aligned_c18)
 ```{r, eval = F}
 final_smooth_ref_C18 <- final_plots(aligned_c18)
 ggsave(
-  filename = "manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png",
+  filename = "~/Downloads/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png",
   plot = final_smooth_ref_C18,
   width = 7.2,
   height = 3.5,
