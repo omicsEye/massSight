@@ -18,6 +18,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+devtools::load_all()
 ```
 
 ## Setup
@@ -188,12 +189,9 @@ final_plots(aligned)
 
 We recommend the use of `ggsave()` from the package `ggplot2` for the saving of publication quality figures.
 
-```{r, eval = T}
-## Visualization
-final_smooth <- final_plots(aligned)
-
+```{r, eval = F}
 ggsave(
-  filename = "~/Downloads/fig_iHMP_software_comp/final_smooth_ref_all.png",
+  filename = "plots/final_smooth_ref_all.png",
   plot = final_smooth,
   width = 7.2,
   height = 3.5,
@@ -219,7 +217,7 @@ ref_C18 <- create_ms_obj(
 
 ## Run auto_combine with dbscan
 
-```{r, cache = T, eval = F}
+```{r, cache = T, eval = T}
 aligned_c18 <- auto_combine(
   ms1 = ref_C18,
   ms2 = ms_C18_CD,
@@ -235,10 +233,8 @@ final_plots(aligned_c18)
 ```
 
 ```{r, eval = F}
-final_smooth_ref_C18 <- final_plots(aligned_c18)
 ggsave(
-  filename = "~/Downloads/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png",
-  plot = final_smooth_ref_C18,
+  filename = "plots/final_smooth_ref_C18.png",
   width = 7.2,
   height = 3.5,
   units = "in",

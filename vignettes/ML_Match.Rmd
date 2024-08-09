@@ -2,7 +2,7 @@
 title: "ML Match"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{ML_Match}
+  %\VignetteIndexEntry{ML Match}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -12,10 +12,12 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+devtools::load_all()
 ```
 
 ```{r setup}
 library(massSight)
+library(randomForest)
 ```
 
 ```{r}
