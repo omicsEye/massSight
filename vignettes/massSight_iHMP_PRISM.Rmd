@@ -101,7 +101,7 @@ ref_input <-
 
 ## load PRISM clustered data as main output 
 
-```{r, cache = T, results = 'True', message=TRUE, warning=TRUE}
+```{r, results = 'True', message=TRUE, warning=TRUE}
 PRISM <-
   massSight::load_data(
     input = "data/41564_2018_306_MOESM_combined3_4_ESM.xlsx",
@@ -128,7 +128,7 @@ PRISM_input$Method <- PRISM_Methods
 
 ## Create an object for iHMP data as reference for alignment and combining 
 
-```{r, cache = T, results = 'hide', message=TRUE, warning=TRUE}
+```{r, results = 'hide', message=TRUE, warning=TRUE}
 aligned_df <- vector(mode = "list", length = 4)
 profiling_methods <- c("HILIC-neg", "HILIC-pos", "C18-neg", "C8-pos")
 names(aligned_df) <- profiling_methods
@@ -157,6 +157,14 @@ for (profiling_method in profiling_methods) {
   # create and save distribution of MZ and RT of features
   ms1_distr <- massSight::distribution_plot(query[[profiling_method]])
   ms2_distr <- massSight::distribution_plot(ref[[profiling_method]])
+  print(ms1_distr)
+  print(ms2_distr)
+}
+```
+
+These plots can be saved locally as well.
+
+```{r, eval = F}
   ggsave(
     filename = paste0("analysis/iHMP_PRISM/PRISM_", profiling_method, "_query_distr_plot.png"),
     plot = ms1_distr,
@@ -175,12 +183,10 @@ for (profiling_method in profiling_methods) {
     dpi = 300,
     create.dir = TRUE
   )
-  print(ms1_distr)
-  print(ms2_distr)
 }
 ```
 
-```{r, cache = T, results = 'hide', message=TRUE, warning=TRUE}
+```{r, results = 'hide', message=TRUE, warning=TRUE}
 for (profiling_method in profiling_methods) {
   print(profiling_method)
   aligned_df[[profiling_method]] <-

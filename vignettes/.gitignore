@@ -2,3 +2,4 @@
 *.R
 data/
 iHMP_software_comp_cache/
+*_cache/
