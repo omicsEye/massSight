@@ -5,61 +5,49 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<meta name="description" content="massSight">
 <title>Alignment Tutorial using iHMP Data • massSight</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.2.2/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.2.2/bootstrap.bundle.min.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
-<!-- bootstrap-toc --><script src="https://cdn.jsdelivr.net/gh/afeld/bootstrap-toc@v1.0.1/dist/bootstrap-toc.min.js" integrity="sha256-4veVQbu7//Lk5TSmc7YV48MxtMy98e26cf5MrgZYnwo=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- search --><script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.6/fuse.js" integrity="sha512-zv6Ywkjyktsohkbp9bb45V6tEMoWhzFzXis+LrMehmJZZSys19Yxf1dopHx7WzIKxr5tK2dVcYmaCk2uqdjF4A==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/autocomplete.js/0.38.0/autocomplete.jquery.min.js" integrity="sha512-GU9ayf+66Xx2TmpxqJpliWbT5PiGYxpaG8rfnBEk1LL8l1KGkRShhngwdXK1UgqhAzWpZHSiYPc09/NwDQIGyg==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/mark.min.js" integrity="sha512-5CYOlHXGh6QpOFA/TeTylKLWfB3ftPsde7AnmhuitiTX4K5SqCLBeKro6sPS8ilsz1Q4NRx3v8Ko2IBiszzdww==" crossorigin="anonymous"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Alignment Tutorial using iHMP Data">
-<meta property="og:description" content="massSight">
-<!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
-<script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
-<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-<![endif]-->
+<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Alignment Tutorial using iHMP Data">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
-    
 
-    <nav class="navbar fixed-top navbar-dark navbar-expand-lg bg-primary"><div class="container">
-    
+
+    <nav class="navbar navbar-expand-lg fixed-top bg-primary" data-bs-theme="dark" aria-label="Site navigation"><div class="container">
+
     <a class="navbar-brand me-2" href="../index.html">massSight</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.2.9000</small>
 
-    
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item">
-  <a class="nav-link" href="../reference/index.html">Reference</a>
-</li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item dropdown">
-  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
-  <div class="dropdown-menu" aria-labelledby="dropdown-articles">
-    <a class="dropdown-item" href="../articles/iHMP_software_comp.html">Alignment Tutorial using iHMP Data</a>
-  </div>
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="../articles/iHMP_software_comp.html">Alignment Tutorial using iHMP Data</a></li>
+    <li><a class="dropdown-item" href="../articles/massSight_iHMP_PRISM.html">massSight combine iHMP and PRISM metabolites (IBD studies)</a></li>
+  </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
-<form class="form-inline my-2 my-lg-0" role="search">
-        <input type="search" class="form-control me-sm-2" aria-label="Toggle navigation" name="search-input" data-search-index="../search.json" id="search-input" placeholder="Search for" autocomplete="off">
-</form>
-
-      <ul class="navbar-nav">
-<li class="nav-item">
-  <a class="external-link nav-link" href="https://github.com/omicsEye/massSight/" aria-label="github">
-    <span class="fab fa fab fa-github fa-lg"></span>
-     
-  </a>
-</li>
+<ul class="navbar-nav">
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/omicsEye/massSight/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
-    
+
   </div>
 </nav><div class="container template-article">
 
@@ -68,7 +56,8 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="" class="logo" alt=""><h1>Alignment Tutorial using iHMP Data</h1>
+
+      <h1>Alignment Tutorial using iHMP Data</h1>
                         <h4 data-toc-skip class="author">Chiraag Gohel,
 <a href="mailto:chiraaggohel@gwu.edu" class="email">chiraaggohel@gwu.edu</a>
 </h4>
@@ -79,7 +68,8 @@
 <a href="mailto:rahnavard@gwu.edu" class="email">rahnavard@gwu.edu</a>
 </h4>
             
-            <h4 data-toc-skip class="date">Compiled: June 18, 2023</h4>
+            <h4 data-toc-skip class="date">Compiled: August 14,
+2024</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/omicsEye/massSight/blob/HEAD/vignettes/iHMP_software_comp.Rmd" class="external-link"><code>vignettes/iHMP_software_comp.Rmd</code></a></small>
       <div class="d-none name"><code>iHMP_software_comp.Rmd</code></div>
@@ -92,37 +82,39 @@
 </h2>
 <p>For this tutorial, we will be analyzing two datasets from the NIH
 human microbiome project that were processed using different techniques.
-The first dataset can be downloaded <a href="https://gwu.box.com/v/HMP2metabolomics" class="external-link">here</a>. The second
-dataset can be downloaded <a href="https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz" class="external-link">here</a>.</p>
+We provide a function (<code><a href="../reference/load_ihmp_data.html">load_ihmp_data()</a></code>) that automatically
+creates a data directory, and downloads the datasets into it.</p>
+<p>The datasets can also be downloaded manually. The first dataset can
+be downloaded <a href="https://gwu.box.com/shared/static/u5b2djx2sf1tq6gy3twz0x4hno1r4o58.xlsx" class="external-link">here</a>.
+The second dataset can be downloaded <a href="https://gwu.box.com/s/hrgfgmlllvzvmzbzyn8tolygel9brkkz" class="external-link">here</a>.</p>
 <p>First, <code>massSight</code> can be installed via
 <code>devtools</code>:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">'devtools'</span><span class="op">)</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"omicsEye/massSight"</span>, force <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>We’ll also need to install the package <code>omicsArt</code>. This
-package provides helper functions for loading, wrangling, and
-visualizing data. Instructions for installing <code>omicsArt</code> can
-be found <a href="https://github.com/omicsEye/omicsArt" class="external-link">here</a>.</p>
-<p>We can then load the necessary libraries.</p>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"devtools"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"omicsEye/massSight"</span><span class="op">)</span></span></code></pre></div>
+<p>Then, we can load the necessary libraries</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/omicsEye/massSight" class="external-link">massSight</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">omicsArt</span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="http://haozhu233.github.io/kableExtra/" class="external-link">kableExtra</a></span><span class="op">)</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
+<p>We can then download the iHMP datasets.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/load_ihmp_data.html">load_ihmp_data</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="loading-ihmp-data">Loading iHMP data<a class="anchor" aria-label="anchor" href="#loading-ihmp-data"></a>
 </h2>
 <p>We can use the <code><a href="../reference/load_data.html">load_data()</a></code> function to import LC-MS data
 in excel format from a variety of standard pre-processed formats.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">loaded_data</span> <span class="op">&lt;-</span></span>
 <span>  <span class="fu">massSight</span><span class="fu">::</span><span class="fu"><a href="../reference/load_data.html">load_data</a></span><span class="op">(</span></span>
-<span>    input <span class="op">=</span> <span class="st">'data/HMP2_metabolomics.xlsx'</span>,</span>
-<span>    type <span class="op">=</span> <span class="st">'all'</span>,</span>
+<span>    input <span class="op">=</span> <span class="st">"data/progenesis_ihmp.xlsx"</span>,</span>
+<span>    type <span class="op">=</span> <span class="st">"all"</span>,</span>
 <span>    sheet <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>    id <span class="op">=</span> <span class="st">'Compound_ID'</span></span>
+<span>    id <span class="op">=</span> <span class="st">"Compound_ID"</span></span>
 <span>  <span class="op">)</span></span>
+<span></span>
 <span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">MZ</span> <span class="op">&lt;-</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">MZ</span><span class="op">)</span></span>
 <span><span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">$</span><span class="va">RT</span> <span class="op">&lt;-</span></span>
@@ -131,16 +123,18 @@ in excel format from a variety of standard pre-processed formats.</p>
 <span>  <span class="va">loaded_data</span><span class="op">$</span><span class="va">feature_metadata</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>, <span class="op">]</span></span></code></pre></div>
 <p>We can then use the <code><a href="../reference/filter_intensities.html">filter_intensities()</a></code> function to
 perform quality control and remove metabolites with low prevalence.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">hmp2_keep</span> <span class="op">&lt;-</span></span>
 <span>  <span class="fu"><a href="../reference/filter_intensities.html">filter_intensities</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span>, prevalence <span class="op">=</span> <span class="fl">.5</span><span class="op">)</span></span>
-<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="va">hmp2_keep</span>,<span class="op">]</span></span>
-<span><span class="va">feature_metadata2</span> <span class="op">&lt;-</span> <span class="va">feature_metadata2</span><span class="op">[</span><span class="va">hmp2_keep</span>,<span class="op">]</span></span>
+<span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="va">hmp2_keep</span>, <span class="op">]</span></span>
+<span><span class="va">feature_metadata2</span> <span class="op">&lt;-</span> <span class="va">feature_metadata2</span><span class="op">[</span><span class="va">hmp2_keep</span>, <span class="op">]</span></span>
 <span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">Intensity</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="va">loaded_data</span><span class="op">$</span><span class="va">data</span>, na.rm <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
 <span><span class="va">ref_input</span> <span class="op">&lt;-</span></span>
 <span>  <span class="va">feature_metadata2</span><span class="op">[</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">MZ</span><span class="op">)</span><span class="op">)</span> <span class="op">&amp;</span></span>
-<span>                      <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">RT</span><span class="op">)</span><span class="op">)</span>,<span class="op">]</span></span></code></pre></div>
+<span>    <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">feature_metadata2</span><span class="op">$</span><span class="va">RT</span><span class="op">)</span><span class="op">)</span>, <span class="op">]</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="create-a-masssight-object-for-the-first-dataset">Create a <code>massSight</code> object for the first dataset<a class="anchor" aria-label="anchor" href="#create-a-masssight-object-for-the-first-dataset"></a>
 </h3>
@@ -149,7 +143,7 @@ object (<code>MSObject</code>). The object serves as a container that
 contains raw data, analyzed data, and other information regarding the
 experiment. For more information about the <code>MSObject</code>, check
 out its <a href="https://omicseye.github.io/massSight/reference/MSObject-class.html">documentation</a>.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hmp2_ms</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
 <span>  df <span class="op">=</span> <span class="va">ref_input</span>,</span>
 <span>  name <span class="op">=</span> <span class="st">"iHMP"</span>,</span>
@@ -161,14 +155,22 @@ out its <a href="https://omicseye.github.io/massSight/reference/MSObject-class.h
 <span><span class="op">)</span></span></code></pre></div>
 <p>We can use the <code>raw_df()</code> function to access the stored
 data from the created object. Let’s see what it looks like!</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hmp2_ms</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">raw_df</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">kableExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/kableExtra/man/kbl.html" class="external-link">kbl</a></span><span class="op">(</span>format <span class="op">=</span> <span class="st">"simple"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
-<thead><tr class="header">
-<th></th>
+<colgroup>
+<col width="13%">
+<col width="13%">
+<col width="46%">
+<col width="5%">
+<col width="9%">
+<col width="11%">
+</colgroup>
+<thead><tr>
+<th align="left"></th>
 <th align="left">Compound_ID</th>
 <th align="left">Metabolite</th>
 <th align="right">RT</th>
@@ -176,48 +178,48 @@ data from the created object. Let’s see what it looks like!</p>
 <th align="right">Intensity</th>
 </tr></thead>
 <tbody>
-<tr class="odd">
-<td>C18n_TF6</td>
+<tr>
+<td align="left">C18n_TF6</td>
 <td align="left">C18n_TF6</td>
 <td align="left">C18-neg_2-hydroxyibuprofen_C18n_TF6</td>
 <td align="right">5.83</td>
 <td align="right">221.1183</td>
 <td align="right">3935485.79</td>
 </tr>
-<tr class="even">
-<td>C18n_QI90</td>
+<tr>
+<td align="left">C18n_QI90</td>
 <td align="left">C18n_QI90</td>
 <td align="left">C18-neg_acesulfame_C18n_QI90</td>
 <td align="right">0.94</td>
 <td align="right">161.9856</td>
 <td align="right">604711.27</td>
 </tr>
-<tr class="odd">
-<td>HILn_QI21</td>
+<tr>
+<td align="left">HILn_QI21</td>
 <td align="left">HILn_QI21</td>
 <td align="left">HILIC-neg_acesulfame_HILn_QI21</td>
 <td align="right">3.21</td>
 <td align="right">161.9868</td>
 <td align="right">1281511.77</td>
 </tr>
-<tr class="even">
-<td>HILp_TF21</td>
+<tr>
+<td align="left">HILp_TF21</td>
 <td align="left">HILp_TF21</td>
 <td align="left">HILIC-pos_alpha-hydroxymetoprolol_HILp_TF21</td>
 <td align="right">6.77</td>
 <td align="right">284.1861</td>
 <td align="right">3541139.07</td>
 </tr>
-<tr class="odd">
-<td>HILp_QI10262</td>
+<tr>
+<td align="left">HILp_QI10262</td>
 <td align="left">HILp_QI10262</td>
 <td align="left">HILIC-pos_C12:1 carnitine_HILp_QI10262</td>
 <td align="right">6.98</td>
 <td align="right">342.2646</td>
 <td align="right">805882.89</td>
 </tr>
-<tr class="even">
-<td>C8p_QI17</td>
+<tr>
+<td align="left">C8p_QI17</td>
 <td align="left">C8p_QI17</td>
 <td align="left">C8-pos_C20:4 LPE_C8p_QI17</td>
 <td align="right">4.70</td>
@@ -227,20 +229,20 @@ data from the created object. Let’s see what it looks like!</p>
 </tbody>
 </table>
 <p>We process the second dataset similarly.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">C18_CD</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.delim</a></span><span class="op">(</span></span>
-<span>  <span class="st">'data/iHMP_C18-FFA_CompoundDixcoverer_Exported_All_Samples_Annotated.csv'</span>,</span>
-<span>  sep <span class="op">=</span> <span class="st">','</span>,</span>
+<span>  <span class="st">"data/cd_c18n_ihmp.csv"</span>,</span>
+<span>  sep <span class="op">=</span> <span class="st">","</span>,</span>
 <span>  header <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  fill <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  comment.char <span class="op">=</span> <span class="st">""</span> ,</span>
+<span>  comment.char <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  check.names <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span>  <span class="co">#row.names = 1</span></span>
+<span>  <span class="co"># row.names = 1</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>We then check the column names to see what variable names should be
 used when converting the dataframe into a <code>massSight</code>
 object.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">10</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "Name"                                      </span></span>
 <span><span class="co">#&gt;  [2] "Annot. Source: MassList Search"            </span></span>
@@ -258,17 +260,20 @@ end of the dataframe. The <code><a href="../reference/load_data.html">load_data(
 the dataframe columns as numeric as the read dataframe has columns with
 various data types and to measure mean of rows of intensities we need to
 convert them to numeric.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">c18_keep</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/filter_intensities.html">filter_intensities</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">C18_CD</span><span class="op">[</span>, <span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">]</span>,</span>
-<span>                               prevalence <span class="op">=</span> <span class="fl">.5</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">c18_keep</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/filter_intensities.html">filter_intensities</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">C18_CD</span><span class="op">[</span>, <span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">]</span>,</span>
+<span>  prevalence <span class="op">=</span> <span class="fl">.5</span></span>
+<span><span class="op">)</span></span>
 <span><span class="va">C18_CD</span> <span class="op">&lt;-</span> <span class="va">C18_CD</span><span class="op">[</span><span class="va">c18_keep</span>, <span class="op">]</span></span>
 <span><span class="va">C18_CD</span><span class="op">$</span><span class="va">Intensity</span> <span class="op">&lt;-</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="fu">omicsArt</span><span class="fu">::</span><span class="fu">numeric_dataframe</span><span class="op">(</span><span class="va">C18_CD</span><span class="op">[</span>, <span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>           na.rm <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">[</span>, <span class="fl">7</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>    na.rm <span class="op">=</span> <span class="cn">T</span></span>
+<span>  <span class="op">)</span></span>
 <span><span class="va">C18_CD</span><span class="op">$</span><span class="va">row_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">C18_CD</span><span class="op">)</span></span></code></pre></div>
 <p>We then can create an object for C18_CD which includes FFA
 metabolites processed with Compound Discovery version</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ms_C18_CD</span> <span class="op">&lt;-</span></span>
 <span>  <span class="fu"><a href="../reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
 <span>    df <span class="op">=</span> <span class="va">C18_CD</span>,</span>
@@ -277,7 +282,7 @@ metabolites processed with Compound Discovery version</p>
 <span>    rt_name <span class="op">=</span> <span class="st">"RT [min]"</span>,</span>
 <span>    mz_name <span class="op">=</span> <span class="st">"m/z"</span>,</span>
 <span>    int_name <span class="op">=</span> <span class="st">"Intensity"</span>,</span>
-<span>    metab_name<span class="op">=</span> <span class="st">"Name"</span></span>
+<span>    metab_name <span class="op">=</span> <span class="st">"Name"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 </div>
 </div>
@@ -286,10 +291,10 @@ metabolites processed with Compound Discovery version</p>
 </h2>
 <p>We can visualize the distributions of retention time and mass to
 charge ratio using <code><a href="../reference/distribution_plot.html">distribution_plot()</a></code></p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/distribution_plot.html">distribution_plot</a></span><span class="op">(</span><span class="va">hmp2_ms</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/distribution_plot.html">distribution_plot</a></span><span class="op">(</span><span class="va">ms_C18_CD</span><span class="op">)</span></span></code></pre></div>
-<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-12-1.png" width="700"></p>
+<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-13-1.png" width="700"></p>
 </div>
 <div class="section level2">
 <h2 id="combining-datasets">Combining Datasets<a class="anchor" aria-label="anchor" href="#combining-datasets"></a>
@@ -297,41 +302,34 @@ charge ratio using <code><a href="../reference/distribution_plot.html">distribut
 <p>The <code><a href="../reference/auto_combine.html">auto_combine()</a></code> function allows users to combine two
 datasets via the modeling of RT and m/z drift between the two
 experiments. For more information on the function, check out its <a href="https://omicseye.github.io/massSight/reference/auto_combine.html">documentation</a>!</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/auto_combine.html">auto_combine</a></span><span class="op">(</span></span>
 <span>  ms1 <span class="op">=</span> <span class="va">hmp2_ms</span>,</span>
 <span>  ms2 <span class="op">=</span> <span class="va">ms_C18_CD</span>,</span>
-<span>  iso_method <span class="op">=</span> <span class="st">"dbscan"</span>,</span>
-<span>  eps <span class="op">=</span> <span class="fl">.15</span>,</span>
-<span>  smooth_method <span class="op">=</span> <span class="st">"loess"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Numbers of matched/kept features: 9189</span></span></code></pre></div>
+<span>  smooth_method <span class="op">=</span> <span class="st">"gam"</span>,</span>
+<span>  log <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
 </h2>
 <p>Visualization of alignment can be performed via the
 <code><a href="../reference/final_plots.html">final_plots()</a></code> function.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; Warning: Removed 7481 rows containing non-finite values</span></span>
-<span><span class="co">#&gt; (`stat_smooth()`).</span></span>
-<span><span class="co">#&gt; Warning: Removed 7481 rows containing missing values (`geom_point()`).</span></span></code></pre></div>
-<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-14-1.png" width="700"></p>
+<span><span class="co">#&gt; `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</span></span>
+<span><span class="co">#&gt; `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</span></span>
+<span><span class="co">#&gt; `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</span></span>
+<span><span class="co">#&gt; Warning: Removed 2222 rows containing missing values or values outside the scale range</span></span>
+<span><span class="co">#&gt; (`geom_point()`).</span></span>
+<span><span class="co">#&gt; Removed 2222 rows containing missing values or values outside the scale range</span></span>
+<span><span class="co">#&gt; (`geom_point()`).</span></span></code></pre></div>
+<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-15-1.png" width="700"></p>
 <p>We recommend the use of <code><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave()</a></code> from the package
 <code>ggplot2</code> for the saving of publication quality figures.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">## Visualization</span></span>
-<span><span class="va">final_smooth</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span></span>
-<span>  filename <span class="op">=</span> <span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_all.png'</span>,</span>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span></span>
+<span>  filename <span class="op">=</span> <span class="st">"plots/final_smooth_ref_all.png"</span>,</span>
 <span>  plot <span class="op">=</span> <span class="va">final_smooth</span>,</span>
 <span>  width <span class="op">=</span> <span class="fl">7.2</span>,</span>
 <span>  height <span class="op">=</span> <span class="fl">3.5</span>,</span>
@@ -342,7 +340,7 @@ experiments. For more information on the function, check out its <a href="https:
 <div class="section level2">
 <h2 id="using-only-c18-neg-as-a-reference">Using only C18-neg as a reference<a class="anchor" aria-label="anchor" href="#using-only-c18-neg-as-a-reference"></a>
 </h2>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ref_input_C18</span> <span class="op">&lt;-</span> <span class="va">ref_input</span><span class="op">[</span><span class="va">ref_input</span><span class="op">$</span><span class="va">Method</span> <span class="op">==</span> <span class="st">"C18-neg"</span>, <span class="op">]</span></span>
 <span><span class="va">ref_C18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
 <span>  df <span class="op">=</span> <span class="va">ref_input_C18</span>,</span>
@@ -357,63 +355,56 @@ experiments. For more information on the function, check out its <a href="https:
 <div class="section level2">
 <h2 id="run-auto_combine-with-dbscan">Run auto_combine with dbscan<a class="anchor" aria-label="anchor" href="#run-auto_combine-with-dbscan"></a>
 </h2>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">aligned_c18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/auto_combine.html">auto_combine</a></span><span class="op">(</span></span>
 <span>  ms1 <span class="op">=</span> <span class="va">ref_C18</span>,</span>
 <span>  ms2 <span class="op">=</span> <span class="va">ms_C18_CD</span>,</span>
-<span>  iso_method <span class="op">=</span> <span class="st">"dbscan"</span>,</span>
-<span>  eps <span class="op">=</span> <span class="fl">.15</span>,</span>
-<span>  smooth_method <span class="op">=</span> <span class="st">"loess"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Numbers of matched/kept features: 1001</span></span></code></pre></div>
+<span>  smooth_method <span class="op">=</span> <span class="st">"gam"</span>,</span>
+<span>  log <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="visualization-1">Visualization<a class="anchor" aria-label="anchor" href="#visualization-1"></a>
 </h2>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned_c18</span><span class="op">)</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; `geom_smooth()` using formula = 'y ~ x'</span></span>
-<span><span class="co">#&gt; Warning: Removed 70 rows containing non-finite values (`stat_smooth()`).</span></span>
-<span><span class="co">#&gt; Warning: Removed 70 rows containing missing values (`geom_point()`).</span></span></code></pre></div>
-<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-18-1.png" width="700"></p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">final_smooth_ref_C18</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned_c18</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span></span>
-<span>  filename <span class="op">=</span> <span class="st">'manuscript/figures/fig_iHMP_software_comp/final_smooth_ref_C18.png'</span>,</span>
-<span>  plot <span class="op">=</span> <span class="va">final_smooth_ref_C18</span>,</span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned_c18</span><span class="op">)</span></span>
+<span><span class="co">#&gt; `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</span></span>
+<span><span class="co">#&gt; `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</span></span>
+<span><span class="co">#&gt; `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</span></span>
+<span><span class="co">#&gt; Warning: Removed 49 rows containing missing values or values outside the scale range</span></span>
+<span><span class="co">#&gt; (`geom_point()`).</span></span>
+<span><span class="co">#&gt; Removed 49 rows containing missing values or values outside the scale range</span></span>
+<span><span class="co">#&gt; (`geom_point()`).</span></span></code></pre></div>
+<p><img src="iHMP_software_comp_files/figure-html/unnamed-chunk-19-1.png" width="700"></p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span></span>
+<span>  filename <span class="op">=</span> <span class="st">"plots/final_smooth_ref_C18.png"</span>,</span>
 <span>  width <span class="op">=</span> <span class="fl">7.2</span>,</span>
 <span>  height <span class="op">=</span> <span class="fl">3.5</span>,</span>
 <span>  units <span class="op">=</span> <span class="st">"in"</span>,</span>
 <span>  dpi <span class="op">=</span> <span class="fl">300</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-  </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
 
 
 
     <footer><div class="pkgdown-footer-left">
-  <p></p>
-<p>Developed by Chiraag Gohel, Ali Rahnavard.</p>
+  <p>Developed by Chiraag Gohel, Bahar Sayoldin, Ali Rahnavard.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.7.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
 </div>
 
     </footer>
 </div>
 
-  
 
-  
+
+
 
   </body>
 </html>

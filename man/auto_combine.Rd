@@ -19,7 +19,6 @@ auto_combine(
   match_method = "unsupervised",
   smooth_method = "gam",
   weights = c(1, 1, 1),
-  keep_features = c(F, F),
   log = NULL,
   output = NULL
 )
@@ -67,8 +66,6 @@ be used. Options are "lowess", "spline", and "gaussian".}
 
 \item{weights}{A numeric vector indicating the weights to be used for
 the alignment.}
-
-\item{keep_features}{A logical vector indicating whether or not to}
 
 \item{log}{A character indicating the name of the log file.}
 
