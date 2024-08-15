@@ -12,3 +12,4 @@
 ^\.lintr$
 ^log$
 ^\.vscode$
+^CITATION\.cff$
