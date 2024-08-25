@@ -25,7 +25,7 @@ final_plots <-
 
     all_matched <- all_matched(merged_ms_obj) |>
       dplyr::filter(!is.na(.data[[ci_name1]]) &
-                      !is.na(.data[[ci_name2]])) |>
+        !is.na(.data[[ci_name2]])) |>
       dplyr::inner_join(
         adjusted_df(merged_ms_obj) |>
           dplyr::select(Compound_ID, RT_2_adj, MZ_2_adj),
@@ -59,9 +59,11 @@ final_plots <-
         label = iso_pairs,
         size = 8 / ggplot2::.pt
       ) +
-      ggplot2::labs(title = "Isolated Matches",
-                    x = "RT 1",
-                    y = expression(Delta * "RT")) +
+      ggplot2::labs(
+        title = "Isolated Matches",
+        x = "RT 1",
+        y = expression(Delta * "RT")
+      ) +
       theme_omicsEye()
 
     rt_iso <-
@@ -91,9 +93,11 @@ final_plots <-
         label = all_pairs,
         size = 8 / ggplot2::.pt
       ) +
-      ggplot2::labs(title = "Scaled Matches",
-                    x = "RT 1",
-                    y = expression(Delta * "RT")) +
+      ggplot2::labs(
+        title = "Scaled Matches",
+        x = "RT 1",
+        y = expression(Delta * "RT")
+      ) +
       ggplot2::ylim((c(-1, 1))) +
       theme_omicsEye()
 
@@ -122,9 +126,11 @@ final_plots <-
         ggplot2::aes(x, y),
         col = "#AA9868"
       ) +
-      ggplot2::labs(title = "Isolated Matches",
-                    x = "MZ 1",
-                    y = expression(Delta * "MZ")) +
+      ggplot2::labs(
+        title = "Isolated Matches",
+        x = "MZ 1",
+        y = expression(Delta * "MZ")
+      ) +
       theme_omicsEye()
 
     mz_iso <-
@@ -138,7 +144,7 @@ final_plots <-
       ggplot2::ggplot(ggplot2::aes(
         x = .data[[mz_name1]],
         y = (.data$MZ_2_adj - .data[[mz_name1]]) / (.data$MZ_2_adj + .data[[mz_name1]]) / 2
-        * 1e6
+          * 1e6
       )) +
       ggplot2::geom_point(
         alpha = I(0.25),
@@ -149,9 +155,11 @@ final_plots <-
         stroke = 0.05
       ) +
       ggplot2::geom_hline(yintercept = 0, col = "#AA9868") +
-      ggplot2::labs(title = "Scaled Matches",
-                    x = "MZ 1",
-                    y = expression(Delta * "MZ")) +
+      ggplot2::labs(
+        title = "Scaled Matches",
+        x = "MZ 1",
+        y = expression(Delta * "MZ")
+      ) +
       ggplot2::ylim(mz_lim) +
       theme_omicsEye()
 
@@ -163,8 +171,10 @@ final_plots <-
       )
 
     out <- cowplot::plot_grid(rt_iso, rt_all, mz_iso, mz_all, nrow = 2) +
-      ggplot2::theme(plot.background =
-                       ggplot2::element_rect(fill = "white"))
+      ggplot2::theme(
+        plot.background =
+          ggplot2::element_rect(fill = "white")
+      )
 
     return(out)
   }

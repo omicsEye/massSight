@@ -199,7 +199,7 @@ hp2_annotated <- merged_df |>
   dplyr::select(Compound_ID_hp2, rep_Metabolite) |>
   dplyr::inner_join(hp2, by = c("Compound_ID_hp2" = "Compound_ID"))
 
-hp2_annotated |> 
+hp2_annotated |>
   dplyr::filter(rep_Metabolite != "") |>
   dplyr::arrange(rep_Metabolite) |>
   head(10) |>

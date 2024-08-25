@@ -165,25 +165,24 @@ for (profiling_method in profiling_methods) {
 These plots can be saved locally as well.
 
 ```{r, eval = F}
-  ggsave(
-    filename = paste0("analysis/iHMP_PRISM/PRISM_", profiling_method, "_query_distr_plot.png"),
-    plot = ms1_distr,
-    width = 5,
-    height = 5,
-    units = "in",
-    dpi = 300,
-    create.dir = TRUE
-  )
-  ggsave(
-    filename = paste0("analysis/iHMP_PRISM/iHMP_", profiling_method, "_ref_distr_plot.png"),
-    plot = ms2_distr,
-    width = 5,
-    height = 5,
-    units = "in",
-    dpi = 300,
-    create.dir = TRUE
-  )
-}
+ggsave(
+  filename = paste0("analysis/iHMP_PRISM/PRISM_", profiling_method, "_query_distr_plot.png"),
+  plot = ms1_distr,
+  width = 5,
+  height = 5,
+  units = "in",
+  dpi = 300,
+  create.dir = TRUE
+)
+ggsave(
+  filename = paste0("analysis/iHMP_PRISM/iHMP_", profiling_method, "_ref_distr_plot.png"),
+  plot = ms2_distr,
+  width = 5,
+  height = 5,
+  units = "in",
+  dpi = 300,
+  create.dir = TRUE
+)
 ```
 
 ```{r, results = 'hide', message=TRUE, warning=TRUE}
