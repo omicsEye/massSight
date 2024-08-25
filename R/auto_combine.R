@@ -100,6 +100,7 @@ setMethod(
 
     validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
 
+
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
         ref_iso <- getVectors(raw_df(ms1),
