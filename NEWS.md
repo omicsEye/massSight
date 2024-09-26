@@ -1,5 +1,7 @@
 # massSight (development version)
 
+* Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no labeled metabolites
+
 # massSight 0.2.2
 
 * Working `auto_scale()` function for the scaling of metabolite features
