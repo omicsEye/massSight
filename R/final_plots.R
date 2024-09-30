@@ -83,7 +83,7 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_smooth(col = "#AA9868") +
+      ggplot2::geom_smooth(col = "#AA9868", method = "gam") +
       ggplot2::annotate(
         "label",
         x = Inf,
@@ -143,8 +143,7 @@ final_plots <-
     mz_all <- all_matched |>
       ggplot2::ggplot(ggplot2::aes(
         x = .data[[mz_name1]],
-        y = (.data$MZ_2_adj - .data[[mz_name1]]) / (.data$MZ_2_adj + .data[[mz_name1]]) / 2
-          * 1e6
+        y = .data$MZ_2_adj - .data[[mz_name1]]
       )) +
       ggplot2::geom_point(
         alpha = I(0.25),

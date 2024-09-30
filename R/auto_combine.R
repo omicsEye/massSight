@@ -29,7 +29,7 @@
 #' be used to detect inter-batch variability. Options are "unsupervised" and
 #' "supervised".
 #' @param smooth_method A character indicating the smoothing method to
-#' be used. Options are "lowess", "spline", and "gaussian".
+#' be used. Options are "gam", or "gaussian".
 #' @param weights A numeric vector indicating the weights to be used for
 #' the alignment.
 #' @param log A character indicating the name of the log file.
@@ -277,88 +277,36 @@ align_isolated_compounds <-
     df1 <- isolated(ms1(align_ms_obj))
     df2 <- isolated(ms2(align_ms_obj))
     if (match_method == "unsupervised") {
-      if ("Intensity" %in% names(df1)) {
-        pb <-
-          progress::progress_bar$new(format = "Matching isolated features from datasets [:bar] :percent :eta",
-                                     total = nrow(df1),
-                                     clear = F)
-        results <- data.frame(
-          "df1" = character(),
-          "RT" = numeric(),
-          "MZ" = numeric(),
-          "Intensity" = numeric(),
-          "df2" = character(),
-          "RT_2" = numeric(),
-          "MZ_2" = numeric(),
-          "Intensity_2" = numeric()
-        )
-        for (row in 1:nrow(df1)) {
-          pb$tick()
-          df2_filter <- df2 |>
-            dplyr::filter(
-              .data$RT > df1$RT[row] + rt_minus &
-                .data$RT < df1$RT[row] + rt_plus &
-                .data$MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
-                .data$MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
-            )
-          if (nrow(df2_filter) > 0) {
-            for (row_2 in 1:nrow(df2_filter)) {
-              res_add <- data.frame(
-                df1 = df1$Compound_ID[row],
-                RT = df1$RT[row],
-                MZ = df1$MZ[row],
-                Intensity = df1$Intensity[row],
-                df2 = df2_filter$Compound_ID[row_2],
-                RT_2 = df2_filter$RT[row_2],
-                MZ_2 = df2_filter$MZ[row_2],
-                Intensity_2 = df2_filter$Intensity[row_2]
-              )
-              results <- results |>
-                rbind(res_add)
-            }
+      results <- df1 %>%
+        tidyr::crossing(df2, .name_repair = "unique_quiet") %>%
+        dplyr::rename_with( ~ setNames(
+          c(
+            "Compound_ID.x",
+            "RT.x",
+            "MZ.x",
+            "Compound_ID.y",
+            "RT.y",
+            "MZ.y"
+          ),
+          names(.)
+        )) %>%
+        dplyr::filter(
+          RT.y > (RT.x + rt_minus) & RT.y < (RT.x + rt_plus),
+          MZ.y > MZ.x + mz_minus * MZ.x / 1e4 &
+            MZ.y < MZ.x + mz_plus * MZ.x / 1e4
+        ) %>%
+        dplyr::rename(
+          RT = RT.x,
+          MZ = MZ.x,
+          RT_2 = RT.y,
+          MZ_2 = MZ.y
+        ) %>% {
+          if ("Intensity.x" %in% names(.)) {
+            dplyr::rename(., Intensity = Intensity.x, Intensity_2 = Intensity.y)
+          } else {
+            .
           }
         }
-      } else {
-        pb <-
-          progress::progress_bar$new(format = "Matching all features from datasets [:bar] :percent :eta",
-                                     total = nrow(df1),
-                                     clear = F)
-        results <- data.frame(
-          "df1" = character(),
-          "RT" = numeric(),
-          "MZ" = numeric(),
-          "df2" = character(),
-          "RT_2" = numeric(),
-          "MZ_2" = numeric()
-        )
-
-        for (row in 1:nrow(df1)) {
-          pb$tick()
-          df2_filter <- df2 |>
-            dplyr::filter(
-              .data$RT > (df1[row, "RT"] + rt_minus),
-              .data$RT < (df1[row, "RT"] + rt_plus),
-              .data$MZ > (df1[row, "MZ"] + mz_minus / 1e6),
-              .data$MZ < (df1[row, "MZ"] + mz_plus / 1e6)
-            )
-
-          if (nrow(df2_filter) > 0) {
-            for (row_2 in 1:nrow(df2_filter)) {
-              results <- results |>
-                dplyr::bind_rows(
-                  data.frame(
-                    "df1" = df1[row, "Compound_ID"],
-                    "RT" = df1[row, "RT"],
-                    "MZ" = df1[row, "MZ"],
-                    "df2" = df2_filter[row_2, "Compound_ID"],
-                    "RT_2" = df2_filter[row_2, "RT"],
-                    "MZ_2" = df2_filter[row_2, "MZ"]
-                  )
-                )
-            }
-          }
-        }
-      }
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
                   "Metabolite" %in% colnames(df2))
@@ -549,6 +497,17 @@ final_results <-
           )
         )
     } else {
+      new_names <- c(
+        "Compound_ID"   = paste("Compound_ID", study1_name, sep = "_"),
+        "df2"           = paste("Compound_ID", study2_name, sep = "_"),
+        "RT.x"          = paste("RT", study1_name, sep = "_"),
+        "RT.y"          = paste("RT", study2_name, sep = "_"),
+        "MZ.x"          = paste("MZ", study1_name, sep = "_"),
+        "MZ.y"          = paste("MZ", study2_name, sep = "_"),
+        "Intensity.x"   = paste("Intensity", study1_name, sep = "_"),
+        "Intensity.y"   = paste("Intensity", study2_name, sep = "_")
+      )
+
       df <- df |>
         dplyr::rename_with(
           ~ ifelse(
@@ -559,23 +518,22 @@ final_results <-
               paste("RT", study1_name, sep = "_"),
               paste("RT", study2_name, sep = "_"),
               paste("MZ", study1_name, sep = "_"),
-              paste("MZ", study2_name, sep = "_"),
-              paste("Intensity", study1_name, sep = "_"),
-              paste("Intensity", study2_name, sep = "_")
+              paste("MZ", study2_name, sep = "_")
             ),
             .x
           ),
-          .cols = c(
-            "Compound_ID",
-            "df2",
-            "RT.x",
-            "RT.y",
-            "MZ.x",
-            "MZ.y",
-            "Intensity.x",
-            "Intensity.y"
-          )
-        ) |>
+          .cols = c("Compound_ID", "df2", "RT.x", "RT.y", "MZ.x", "MZ.y", )
+        ) %>% {
+          if ("Intensity.x" %in% names(.)) {
+            dplyr::rename_with(~ ifelse(.x %in% names(df), c(
+              paste("Intensity", study1_name, sep = "_"),
+              paste("Intensity", study2_name, sep = "_")
+            ), .x),
+            .cols = c("Intensity.x", "Intensity.y"))
+          } else {
+            .
+          }
+        } %>%
         dplyr::mutate(
           rep_Compound_ID = dplyr::case_when(
             !is.na(get(Compound_ID_1)) ~
@@ -593,31 +551,37 @@ final_results <-
             !is.na(get(MZ_1)) ~ get(MZ_1),
             is.na(get(MZ_1)) & !is.na(get(MZ_2)) ~ get(MZ_2),
             TRUE ~ NA
-          ),
-          rep_Intensity = dplyr::case_when(
-            !is.na(get(Intensity_1)) ~ get(Intensity_1),
-            is.na(get(Intensity_1)) &
-              !is.na(get(Intensity_2)) ~ get(Intensity_2),
-            TRUE ~ NA
           )
-        ) |>
+        ) %>% {
+          if ("Intensity.x" %in% names(.)) {
+            dplyr::mutate(.,
+                          rep_Intensity = dplyr::case_when(
+                            !is.na(get(Intensity_1)) ~ get(Intensity_1),
+                            is.na(get(Intensity_1)) &
+                              !is.na(get(Intensity_2)) ~ get(Intensity_2),
+                            TRUE ~ NA
+                          ))
+          } else {
+            .
+          }
+        } %>%
         dplyr::select(
-          c(
+          dplyr::any_of(c(
             "rep_Compound_ID",
             "rep_RT",
             "rep_MZ",
             "rep_Intensity",
-            !!dplyr::sym(Compound_ID_1),
-            !!dplyr::sym(Compound_ID_2),
-            !!dplyr::sym(RT_1),
-            !!dplyr::sym(RT_2),
-            !!dplyr::sym(MZ_1),
-            !!dplyr::sym(MZ_2),
-            !!dplyr::sym(Intensity_1),
-            !!dplyr::sym(Intensity_2),
-            dplyr::everything(),
-            -dplyr::contains("_adj")
-          )
+            Compound_ID_1,
+            Compound_ID_2,
+            RT_1,
+            RT_2,
+            MZ_1,
+            MZ_2,
+            Intensity_1,
+            Intensity_2
+          )),
+          dplyr::everything(),
+          -dplyr::contains("_adj")
         )
     }
 
@@ -702,37 +666,37 @@ find_closest_match <-
     return(hits_index[hits_results == min(hits_results)])
   }
 
-get_cutoffs <-
-  function(df1, df2, has_int = TRUE) {
-    data_rt <- df2$RT - df1$RT
-    data_mz <- (df2$MZ - df1$MZ) / df1$MZ * 1e6
+get_cutoffs <- function(df1, df2, has_int = TRUE) {
+  data_rt <- df2$RT - df1$RT
+  data_mz <- (df2$MZ - df1$MZ) / df1$MZ * 1e6
 
-    if (has_int) {
-      data_int <- log10(df2$Intensity) - log10(df1$Intensity)
-      not_outliers <- !mad_based_outlier(data_rt) &
-        !mad_based_outlier(data_mz) &
-        !mad_based_outlier(data_int)
-      data_int <- replace(data_int, data_int %in% c(Inf, -Inf), NA)
-      cutoffs <- c(stats::sd(data_rt[not_outliers]),
-                   stats::sd(data_mz[not_outliers]),
-                   stats::sd(data_int[not_outliers]))
-    } else {
-      not_outliers <- !mad_based_outlier(data_rt) &
-        !mad_based_outlier(data_mz)
-      cutoffs <- c(stats::sd(data_rt[not_outliers]), stats::sd(data_mz[not_outliers]))
-    }
-
-    # TODO Fix below
-    # rt_outliers <- df1[mad_based_outlier(data_rt)] |>
-    #   rownames()
-    # mz_outliers <- df1[mad_based_outlier(data_mz)] |>
-    #   rownames()
-    # int_outliers <- df1[mad_based_outlier(data_int)] |>
-    #   rownames()
-    # outliers <- c(rt_outliers, mz_outliers, int_outliers)
-    outliers <- "tmp"
-    return(list("cutoffs" = cutoffs, "outliers" = outliers))
+  if (has_int) {
+    data_int <- log10(df2$Intensity) - log10(df1$Intensity)
+    not_outliers <- !mad_based_outlier(data_rt) &
+      !mad_based_outlier(data_mz) &
+      !mad_based_outlier(data_int)
+    data_int <- replace(data_int, is.infinite(data_int), NA)
+    cutoffs <- c(sd(data_rt[not_outliers], na.rm = TRUE),
+                 sd(data_mz[not_outliers], na.rm = TRUE),
+                 sd(data_int[not_outliers], na.rm = TRUE))
+  } else {
+    not_outliers <- !mad_based_outlier(data_rt) &
+      !mad_based_outlier(data_mz)
+    cutoffs <- c(sd(data_rt[not_outliers], na.rm = TRUE), sd(data_mz[not_outliers], na.rm = TRUE))
   }
+
+  # Properly identify outliers
+  rt_outliers <- df1$Compound_ID[mad_based_outlier(data_rt)]
+  mz_outliers <- df1$Compound_ID[mad_based_outlier(data_mz)]
+  if (has_int) {
+    int_outliers <- df1$Compound_ID[mad_based_outlier(data_int)]
+    outliers <- unique(c(rt_outliers, mz_outliers, int_outliers))
+  } else {
+    outliers <- unique(c(rt_outliers, mz_outliers))
+  }
+
+  return(list("cutoffs" = cutoffs, "outliers" = outliers))
+}
 
 smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
   df1 <- align_ms_obj |>
@@ -906,3 +870,185 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
   cutoffs(align_ms_obj) <- deviations
   return(align_ms_obj)
 }
+
+align_pre_isolated_compounds <-
+  function(align_ms_obj,
+           rt_minus = -.5,
+           rt_plus = .5,
+           mz_minus = -15,
+           mz_plus = 15,
+           keep = FALSE) {
+    df1 <- raw_df(ms1(align_ms_obj))
+    df2 <- raw_df(ms2(align_ms_obj))
+    if ("Intensity" %in% names(df1)) {
+      pb <-
+        progress::progress_bar$new(format = "Matching all features from datasets [:bar] :percent :eta",
+                                   total = nrow(df1),
+                                   clear = FALSE)
+      if ("Metabolite" %in% names(df1)) {
+        results <- data.frame(
+          "df1" = character(),
+          "RT" = numeric(),
+          "MZ" = numeric(),
+          "Intensity" = numeric(),
+          "Metabolite" = character(),
+          "df2" = character(),
+          "RT_2" = numeric(),
+          "MZ_2" = numeric(),
+          "Intensity_2" = numeric(),
+          "Metabolite" = character()
+        )
+        for (row in 1:nrow(df1)) {
+          pb$tick()
+          df2_filter <- df2 |>
+            dplyr::filter(
+              .data$RT > df1$RT[row] + rt_minus &
+                .data$RT < df1$RT[row] + rt_plus &
+                .data$MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
+                .data$MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
+            )
+          if (nrow(df2_filter) == 0) {
+            next
+          }
+          for (row_2 in 1:nrow(df2_filter)) {
+            res_add <- data.frame(
+              df1 = df1$Compound_ID[row],
+              RT = df1$RT[row],
+              MZ = df1$MZ[row],
+              Intensity = df1$Intensity[row],
+              Metabolite = df1$Metabolite[row],
+              df2 = df2_filter$Compound_ID[row_2],
+              RT_2 = df2_filter$RT[row_2],
+              MZ_2 = df2_filter$MZ[row_2],
+              Intensity_2 = df2_filter$Intensity[row_2],
+              Metabolite_2 = df2_filter$Metabolite[row_2]
+            )
+            results <- results |>
+              rbind(res_add)
+          }
+        }
+      } else {
+        results <- data.frame(
+          "df1" = character(),
+          "RT" = numeric(),
+          "MZ" = numeric(),
+          "Intensity" = numeric(),
+          "df2" = character(),
+          "RT_2" = numeric(),
+          "MZ_2" = numeric(),
+          "Intensity_2" = numeric()
+        )
+        for (row in 1:nrow(df1)) {
+          pb$tick()
+          df2_filter <- df2 |>
+            dplyr::filter(
+              .data$RT > df1$RT[row] + rt_minus &
+                .data$RT < df1$RT[row] + rt_plus &
+                .data$MZ > df1$MZ[row] + mz_minus * df1$MZ[row] / 1e6 &
+                .data$MZ < df1$MZ[row] + mz_plus * df1$MZ[row] / 1e6
+            )
+          if (nrow(df2_filter) == 0) {
+            next
+          }
+          for (row_2 in 1:nrow(df2_filter)) {
+            res_add <- data.frame(
+              df1 = df1$Compound_ID[row],
+              RT = df1$RT[row],
+              MZ = df1$MZ[row],
+              Intensity = df1$Intensity[row],
+              df2 = df2_filter$Compound_ID[row_2],
+              RT_2 = df2_filter$RT[row_2],
+              MZ_2 = df2_filter$MZ[row_2],
+              Intensity_2 = df2_filter$Intensity[row_2]
+            )
+            results <- results |>
+              rbind(res_add)
+          }
+        }
+      }
+    } else {
+      pb <-
+        progress::progress_bar$new(format = "Matching all features from datasets [:bar] :percent :eta",
+                                   total = nrow(df1),
+                                   clear = F)
+      if ("Metabolite" %in% names(df1)) {
+        results <- data.frame(
+          "df1" = character(),
+          "RT" = numeric(),
+          "MZ" = numeric(),
+          "Metabolite" = character(),
+          "df2" = character(),
+          "RT_2" = numeric(),
+          "MZ_2" = numeric(),
+          "Metabolite_2" = character()
+        )
+
+        for (row in 1:nrow(df1)) {
+          pb$tick()
+          df2_filter <- df2 |>
+            dplyr::filter(
+              .data$RT > (df1[row, "RT"] + rt_minus),
+              .data$RT < (df1[row, "RT"] + rt_plus),
+              .data$MZ > (df1[row, "MZ"] + mz_minus / 1e6),
+              .data$MZ < (df1[row, "MZ"] + mz_plus / 1e6)
+            )
+
+          if (nrow(df2_filter > 0)) {
+            for (row_2 in 1:nrow(df2_filter)) {
+              results <- results |>
+                dplyr::bind_rows(
+                  data.frame(
+                    "df1" = df1[row, "Compound_ID"],
+                    "RT" = df1[row, "RT"],
+                    "MZ" = df1[row, "MZ"],
+                    "Metabolite" = df1[row, "Metabolite"],
+                    "df2" = df2_filter[row_2, "Compound_ID"],
+                    "RT_2" = df2_filter[row_2, "RT"],
+                    "MZ_2" = df2_filter[row_2, "MZ"],
+                    "Metabolite_2" = df2_filter[row_2, "Metabolite"]
+                  )
+                )
+            }
+          }
+        }
+      } else {
+        results <- data.frame(
+          "df1" = character(),
+          "RT" = numeric(),
+          "MZ" = numeric(),
+          "df2" = character(),
+          "RT_2" = numeric(),
+          "MZ_2" = numeric()
+        )
+
+        for (row in 1:nrow(df1)) {
+          pb$tick()
+          df2_filter <- df2 |>
+            dplyr::filter(
+              .data$RT > (df1[row, "RT"] + rt_minus),
+              .data$RT < (df1[row, "RT"] + rt_plus),
+              .data$MZ > (df1[row, "MZ"] + mz_minus / 1e6),
+              .data$MZ < (df1[row, "MZ"] + mz_plus / 1e6)
+            )
+
+          if (nrow(df2_filter > 0)) {
+            for (row_2 in 1:nrow(df2_filter)) {
+              results <- results |>
+                dplyr::bind_rows(
+                  data.frame(
+                    "df1" = df1[row, "Compound_ID"],
+                    "RT" = df1[row, "RT"],
+                    "MZ" = df1[row, "MZ"],
+                    "df2" = df2_filter[row_2, "Compound_ID"],
+                    "RT_2" = df2_filter[row_2, "RT"],
+                    "MZ_2" = df2_filter[row_2, "MZ"]
+                  )
+                )
+            }
+          }
+        }
+      }
+    }
+    pre_iso_matched(align_ms_obj) <- results
+    return(align_ms_obj)
+  }

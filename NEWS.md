@@ -1,6 +1,7 @@
 # massSight (development version)
 
 * Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no labeled metabolites
+* Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no intensity column
 
 # massSight 0.2.2
 

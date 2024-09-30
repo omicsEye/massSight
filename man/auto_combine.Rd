@@ -62,7 +62,7 @@ be used to detect inter-batch variability. Options are "unsupervised" and
 "supervised".}
 
 \item{smooth_method}{A character indicating the smoothing method to
-be used. Options are "lowess", "spline", and "gaussian".}
+be used. Options are "gam", or "gaussian".}
 
 \item{weights}{A numeric vector indicating the weights to be used for
 the alignment.}

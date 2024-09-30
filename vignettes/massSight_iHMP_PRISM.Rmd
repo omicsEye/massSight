@@ -109,6 +109,7 @@ PRISM <-
     sheet = 1,
     id = "Compound_ID"
   )
+PRISM$feature_metadata$Metabolite <- PRISM$feature_metadata$`Exact Match to Standard (* = isomer family)`
 PRISM$feature_metadata$MZ <-
   as.numeric(PRISM$feature_metadata$MZ)
 PRISM$feature_metadata$RT <-
