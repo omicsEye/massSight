@@ -83,7 +83,7 @@ final_plots <-
         size = I(1.5),
         stroke = 0.05
       ) +
-      ggplot2::geom_smooth(col = "#AA9868", method = "gam") +
+      ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
       ggplot2::annotate(
         "label",
         x = Inf,
