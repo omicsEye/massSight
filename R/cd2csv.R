@@ -10,7 +10,7 @@
 #' @param output_file The name of the file to save the formatted data. If
 #' `NULL` (default), a csv file will not be written.
 #'
-#' @return A dataframe that can then be used by `massSight`'s `auto_combine()`
+#' @return A dataframe that can then be used by `massSight`'s `mass_combine()`
 #' or `auto_scale()`
 #' @export
 cd2csv <- function(path, gen_id = TRUE, output_file = NULL) {

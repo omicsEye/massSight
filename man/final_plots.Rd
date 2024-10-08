@@ -7,7 +7,7 @@
 final_plots(merged_ms_obj, rt_lim = c(-0.5, 0.5), mz_lim = c(-15, 15))
 }
 \arguments{
-\item{merged_ms_obj}{A Merged MS Object, typically the result of \code{auto_combine}}
+\item{merged_ms_obj}{A Merged MS Object, typically the result of \code{mass_combine}}
 
 \item{rt_lim}{RT bounds}
 

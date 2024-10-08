@@ -190,7 +190,7 @@ ggsave(
 for (profiling_method in profiling_methods) {
   print(profiling_method)
   aligned_df[[profiling_method]] <-
-    auto_combine(ref[[profiling_method]], query[[profiling_method]], smooth_method = "gam", log = NULL)
+    mass_combine(ref[[profiling_method]], query[[profiling_method]], smooth_method = "gam", log = NULL)
 }
 ```
 

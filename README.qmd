@@ -113,12 +113,12 @@ ms2 |>
 
 ## Alignment
 
-### `auto_combine()`
+### `mass_combine()`
 
-Alignment is performed using `auto_combine()`
+Alignment is performed using `mass_combine()`
 
 ```{r, eval = T}
-aligned <- auto_combine(
+aligned <- mass_combine(
   ms1,
   ms2,
   rt_lower = -.5,
@@ -130,7 +130,7 @@ aligned <- auto_combine(
 )
 ```
 
-More information on the `auto_combine()` function can be found in the [package documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)
+More information on the `mass_combine()` function can be found in the [package documentation](https://omicseye.github.io/massSight/reference/mass_combine.html)
 
 ### `ml_match()` 
 

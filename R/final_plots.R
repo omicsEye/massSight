@@ -1,6 +1,6 @@
 #' Final Plots
 #'
-#' @param merged_ms_obj A Merged MS Object, typically the result of `auto_combine`
+#' @param merged_ms_obj A Merged MS Object, typically the result of `mass_combine`
 #' @param rt_lim RT bounds
 #' @param mz_lim MZ bounds
 #'

@@ -40,7 +40,7 @@ initialize_log <- function(call) {
 
 
 modify_call <- function(call) {
-  defaults <- as.list(formals(auto_combine))
+  defaults <- as.list(formals(mass_combine))
   combined <- modifyList(defaults, as.list(call)[-1])
   call <- as.call(c(as.symbol(deparse(call[[1]])), combined))
   return(call)

@@ -173,10 +173,10 @@ distribution_plot(ms_C18_CD)
 
 ## Combining Datasets
 
-The `auto_combine()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/auto_combine.html)!
+The `mass_combine()` function allows users to combine two datasets via the modeling of RT and m/z drift between the two experiments. For more information on the function, check out its [documentation](https://omicseye.github.io/massSight/reference/mass_combine.html)!
 
 ```{r, cache = T, eval = T}
-aligned <- auto_combine(
+aligned <- mass_combine(
   ms1 = hmp2_ms,
   ms2 = ms_C18_CD,
   smooth_method = "gam",
@@ -220,10 +220,10 @@ ref_C18 <- create_ms_obj(
 )
 ```
 
-## Run auto_combine with dbscan
+## Run mass_combine with dbscan
 
 ```{r, cache = T, eval = T}
-aligned_c18 <- auto_combine(
+aligned_c18 <- mass_combine(
   ms1 = ref_C18,
   ms2 = ms_C18_CD,
   smooth_method = "gam",
