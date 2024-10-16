@@ -42,39 +42,10 @@ We have consolidated the data from the two sources and created a single excel fi
 
 The PRISM data can be downloaded from the following link: https://gwu.box.com/s/033vt0ieh3gucaw5f9as3fuvna7h1b4t
 
-## Download data
 
-```{r}
-# URLs to the Box files
-ihmp_url <- "https://gwu.box.com/s/i8fxlre70b0sbrdhp9sjjfautlmlwd6x"
-prism_url <- "https://gwu.box.com/s/033vt0ieh3gucaw5f9as3fuvna7h1b4t"
-
-# Create a temporary directory to store the files
-temp_dir <- tempdir()
-ihmp_file <- file.path(temp_dir, "HMP2_metabolomics.xlsx")
-prism_file <- file.path(temp_dir, "41564_2018_306_MOESM_combined3_4_ESM.xlsx")
-
-# Download the iHMP data if it's not already present
-if (!file.exists(ihmp_file)) {
-  download.file(ihmp_url, destfile = ihmp_file, mode = "wb")
-}
-
-# Download the PRISM data if it's not already present
-if (!file.exists(prism_file)) {
-  download.file(prism_url, destfile = prism_file, mode = "wb")
-}
-```
 
 ## Load iHMP data
-```{r, cache = T, results = 'True', message=TRUE, warning=TRUE}
-# list of recent annotations published by Broad Institute
-# iHMP_C18n <-
-#  read_xlsx("data/iHMP/C18n_Metabolites_ID_AfterPublication_2021-05-17.xlsx")
-# colnames(iHMP_C18n) <-
-#  c("Method" , "Compound_ID" , "MZ"    , "RT" , "Metabolite")
-# iHMP_C18n$Intensity <- 0
-
-# iHMP published data
+```{r, cache = T, warning=TRUE, echo = F, message = FALSE, warning = FALSE}
 loaded_data <-
   massSight::load_data(
     input = "data/HMP2_metabolomics.xlsx",
@@ -93,15 +64,57 @@ feature_metadata <- cbind(feature_metadata2, t(loaded_data$data))
 ref_input <-
   feature_metadata2[!is.na(feature_metadata2$MZ) &
     !is.na(feature_metadata2$RT), ]
-# ids <- sapply(str_split(feature_metadata2$Compound_ID, "_"), "[[", 2)
-# feature_metadata3 <- cbind(feature_metadata2, #t(loaded_data))
-# c("Compound_ID", "MZ", "RT", "Intensity", "Metabolite")
+```
+
+
+```{r, eval = F, echo = T}
+loaded_data <-
+  massSight::load_data(
+    input = "path/to/your/iHMP_data.xlsx",
+    type = "all",
+    sheet = 1,
+    id = "Compound_ID"
+  )
+loaded_data$feature_metadata$MZ <-
+  as.numeric(loaded_data$feature_metadata$MZ)
+loaded_data$feature_metadata$RT <-
+  as.numeric(loaded_data$feature_metadata$RT)
+feature_metadata2 <-
+  loaded_data$feature_metadata[colnames(loaded_data$data), ]
+feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm = T)
+feature_metadata <- cbind(feature_metadata2, t(loaded_data$data))
+ref_input <-
+  feature_metadata2[!is.na(feature_metadata2$MZ) &
+    !is.na(feature_metadata2$RT), ]
 ```
 
 
 ## load PRISM clustered data as main output 
 
-```{r, results = 'True', message=TRUE, warning=TRUE}
+```{r, echo = T, eval = F}
+PRISM <-
+  massSight::load_data(
+    input = "path/to/your/PRISM_data.xlsx",
+    type = "all",
+    sheet = 1,
+    id = "Compound_ID"
+  )
+PRISM$feature_metadata$MZ <-
+  as.numeric(PRISM$feature_metadata$MZ)
+PRISM$feature_metadata$RT <-
+  as.numeric(PRISM$feature_metadata$RT)
+feature_metadata2 <-
+  PRISM$feature_metadata[colnames(PRISM$data), ]
+feature_metadata2$Intensity <- colMeans(PRISM$data, na.rm = T)
+feature_metadata <- cbind(feature_metadata2, t(PRISM$data))
+PRISM_input <-
+  feature_metadata2[!is.na(feature_metadata2$MZ) &
+    !is.na(feature_metadata2$RT), ]
+PRISM_Methods <- sapply(str_split(PRISM_input$Compound_ID, "_"), "[[", 1)
+PRISM_input$Method <- PRISM_Methods
+```
+
+```{r, echo = F, message = F, warning = F}
 PRISM <-
   massSight::load_data(
     input = "data/41564_2018_306_MOESM_combined3_4_ESM.xlsx",
@@ -123,8 +136,8 @@ PRISM_input <-
 PRISM_Methods <- sapply(str_split(PRISM_input$Compound_ID, "_"), "[[", 1)
 PRISM_input$Method <- PRISM_Methods
 ```
-# Approach 1: iHMP vs. PRISM method by method
 
+# Approach 1: iHMP vs. PRISM method by method
 
 ## Create an object for iHMP data as reference for alignment and combining 
 
