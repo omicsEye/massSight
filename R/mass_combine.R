@@ -346,6 +346,8 @@ final_results <- function(align_ms_obj, weights = c(1, 1, 1)) {
   df1 <- raw_df(ms1(align_ms_obj))
   df2 <- raw_df(ms2(align_ms_obj))
   scaled_df <- scaled_values(align_ms_obj)
+  scaled_df$Intensity_2 <- df2$Intensity
+  scaled_df$Metabolite_2 <- df2$Metabolite
   stds <- cutoffs(align_ms_obj)
 
   # Create a joined matrix of potential matches
@@ -367,33 +369,26 @@ final_results <- function(align_ms_obj, weights = c(1, 1, 1)) {
     dplyr::group_by(Compound_ID_1) %>%
     dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
     dplyr::ungroup()
-
+  
   # Prepare the final results dataframe
   results <- best_matches %>%
     dplyr::rename(
-      !!paste0("Compound_ID_", study1_name) := Compound_ID_1,
-      !!paste0("Compound_ID_", study2_name) := Compound_ID_2,
-      !!paste0("RT_", study1_name) := RT_1,
-      !!paste0("RT_", study2_name) := RT_2,
-      !!paste0("MZ_", study1_name) := MZ_1,
-      !!paste0("MZ_", study2_name) := MZ_2
+      dplyr::any_of(c(
+        # Rename columns for study1
+        rlang::set_names("Compound_ID_1", paste0("CompoundID", study1_name)),
+        rlang::set_names("RT1", paste0("RT", study1_name)),
+        rlang::set_names("MZ1", paste0("MZ", study1_name)),
+        rlang::set_names("Intensity1", paste0("Intensity", study1_name)),
+        rlang::set_names("Metabolite1", paste0("Metabolite", study1_name)),
+
+        # Rename columns for study2
+        rlang::set_names("Compound_ID2", paste0("CompoundID", study2_name)),
+        rlang::set_names("RT2", paste0("RT", study2_name)),
+        rlang::set_names("MZ2", paste0("MZ", study2_name)),
+        rlang::set_names("Intensity2", paste0("Intensity", study2_name)),
+        rlang::set_names("Metabolite_2", paste0("Metabolite", study2_name))
+      ))
     )
-
-  if ("Intensity" %in% names(df1)) {
-    results <- results %>%
-      dplyr::rename(
-        !!paste0("Intensity_", study1_name) := Intensity_1,
-        !!paste0("Intensity_", study2_name) := Intensity_2
-      )
-  }
-
-  if ("Metabolite" %in% names(df1)) {
-    results <- results %>%
-      dplyr::rename(
-        !!paste0("Metabolite_", study1_name) := Metabolite_1,
-        !!paste0("Metabolite_", study2_name) := Metabolite_2
-      )
-  }
 
   # Add representative columns
   results <- results %>%
@@ -420,17 +415,21 @@ final_results <- function(align_ms_obj, weights = c(1, 1, 1)) {
 
 find_all_matches <- function(ref, query, rt_threshold, mz_threshold) {
   ref <- ref %>%
-    dplyr::rename(
-      RT_1 = RT,
-      MZ_1 = MZ,
-      Compound_ID_1 = Compound_ID
-    )
+    dplyr::rename(dplyr::any_of(c(
+      "RT_1" = "RT",
+      "MZ_1" = "MZ",
+      "Compound_ID_1" = "Compound_ID",
+      "Intensity_1" = "Intensity",
+      "Metabolite_1" = "Metabolite"
+    )))
   query <- query %>%
-    dplyr::rename(
-      RT_2 = RT,
-      MZ_2 = MZ,
-      Compound_ID_2 = Compound_ID
-    )
+    dplyr::rename(dplyr::any_of(c(
+      "RT_2" = "RT",
+      "MZ_2" = "MZ",
+      "Compound_ID_2" = "Compound_ID",
+      "Intensity_2" = "Intensity",
+      "Metabolite_2" = "Metabolite"
+    )))
 
   matches <- ref %>%
     dplyr::mutate(
@@ -527,11 +526,33 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     dplyr::arrange(.data$RT) |>
     dplyr::mutate(delta_RT = .data$RT_2 - .data$RT)
   if (smooth_method == "gam") {
-    spline_func <- mgcv::gam(delta_RT ~ s(RT), method = "REML", data = results)
+    message("Starting bayesian GAM smoothing for RT")
+    gam_data <- data.frame(RT = results$RT, delta_RT = results$delta_RT)
+    
+    # Define the model formula
+    formula <- brms::bf(delta_RT ~ s(RT))
+    
+    # Fit the Bayesian GAM
+    brms_model <- brms::brm(
+      formula = formula,
+      data = gam_data,
+      family = stats::gaussian(),
+      cores = 4,
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
+      refresh = 0,
+      silent = 2,
+      open_progress = FALSE,
+      control = list(adapt_delta = 0.95),
+    )
+    
+    # Generate predictions
     smooth_x_rt <- results$RT
-    smooth_y_rt <-
-      stats::predict(spline_func, data.frame(RT = smooth_x_rt)) |>
-      as.vector()
+    smooth_y_rt <- brms::posterior_predict(brms_model, newdata = data.frame(RT = smooth_x_rt))
+    smooth_y_rt <- colMeans(smooth_y_rt)  # Use posterior mean as point estimate
+    
+    # Store the smoothing results
     smooth_method(align_ms_obj)[["rt_x"]] <- smooth_x_rt
     smooth_method(align_ms_obj)[["rt_y"]] <- smooth_y_rt
   } else if (smooth_method == "gp") {
@@ -585,11 +606,33 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     dplyr::mutate(delta_MZ = .data$MZ_2 - .data$MZ)
 
   if (smooth_method == "gam") {
-    mz_gam <- mgcv::gam(delta_MZ ~ s(MZ), method = "REML", data = results)
+    message("Starting bayesian GAM smoothing for MZ")
+    # Use brms for GAM modeling
+    
+    # Prepare data for brms
+    brms_data <- data.frame(MZ = results$MZ, delta_MZ = results$delta_MZ)
+    
+    # Fit GAM model using brms
+    brms_gam <- brms::brm(
+      delta_MZ ~ s(MZ),
+      data = brms_data,
+      family = gaussian(),
+      cores = 4,
+      chains = 4,
+      refresh = 0,
+      iter = 2000,
+      warmup = 1000,
+      silent = 2,
+      open_progress = FALSE,
+      control = list(adapt_delta = 0.9)
+    )
+
+    # Generate predictions
     smooth_x_mz <- results$MZ
-    smooth_y_mz <-
-      stats::predict(mz_gam, data.frame(MZ = smooth_x_mz)) |>
-      as.vector()
+    smooth_y_mz <- brms::posterior_predict(brms_gam, newdata = data.frame(MZ = smooth_x_mz))
+    smooth_y_mz <- colMeans(smooth_y_mz)  # Use mean of posterior predictions
+    
+    # Store smoothing results
     smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
     smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
   } else if (smooth_method == "gp") {
@@ -673,7 +716,7 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
   dev_out <- get_cutoffs(
     df1 = results |>
       dplyr::select(dplyr::any_of(c(
-        "RT", "MZ", "Intensity"
+        "Compound_ID", "RT", "MZ", "Intensity"
       ))),
     df2 = scaled_df,
     has_int = ("Intensity" %in% names(results))
@@ -715,7 +758,7 @@ align_pre_isolated_compounds <-
           "RT_2" = numeric(),
           "MZ_2" = numeric(),
           "Intensity_2" = numeric(),
-          "Metabolite" = character()
+          "Metabolite_2" = character()
         )
         for (row in 1:nrow(df1)) {
           pb$tick()
