@@ -196,7 +196,6 @@ These plots can be saved locally as well.
     dpi = 300,
     create.dir = TRUE
   )
-}
 ```
 
 ```{r, results = 'hide', message=TRUE, warning=TRUE}
