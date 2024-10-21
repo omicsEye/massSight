@@ -556,20 +556,19 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     smooth_method(align_ms_obj)[["rt_x"]] <- smooth_x_rt
     smooth_method(align_ms_obj)[["rt_y"]] <- smooth_y_rt
   } else if (smooth_method == "gp") {
-    smooth_x_rt <- results$RT
-    # TODO check for RBF Kernel
+
     message("Starting gaussian smoothing")
-    gp <-
-      GauPro::gpkm(
-        smooth_x_rt,
-        results$RT_2 - results$RT,
-        kernel = "Matern52",
-        parallel = FALSE,
-        normalize = TRUE,
-        verbose = 0
-      )
-    smooth_y_rt <- gp$pred(smooth_x_rt)
-    message("Finished gaussian smoothing")
+
+    gp_fit <- brms::brm(
+      delta_RT ~ gp(RT, cov = "matern52", scale = TRUE),
+      results,
+      algorithm = "meanfield"
+    )
+
+    smooth_x_rt <- results$RT
+    smooth_y_rt <- brms::posterior_predict(gp_fit, newdata = data.frame(RT = smooth_x_rt))
+    smooth_y_rt <- colMeans(smooth_y_rt)
+
     smooth_method(align_ms_obj)[["rt_x"]] <- smooth_x_rt
     smooth_method(align_ms_obj)[["rt_y"]] <- smooth_y_rt
   }
@@ -636,19 +635,18 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
     smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
   } else if (smooth_method == "gp") {
-    smooth_x_mz <- results$MZ
     message("Starting gaussian smoothing")
-    gp <-
-      GauPro::gpkm(
-        smooth_x_mz,
-        results$MZ_2 - results$MZ,
-        kernel = "matern52",
-        parallel = FALSE,
-        normalize = TRUE,
-        verbose = 0
-      )
-    smooth_y_mz <- gp$predict(smooth_x_mz)
-    message("Finished gaussian smoothing")
+
+    gp_fit <- brms::brm(
+      delta_MZ ~ gp(MZ, cov = "matern52", scale = TRUE),
+      results,
+      algorithm = "meanfield"
+    )
+
+    smooth_x_mz <- results$MZ
+    smooth_y_mz <- brms::posterior_predict(gp_fit, newdata = data.frame(MZ = smooth_x_mz))
+    smooth_y_mz <- colMeans(smooth_y_mz)
+
     smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
     smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
   }
