@@ -14,8 +14,10 @@ final_plots <-
     ci_name2 <- paste0("Compound_ID_", ms2(merged_ms_obj)@name)
     rt_name1 <- paste0("RT_", ms1(merged_ms_obj)@name)
     rt_name2 <- paste0("RT_", ms2(merged_ms_obj)@name)
+    rt_adj_name2 <- paste0("RT_adj_", ms2(merged_ms_obj)@name)
     mz_name1 <- paste0("MZ_", ms1(merged_ms_obj)@name)
     mz_name2 <- paste0("MZ_", ms2(merged_ms_obj)@name)
+    mz_adj_name2 <- paste0("MZ_adj_", ms2(merged_ms_obj)@name)
     smooth_list <- merged_ms_obj@smooth_method
     pairs_base <- "Number of pairs:"
     pre_iso_pairs <-
@@ -27,8 +29,7 @@ final_plots <-
       dplyr::filter(!is.na(.data[[ci_name1]]) &
         !is.na(.data[[ci_name2]])) |>
       dplyr::inner_join(
-        adjusted_df(merged_ms_obj) |>
-          dplyr::select(Compound_ID, RT_2_adj, MZ_2_adj),
+        adjusted_df(merged_ms_obj),
         by = stats::setNames("Compound_ID", ci_name2)
       )
 
@@ -74,7 +75,7 @@ final_plots <-
       )
 
     rt_all <- all_matched |>
-      ggplot2::ggplot(ggplot2::aes(x = .data[[rt_name1]], y = .data$RT_2_adj - .data[[rt_name1]])) +
+      ggplot2::ggplot(ggplot2::aes(x = .data[[rt_name1]], y = .data[[rt_adj_name2]] - .data[[rt_name1]])) +
       ggplot2::geom_point(
         alpha = I(0.25),
         shape = 21,
@@ -143,7 +144,7 @@ final_plots <-
     mz_all <- all_matched |>
       ggplot2::ggplot(ggplot2::aes(
         x = .data[[mz_name1]],
-        y = .data$MZ_2_adj - .data[[mz_name1]]
+        y = .data[[mz_adj_name2]] - .data[[mz_name1]]
       )) +
       ggplot2::geom_point(
         alpha = I(0.25),
