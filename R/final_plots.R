@@ -99,7 +99,6 @@ final_plots <-
         x = "RT 1",
         y = expression(Delta * "RT")
       ) +
-      ggplot2::ylim((c(-1, 1))) +
       theme_omicsEye()
 
     rt_all <-
@@ -110,9 +109,7 @@ final_plots <-
       )
 
     mz_iso <- iso_matched(merged_ms_obj) |>
-      dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / ((
-        .data$MZ + .data$MZ_2
-      ) / 2) * 1e6)) |>
+      dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / .data$MZ * 1e6)) |>
       ggplot2::ggplot(ggplot2::aes(x = .data$MZ, y = .data$delta_MZ)) +
       ggplot2::geom_point(
         alpha = I(0.25),

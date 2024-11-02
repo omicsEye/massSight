@@ -48,16 +48,18 @@ distribution_plot <- function(ms_obj, subset = "all") {
         axis.title.y = ggplot2::element_blank()
       )
 
-    p_combined <- (p_top | plot_spacer()) /
-      (p_center | p_right) +
-      plot_layout(
-        widths = c(3, 1),
-        heights = c(1, 3)
-      )
-    
-    p_combined
+  design <- "
+AAAAAAAAAAAAAAAAAA####
+BBBBBBBBBBBBBBBBBBCCCC
+BBBBBBBBBBBBBBBBBBCCCC
+BBBBBBBBBBBBBBBBBBCCCC
+BBBBBBBBBBBBBBBBBBCCCC
+"
 
-    return(ggExtra::ggMarginal(p, type = "histogram"))
+p_combined <- p_top + p_center + p_right +
+  patchwork::plot_layout(design = design)
+    
+    return(p_combined)
   } else if (methods::is(ms_obj, "MergedMSObject")) {
     if (subset == "all") {
       ms_df1 <- raw_df(ms1(ms_obj))

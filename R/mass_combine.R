@@ -110,7 +110,7 @@ mass_combine <- function(ms1,
       mz_plus = mz_upper
     ) |>
     smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) |>
-    final_results(weights = weights)
+    final_results(rt_threshold = rt_upper, mz_threshold = mz_upper)
 
   if (!is.null(log)) {
     log_parameters(
@@ -254,8 +254,8 @@ align_isolated_compounds <-
         ) %>%
         dplyr::filter(
           RT.y > RT.x + rt_minus & RT.y < RT.x + rt_plus,
-          MZ.y > MZ.x + mz_minus * MZ.x / 1e6 &
-            MZ.y < MZ.x + mz_plus * MZ.x / 1e6
+          MZ.y > MZ.x + -1 * MZ.x / 1e6 &
+            MZ.y < MZ.x + 1 * MZ.x / 1e6
         ) %>%
         dplyr::rename(
           RT = RT.x,
@@ -284,7 +284,7 @@ align_isolated_compounds <-
     return(align_ms_obj)
   }
 
-final_results <- function(align_ms_obj, weights = c(1, 1, 1)) {
+final_results <- function(align_ms_obj, rt_threshold, mz_threshold) {
   study1_name <- name(ms1(align_ms_obj))
   study2_name <- name(ms2(align_ms_obj))
   df1 <- raw_df(ms1(align_ms_obj))
@@ -298,17 +298,15 @@ final_results <- function(align_ms_obj, weights = c(1, 1, 1)) {
 
   # Create a joined matrix of potential matches
   message("Creating potential final matches")
-  potential_matches <- find_all_matches(df1, df2, rt_threshold = 0.5, mz_threshold = 15)
+  potential_matches <- find_all_matches(df1, df2, rt_threshold = rt_threshold, mz_threshold = mz_threshold)
 
   # Calculate match scores for all potential matches
   message("Calculating match scores")
   potential_matches <- potential_matches %>%
     dplyr::mutate(
       delta_RT = RT_adj_2 - RT_1,
-      delta_MZ = (MZ_adj_2 - MZ_1) / ((
-        MZ_adj_2 + MZ_1
-      ) / 2) * 1e6, # Convert to ppm
-      score = sqrt(0.2 * (delta_RT / stds[1])^2 + 0.8 * (delta_MZ / stds[2])^2)
+      delta_MZ = (MZ_adj_2 - MZ_1) / MZ_1 * 1e6, # Convert to ppm
+      score = sqrt(0.2 * (delta_RT)^2 + 0.8 * (delta_MZ)^2)
     )
 
   # Select the best matches
@@ -431,8 +429,8 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold) {
 
   matches <- ref %>%
     dplyr::mutate(
-      mz_upper = MZ_1 + mz_threshold,
-      mz_lower = MZ_1 - mz_threshold,
+      mz_upper = MZ_1 + mz_threshold * MZ_1 / 1e6,
+      mz_lower = MZ_1 - mz_threshold * MZ_1 / 1e6,
       rt_upper = RT_1 + rt_threshold,
       rt_lower = RT_1 - rt_threshold
     ) %>%
@@ -684,7 +682,6 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
   } else if (smooth_method == "gam") {
     message("GAM smoothing for MZ drift")
-
     gam_fit <- mgcv::gam(
       delta_MZ ~ s(MZ),
       data = results,
