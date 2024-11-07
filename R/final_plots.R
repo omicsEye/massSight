@@ -37,7 +37,7 @@ final_plots <-
 
 
     rt_iso <- iso_matched(merged_ms_obj) |>
-      ggplot2::ggplot(ggplot2::aes(x = .data$RT, y = .data$RT_2 - .data$RT)) +
+      ggplot2::ggplot(ggplot2::aes(x = .data$RT_1, y = .data$RT_2 - .data$RT_1)) +
       ggplot2::geom_point(
         alpha = I(0.25),
         shape = 21,
@@ -109,8 +109,8 @@ final_plots <-
       )
 
     mz_iso <- iso_matched(merged_ms_obj) |>
-      dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ) / .data$MZ * 1e6)) |>
-      ggplot2::ggplot(ggplot2::aes(x = .data$MZ, y = .data$delta_MZ)) +
+      dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ_1) / .data$MZ_1 * 1e6)) |>
+      ggplot2::ggplot(ggplot2::aes(x = .data$MZ_1, y = .data$delta_MZ)) +
       ggplot2::geom_point(
         alpha = I(0.25),
         shape = 21,
@@ -140,8 +140,8 @@ final_plots <-
 
     mz_all <- all_matched |>
       ggplot2::ggplot(ggplot2::aes(
-        x = .data[[mz_name1]],
-        y = .data[[mz_adj_name2]] - .data[[mz_name1]]
+        x = .data[[mz_name1]], 
+        y = (.data[[mz_adj_name2]] - .data[[mz_name1]]) / .data[[mz_name1]] * 1e6
       )) +
       ggplot2::geom_point(
         alpha = I(0.25),

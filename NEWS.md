@@ -3,6 +3,9 @@
 * Changed `auto_combine()` to `mass_combine()`
 * Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no labeled metabolites
 * Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no intensity column
+* Added linear smoothing for MZ drift
+* Added linear smoothing for RT drift
+* Added `pref` argument to `mass_combine()` to allow for pool reference based alignment
 
 # massSight 0.2.2
 

@@ -32,6 +32,7 @@ Imports:
     magrittr,
     methods,
     mgcv,
+    nabor,
     progress,
     purrr,
     Rcpp,
