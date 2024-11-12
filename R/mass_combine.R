@@ -128,16 +128,6 @@ mass_combine <- function(ms1,
   return(align_obj)
 }
 
-dedup <- function(cols, item) {
-  item_locations <- which(cols == item)
-  for (i in seq_along(item_locations)) {
-    if (i != 1) {
-      cols[item_locations[i]] <- paste0(item, "_", i)
-    }
-  }
-  return(cols)
-}
-
 mad_based_outlier <- function(points, thresh = 5) {
   diff <- sqrt((points - stats::median(points, na.rm = TRUE))^2)
   med_abs_deviation <- stats::median(diff, na.rm = TRUE)
@@ -161,23 +151,6 @@ scale_intensity_parameters <-
     fit <- mean(na.omit(data_int2[data_int2 > min_int] / data_int1[data_int1 > min_int]))
     return(fit)
   }
-
-calculate_mean <- function(values, w, method = "arit") {
-  if (sum(values) == 0) {
-    return(0)
-  }
-  if (method == "whm") {
-    num <- replace(w, values < 0, 0)
-    denom <- replace(w, values < 0, 0)
-    denom <- replace(denom, values > 0, denom / values)
-    w_h_mean <- sum(num) / sum(denom)
-    nonzeroes <- sum(values != 0)
-    mean_value <- w_h_mean / (nonzeroes + 1)
-  } else if (method == "arit") {
-    mean_value <- sum(w * values) / sum(w)
-  }
-  return(mean_value)
-}
 
 rms <- function(a, b, std) {
   rt_difference <- a$RT - b$RT
@@ -249,7 +222,7 @@ align_isolated_compounds <-
         dplyr::mutate(
           rt_upper = RT_1 + rt_plus,
           rt_lower = RT_1 + rt_minus,
-          mz_upper = MZ_1 + (MZ_1 * 1 / 1e6), 
+          mz_upper = MZ_1 + (MZ_1 * 1 / 1e6),
           mz_lower = MZ_1 + (MZ_1 * -1 / 1e6)
         ) |>
         dplyr::inner_join(df2,
@@ -260,7 +233,7 @@ align_isolated_compounds <-
             mz_upper > MZ_2
           )
         ) |>
-        dplyr::select(-rt_upper, -rt_lower, -mz_upper, -mz_lower) 
+        dplyr::select(-rt_upper, -rt_lower, -mz_upper, -mz_lower)
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
         "Metabolite" %in% colnames(df2))
@@ -421,15 +394,20 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref) {
   # match metadata from ms1 and ms2 to final results
   metadata1 <- metadata(ms1(align_ms_obj))
   metadata2 <- metadata(ms2(align_ms_obj))
-  all_results <- all_results %>%
-    dplyr::left_join(metadata1, by = structure(
-      "Compound_ID",
-      names = paste0("Compound_ID_", study1_name)
-    )) %>%
-    dplyr::left_join(metadata2, by = structure(
-      "Compound_ID",
-      names = paste0("Compound_ID_", study2_name)
-    ))
+  if (nrow(metadata1) > 0) {
+    all_results <- all_results %>%
+      dplyr::left_join(metadata1, by = structure(
+        "Compound_ID",
+        names = paste0("Compound_ID_", study1_name)
+      ))
+  }
+  if (nrow(metadata2) > 0) {
+    all_results <- all_results %>%
+      dplyr::left_join(metadata2, by = structure(
+        "Compound_ID",
+        names = paste0("Compound_ID_", study2_name)
+      ))
+  }
 
   all_matched(align_ms_obj) <- all_results
   adjusted_df(align_ms_obj) <- scaled_df
@@ -471,7 +449,7 @@ find_all_matches_pref <- function(ref, query, rt_threshold, mz_threshold) {
         rt_upper > RT_adj_2
       )
     ) %>%
-    select(-mz_upper, -mz_lower, -rt_upper, -rt_lower) %>%
+    dplyr::select(-mz_upper, -mz_lower, -rt_upper, -rt_lower) %>%
     dplyr::mutate(
       score = sqrt((RT_1 - RT_adj_2)^2 / (30)^2 + (MZ_1 - MZ_adj_2)^2 / (5e-6 * MZ_1)^2)
     ) %>%
@@ -561,34 +539,6 @@ match_compounds <- function(potential_matches) {
 
   return(best_matches)
 }
-
-find_closest_match <-
-  function(query, ref, stds) {
-    ref_index <- ref$Compound_ID
-
-    rt_hits <- (ref$RT <= (query$RT + .5)) &
-      (ref$RT >= (query$RT - .5))
-
-    mz_hits <- (ref$MZ < (query$MZ + .1)) &
-      (ref$MZ > (query$MZ - .1))
-
-    combined_hits <- rt_hits & mz_hits
-
-    if (!(TRUE %in% (combined_hits))) {
-      return(NULL)
-    }
-
-    hits <- ref |>
-      dplyr::select(dplyr::any_of(c("Compound_ID", "RT", "MZ", "Intensity"))) |>
-      dplyr::filter(rt_hits & mz_hits)
-    hits_index <- ref_index[rt_hits & mz_hits]
-    hits_results <- c()
-    for (i in seq_len(nrow(hits))) {
-      score <- rms(query, hits[i, ], stds)
-      hits_results <- c(hits_results, score)
-    }
-    return(hits_index[hits_results == min(hits_results)])
-  }
 
 get_cutoffs <- function(df1, df2, has_int = TRUE) {
   data_rt <- df2$RT - df1$RT_1
@@ -821,7 +771,7 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
 
   results <- results |>
     dplyr::mutate(smooth_mz = smooth_y_mz, smz = scaled_mzs_res)
-  
+
   # scale intensities -------------------------------------------------------
   if ("Intensity_1" %in% names(results)) {
     temp_df1_int <- log10(results$Intensity_1)
