@@ -47,8 +47,8 @@ mass_combine <- function(ms1,
                          minimum_intensity = 10,
                          iso_method = "manual",
                          eps = .1,
-                         rt_iso_threshold = .1,
-                         mz_iso_threshold = 5,
+                         rt_iso_threshold = .01,
+                         mz_iso_threshold = 1,
                          match_method = "unsupervised",
                          smooth_method = "gam",
                          weights = c(1, 1, 1),
@@ -148,7 +148,16 @@ scale_intensity_parameters <-
            data_int2,
            min_int = 0) {
     min_int <- log10(min_int)
-    fit <- mean(na.omit(data_int2[data_int2 > min_int] / data_int1[data_int1 > min_int]))
+    # Filter both vectors using the minimum intensity threshold
+    valid_idx <- data_int1 > min_int & data_int2 > min_int & 
+                 !is.na(data_int1) & !is.na(data_int2)
+    
+    # Use only valid indices for both vectors
+    data_int1_filtered <- data_int1[valid_idx]
+    data_int2_filtered <- data_int2[valid_idx]
+    
+    # Calculate mean ratio only for valid pairs
+    fit <- mean(data_int2_filtered / data_int1_filtered, na.rm = TRUE)
     return(fit)
   }
 
@@ -222,8 +231,8 @@ align_isolated_compounds <-
         dplyr::mutate(
           rt_upper = RT_1 + rt_plus,
           rt_lower = RT_1 + rt_minus,
-          mz_upper = MZ_1 + (MZ_1 * 1 / 1e6),
-          mz_lower = MZ_1 + (MZ_1 * -1 / 1e6)
+          mz_upper = MZ_1 + (MZ_1 *  5 / 1e6),
+          mz_lower = MZ_1 + (MZ_1 * -5 / 1e6)
         ) |>
         dplyr::inner_join(df2,
           by = dplyr::join_by(
@@ -481,6 +490,15 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold) {
       "Metabolite_2" = "Metabolite"
     )))
 
+  # Add normalized RT rank information (0 to 1 scale)
+  ref <- ref %>%
+    dplyr::arrange(RT_1) %>%
+    dplyr::mutate(RT_rank_1 = (dplyr::row_number() - 1) / (dplyr::n() - 1))
+  
+  query <- query %>%
+    dplyr::arrange(RT_2) %>%
+    dplyr::mutate(RT_rank_2 = (dplyr::row_number() - 1) / (dplyr::n() - 1))
+
   matches <- ref %>%
     dplyr::mutate(
       mz_upper = MZ_1 + mz_threshold * MZ_1 / 1e6,
@@ -497,7 +515,16 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold) {
         rt_upper > RT_adj_2
       )
     ) %>%
-    select(-mz_upper, -mz_lower, -rt_upper, -rt_lower)
+    dplyr::select(-mz_upper, -mz_lower, -rt_upper, -rt_lower) %>%
+    # Calculate normalized rank difference
+    dplyr::mutate(
+      rank_diff = abs(RT_rank_2 - RT_rank_1),
+      # Calculate component scores
+      rt_score = abs(RT_2 - RT_1) / rt_threshold,  # Normalize RT difference
+      mz_score = abs(MZ_2 - MZ_1) / (mz_threshold * MZ_1 / 1e6),  # Normalize MZ difference
+      # Combined weighted score (0.25 rank, 0.25 RT, 0.5 MZ)
+      score = 0.25 * rank_diff + 0.25 * rt_score + 0.5 * mz_score
+    )
 
   return(matches)
 }
@@ -512,7 +539,7 @@ match_compounds <- function(potential_matches) {
       dplyr::group_by(Compound_ID_1) %>%
       dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
       dplyr::ungroup()
-
+    
     # Resolve conflicts for Compound_ID_2
     resolved_matches <- current_best %>%
       dplyr::group_by(Compound_ID_2) %>%
@@ -615,10 +642,10 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     smooth_method(align_ms_obj)[["rt_y"]] <- smooth_y_rt
   } else if (smooth_method == "gam") {
     message("GAM smoothing for RT drift")
-
     gam_fit <- mgcv::gam(
       delta_RT ~ s(RT_1),
       data = results,
+      family = mgcv::scat(),
       method = "REML"
     )
 
