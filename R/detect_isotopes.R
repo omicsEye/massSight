@@ -54,3 +54,28 @@ detect_isotopes <- function(ms_obj, ppm_tolerance = 5, rt_tolerance = 0.1) {
   
   return(ms_obj)
 }
+
+
+#' Group isotopes with their parent compounds and prepare for matching
+#' @param ms_obj MSObject with isotope labels
+#' @return MSObject with consolidated isotope groups
+#' @export
+consolidate_isotopes <- function(ms_obj) {
+    df <- raw_df(ms_obj)
+    
+    # Create groups of related compounds (parent + isotopes)
+    isotope_groups <- df %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+            group_id = Compound_ID,  # Use parent compound ID as group ID
+            is_parent = length(Isotopes) > 0,  # True if compound has isotopes
+            isotope_count = length(unlist(Isotopes))
+        ) %>%
+        dplyr::ungroup()
+    
+    # Update the MSObject
+    raw_df(ms_obj) <- isotope_groups
+    consolidated(ms_obj) <- TRUE
+    
+    return(ms_obj)
+}

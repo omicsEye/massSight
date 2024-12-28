@@ -109,34 +109,30 @@ final_plots <-
       )
 
     mz_iso <- iso_matched(merged_ms_obj) |>
-      dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ_1) / .data$MZ_1 * 1e6)) |>
-      ggplot2::ggplot(ggplot2::aes(x = .data$MZ_1, y = .data$delta_MZ)) +
-      ggplot2::geom_point(
-        alpha = I(0.25),
-        shape = 21,
-        colour = "black",
+      dplyr::mutate(
+        delta_MZ = ((.data$MZ_2 - .data$MZ_1) / .data$MZ_1 * 1e6),
+        mz_bin = factor(floor(MZ_1 / 100) * 100)
+      ) |>
+      ggplot2::ggplot(ggplot2::aes(x = .data$mz_bin, y = .data$delta_MZ)) +
+      ggplot2::geom_violin(
         fill = "#033C5A",
-        size = I(1.5),
-        stroke = 0.05
+        alpha = 0.5
       ) +
-      ggplot2::geom_line(
-        data = data.frame("x" = smooth_list$mz_x, "y" = smooth_list$mz_y),
-        ggplot2::aes(x, y),
-        col = "#AA9868"
+      ggplot2::geom_boxplot(
+        width = 0.2,
+        fill = "white",
+        alpha = 0.5,
+        outlier.shape = NA
       ) +
+      ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "#AA9868") +
       ggplot2::labs(
-        title = "Isolated Matches",
-        x = "MZ 1",
-        y = expression(Delta * "MZ")
+        title = "Mass Error Distribution by m/z Bin",
+        x = "m/z Bin",
+        y = expression(Delta * "MZ (ppm)")
       ) +
+      ggplot2::ylim(-5, 5) +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) +
       theme_omicsEye()
-
-    mz_iso <-
-      mz_iso |> ggExtra::ggMarginal(
-        type = "histogram",
-        xparams = list(fill = "light gray", size = .25),
-        yparams = list(fill = "light gray", size = .25)
-      )
 
     mz_all <- all_matched |>
       ggplot2::ggplot(ggplot2::aes(

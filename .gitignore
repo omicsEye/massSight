@@ -16,3 +16,5 @@ log/
 data/
 inst/doc
 massSight-benchmarking/
+
+/.quarto/

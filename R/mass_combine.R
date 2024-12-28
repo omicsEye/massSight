@@ -35,6 +35,8 @@
 #' @param log A character indicating the name of the log file.
 #' @param output A character indicating the directory to save the output. If NULL,
 #' the output will be saved in the current working directory.
+#' @param optimize Logical: whether to optimize parameters using known metabolites
+#' @param n_iter Number of optimization iterations if optimize=TRUE
 #'
 #' @return A `MergedMSObject` containing the combined data.
 mass_combine <- function(ms1,
@@ -48,19 +50,22 @@ mass_combine <- function(ms1,
                          iso_method = "manual",
                          eps = .1,
                          rt_iso_threshold = .01,
-                         mz_iso_threshold = 1,
+                         mz_iso_threshold = 2,
                          match_method = "unsupervised",
                          smooth_method = "gam",
                          weights = c(1, 1, 1),
                          log = "log.json",
-                         output = NULL) {
+                         output = NULL,
+                         optimize = FALSE,
+                         n_iter = 10,
+                         ...) {
   if (!is.null(log)) {
     time_start <- Sys.time()
     check_jsonlite()
-    log_params <- match.call(expand.dots = TRUE) |>
-      modify_call() |>
-      as.list() |>
-      (\(x) x[-1])() |>
+    log_params <- match.call(expand.dots = TRUE) %>%
+      modify_call() %>%
+      as.list() %>%
+      (\(x) x[-1])() %>%
       lapply(\(x) {
         if (is.language(x)) {
           return(deparse(x))
@@ -79,39 +84,63 @@ mass_combine <- function(ms1,
 
   validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
 
+  # Check if optimization is requested and possible
+  if (optimize) {
+    # TODO
+  }
+
+  # Either optimize parameters or use provided/default parameters
+  if (optimize) {
+    message("Optimizing parameters using known metabolites...")
+    opt_result <- optimize_parameters(ms1, ms2, match_method = match_method, n_iter = n_iter)
+    params <- opt_result$parameters
+
+    message(sprintf("Optimization complete. Final score: %.3f", opt_result$final_score))
+
+    # Add optimization info to result metadata
+    attr(result, "optimization") <- opt_result
+  } else {
+    params <- list(
+      rt_lower = rt_lower,
+      rt_upper = rt_upper,
+      mz_lower = mz_lower,
+      mz_upper = mz_upper
+    )
+  }
 
   if (match_method == "unsupervised") {
     if (iso_method == "manual") {
       ref_iso <- getVectors(raw_df(ms1), rt_sim = rt_iso_threshold, mz_sim = mz_iso_threshold)
       query_iso <- getVectors(raw_df(ms2), rt_sim = rt_iso_threshold, mz_sim = mz_iso_threshold)
-      isolated(ms1) <- raw_df(ms1) |>
+      isolated(ms1) <- raw_df(ms1) %>%
         dplyr::filter(.data$Compound_ID %in% ref_iso)
-      isolated(ms2) <- raw_df(ms2) |>
+      isolated(ms2) <- raw_df(ms2) %>%
         dplyr::filter(.data$Compound_ID %in% query_iso)
     } else if (iso_method == "dbscan") {
       isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
       isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
     }
   } else if (match_method == "supervised") {
-    isolated(ms1) <- raw_df(ms1) |>
+    isolated(ms1) <- raw_df(ms1) %>%
       dplyr::filter(.data$Metabolite != "")
-    isolated(ms2) <- raw_df(ms2) |>
+    isolated(ms2) <- raw_df(ms2) %>%
       dplyr::filter(.data$Metabolite != "")
   }
 
   align_obj <- methods::new("MergedMSObject")
   ms1(align_obj) <- ms1
   ms2(align_obj) <- ms2
-  align_obj <- align_obj |>
+  align_obj <- align_obj %>%
     align_isolated_compounds(
       match_method = match_method,
-      rt_minus = rt_lower,
-      rt_plus = rt_upper,
-      mz_minus = mz_lower,
-      mz_plus = mz_upper
-    ) |>
-    smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) |>
-    final_results(rt_threshold = rt_upper, mz_threshold = mz_upper, pref = pref)
+      rt_minus = params["rt_lower"],
+      rt_plus = params["rt_upper"],
+      mz_minus = params["mz_lower"],
+      mz_plus = params["mz_upper"]
+    ) %>%
+    smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
+    final_results(rt_threshold = params["rt_upper"], mz_threshold = params["mz_upper"], pref = pref)
+
 
   if (!is.null(log)) {
     log_parameters(
@@ -149,13 +178,13 @@ scale_intensity_parameters <-
            min_int = 0) {
     min_int <- log10(min_int)
     # Filter both vectors using the minimum intensity threshold
-    valid_idx <- data_int1 > min_int & data_int2 > min_int & 
-                 !is.na(data_int1) & !is.na(data_int2)
-    
+    valid_idx <- data_int1 > min_int & data_int2 > min_int &
+      !is.na(data_int1) & !is.na(data_int2)
+
     # Use only valid indices for both vectors
     data_int1_filtered <- data_int1[valid_idx]
     data_int2_filtered <- data_int2[valid_idx]
-    
+
     # Calculate mean ratio only for valid pairs
     fit <- mean(data_int2_filtered / data_int1_filtered, na.rm = TRUE)
     return(fit)
@@ -227,13 +256,14 @@ align_isolated_compounds <-
           )
         )
       )
-      results <- df1 |>
+      browser()
+      results <- df1 %>%
         dplyr::mutate(
           rt_upper = RT_1 + rt_plus,
           rt_lower = RT_1 + rt_minus,
-          mz_upper = MZ_1 + (MZ_1 *  5 / 1e6),
+          mz_upper = MZ_1 + (MZ_1 * 5 / 1e6),
           mz_lower = MZ_1 + (MZ_1 * -5 / 1e6)
-        ) |>
+        ) %>%
         dplyr::inner_join(df2,
           by = dplyr::join_by(
             rt_lower < RT_2,
@@ -241,23 +271,23 @@ align_isolated_compounds <-
             mz_lower < MZ_2,
             mz_upper > MZ_2
           )
-        ) |>
+        ) %>%
         dplyr::select(-rt_upper, -rt_lower, -mz_upper, -mz_lower)
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
         "Metabolite" %in% colnames(df2))
-      vec_1 <- df1 |>
-        dplyr::rename(df1 = .data$Compound_ID) |>
+      vec_1 <- df1 %>%
+        dplyr::rename(df1 = .data$Compound_ID) %>%
         dplyr::filter(.data$Metabolite != "")
-      vec_2 <- df2 |>
+      vec_2 <- df2 %>%
         dplyr::rename(
           RT_2 = .data$RT_1,
           MZ_2 = .data$MZ_1,
           Intensity_2 = .data$Intensity,
           df2 = .data$Compound_ID
-        ) |>
+        ) %>%
         dplyr::filter(.data$Metabolite != "")
-      results <- vec_1 |>
+      results <- vec_1 %>%
         dplyr::inner_join(vec_2, by = c("Metabolite"))
     }
     iso_matched(align_ms_obj) <- results
@@ -295,7 +325,6 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref) {
     message("Selecting best matches")
     best_matches <- match_compounds(potential_matches)
   }
-
   # Prepare the final results dataframe
   results <- best_matches %>%
     dplyr::rename(
@@ -401,14 +430,16 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref) {
     )
 
   # match metadata from ms1 and ms2 to final results
-  metadata1 <- metadata(ms1(align_ms_obj))
   metadata2 <- metadata(ms2(align_ms_obj))
-  if (nrow(metadata1) > 0) {
-    all_results <- all_results %>%
-      dplyr::left_join(metadata1, by = structure(
-        "Compound_ID",
-        names = paste0("Compound_ID_", study1_name)
-      ))
+  if (!pref) {
+    metadata1 <- metadata(ms1(align_ms_obj))
+    if (nrow(metadata1) > 0) {
+      all_results <- all_results %>%
+        dplyr::left_join(metadata1, by = structure(
+          "Compound_ID",
+          names = paste0("Compound_ID_", study1_name)
+        ))
+    }
   }
   if (nrow(metadata2) > 0) {
     all_results <- all_results %>%
@@ -494,7 +525,7 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold) {
   ref <- ref %>%
     dplyr::arrange(RT_1) %>%
     dplyr::mutate(RT_rank_1 = (dplyr::row_number() - 1) / (dplyr::n() - 1))
-  
+
   query <- query %>%
     dplyr::arrange(RT_2) %>%
     dplyr::mutate(RT_rank_2 = (dplyr::row_number() - 1) / (dplyr::n() - 1))
@@ -520,8 +551,8 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold) {
     dplyr::mutate(
       rank_diff = abs(RT_rank_2 - RT_rank_1),
       # Calculate component scores
-      rt_score = abs(RT_2 - RT_1) / rt_threshold,  # Normalize RT difference
-      mz_score = abs(MZ_2 - MZ_1) / (mz_threshold * MZ_1 / 1e6),  # Normalize MZ difference
+      rt_score = abs(RT_2 - RT_1) / rt_threshold, # Normalize RT difference
+      mz_score = abs(MZ_2 - MZ_1) / (mz_threshold * MZ_1 / 1e6), # Normalize MZ difference
       # Combined weighted score (0.25 rank, 0.25 RT, 0.5 MZ)
       score = 0.25 * rank_diff + 0.25 * rt_score + 0.5 * mz_score
     )
@@ -539,7 +570,7 @@ match_compounds <- function(potential_matches) {
       dplyr::group_by(Compound_ID_1) %>%
       dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
       dplyr::ungroup()
-    
+
     # Resolve conflicts for Compound_ID_2
     resolved_matches <- current_best %>%
       dplyr::group_by(Compound_ID_2) %>%
@@ -599,17 +630,21 @@ get_cutoffs <- function(df1, df2, has_int = TRUE) {
   return(list("cutoffs" = cutoffs, "outliers" = outliers))
 }
 
-smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
-  df1 <- align_ms_obj |>
-    ms1() |>
+smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size = 100) {
+  df1 <- align_ms_obj %>%
+    ms1() %>%
     raw_df()
-  df2 <- align_ms_obj |>
-    ms2() |>
+  df2 <- align_ms_obj %>%
+    ms2() %>%
     raw_df()
   results <- iso_matched(align_ms_obj)
-  results <- results |>
-    dplyr::arrange(.data$RT_1) |>
+
+  # RT drift correction remains the same
+  results <- results %>%
+    dplyr::arrange(.data$RT_1) %>%
     dplyr::mutate(delta_RT = .data$RT_2 - .data$RT_1)
+
+  # RT smoothing methods remain unchanged
   if (smooth_method == "bayesian_gam") {
     message("Starting bayesian GAM smoothing for RT")
     gam_data <- data.frame(RT_1 = results$RT_1, delta_RT = results$delta_RT)
@@ -661,7 +696,7 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     smooth_method(align_ms_obj)[["rt_x"]] <- smooth_x_rt
     smooth_method(align_ms_obj)[["rt_y"]] <- smooth_y_rt
   } else if (smooth_method == "gp") {
-    message("Starting gaussian smoothing")
+    message("Starting gaussian smoothing for RT")
 
     gp_fit <- brms::brm(
       delta_RT ~ gp(RT, cov = "matern52", scale = TRUE),
@@ -676,152 +711,86 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     smooth_method(align_ms_obj)[["rt_x"]] <- smooth_x_rt
     smooth_method(align_ms_obj)[["rt_y"]] <- smooth_y_rt
   }
-  smooth_x_rt_dropna <- smooth_x_rt |> stats::na.omit()
-  smooth_y_rt_dropna <- smooth_y_rt |> stats::na.omit()
-  if (length(smooth_x_rt_dropna) == 0) {
-    stop(
-      "There were not enough matches found to generate a predicted smoothing curve for your RT. Try increasing the range of your rt cutoffs (default -0.5 to +0.5), or increasing the 'smooth rt' value (default 0.1). Or if all else fails, try a manual/custom scaling (rt_custom)."
-    )
-  }
 
-  suppressWarnings(
-    f <- stats::approx(
-      x = smooth_x_rt_dropna,
-      y = smooth_y_rt_dropna,
-      xout = smooth_x_rt,
-      rule = 2
-    )
-  )
-  smooth_x_rt <- results$RT_1
-  smooth_y_rt <- f$y
-  scaled_rts <-
-    scale_smooth(df2$RT, smooth_x_rt + smooth_y_rt, smooth_y_rt)
-  scaled_rts_res <-
-    scale_smooth(results$RT_1, smooth_x_rt + smooth_y_rt, smooth_y_rt)
+  # Apply RT corrections as before
+  scaled_rts <- scale_smooth(df2$RT, smooth_x_rt + smooth_y_rt, smooth_y_rt)
+  scaled_rts_res <- scale_smooth(results$RT_1, smooth_x_rt + smooth_y_rt, smooth_y_rt)
 
-  results <- results |>
+  results <- results %>%
     dplyr::mutate(smooth_rt = smooth_y_rt, srt = scaled_rts_res)
 
-
-  ## scale mzs ---------------------------------------------------------------
-  results <- results |>
-    dplyr::arrange(.data$MZ_1) |>
-    dplyr::mutate(delta_MZ = .data$MZ_2 - .data$MZ_1)
-
-  if (smooth_method == "bayesian_gam") {
-    message("Starting bayesian GAM smoothing for MZ")
-    # Use brms for GAM modeling
-
-    # Prepare data for brms
-    brms_data <- data.frame(MZ_1 = results$MZ_1, delta_MZ = results$delta_MZ)
-
-    # Fit GAM model using brms
-    brms_gam <- brms::brm(
-      delta_MZ ~ s(MZ_1),
-      data = brms_data,
-      family = gaussian(),
-      cores = 4,
-      chains = 4,
-      refresh = 0,
-      iter = 2000,
-      warmup = 1000,
-      silent = 2,
-      open_progress = FALSE,
-      control = list(adapt_delta = 0.9)
+  ## MZ correction using binned approach
+  message("Applying binned mass correction")
+  results <- results %>%
+    dplyr::mutate(
+      mass_error_ppm = (MZ_2 - MZ_1) / MZ_1 * 1e6,
+      mz_bin = floor(MZ_1 / mz_bin_size) * mz_bin_size
     )
 
-    # Generate predictions
-    smooth_x_mz <- results$MZ_1
-    smooth_y_mz <- brms::posterior_predict(brms_gam, newdata = data.frame(MZ_1 = smooth_x_mz))
-    smooth_y_mz <- colMeans(smooth_y_mz) # Use mean of posterior predictions
-
-    # Store smoothing results
-    smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
-    smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
-  } else if (smooth_method == "gam") {
-    message("GAM smoothing for MZ drift")
-    gam_fit <- mgcv::gam(
-      delta_MZ ~ s(MZ_1),
-      data = results,
-      method = "REML"
+  # Calculate corrections for each bin
+  bin_corrections <- results %>%
+    dplyr::group_by(mz_bin) %>%
+    dplyr::summarise(
+      median_correction = stats::median(mass_error_ppm, na.rm = TRUE),
+      mad = stats::mad(mass_error_ppm, na.rm = TRUE),
+      n = dplyr::n(),
+      .groups = "drop"
     )
 
-    smooth_x_mz <- results$MZ_1
-    smooth_y_mz <- predict(gam_fit, newdata = data.frame(MZ_1 = smooth_x_mz))
-    smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
-    smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
-  } else if (smooth_method == "lm") {
-    message("Linear smoothing for MZ drift")
-    lm_fit <- MASS::rlm(delta_MZ ~ MZ_1, data = results)
-    smooth_x_mz <- results$MZ_1
-    smooth_y_mz <- predict(lm_fit, newdata = data.frame(MZ_1 = smooth_x_mz))
-    smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
-    smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
-  } else if (smooth_method == "gp") {
-    message("Starting gaussian smoothing")
+  # Apply corrections to all masses in df2
+  df2_with_bins <- df2 %>%
+    dplyr::mutate(mz_bin = floor(MZ / mz_bin_size) * mz_bin_size)
 
-    gp_fit <- brms::brm(
-      delta_MZ ~ gp(MZ, cov = "matern52", scale = TRUE),
-      results,
-      algorithm = "meanfield"
-    )
+  mz_corrections <- df2_with_bins %>%
+    dplyr::left_join(bin_corrections, by = "mz_bin")
 
-    smooth_x_mz <- results$MZ_1
-    smooth_y_mz <- brms::posterior_predict(gp_fit, newdata = data.frame(MZ_1 = smooth_x_mz))
-    smooth_y_mz <- colMeans(smooth_y_mz)
-
-    smooth_method(align_ms_obj)[["mz_x"]] <- smooth_x_mz
-    smooth_method(align_ms_obj)[["mz_y"]] <- smooth_y_mz
-  }
-  smooth_x_mz_dropna <- smooth_x_mz |> stats::na.omit()
-  smooth_y_mz_dropna <- smooth_y_mz |> stats::na.omit()
-  if (length(smooth_x_mz_dropna) == 0) {
-    stop(
-      "There were not enough matches found to generate a predicted smoothing curve for your RT. Try increasing the range of your rt cutoffs (default -0.5 to +0.5), or increasing the 'smooth rt' value (default 0.1). Or if all else fails, try a manual/custom scaling (rt_custom)."
-    )
+  # Handle cases where there's no correction for a bin
+  # Use nearest bin's correction
+  if (any(is.na(mz_corrections$median_correction))) {
+    message("Some m/z bins lack corrections - using nearest bin")
+    for (i in which(is.na(mz_corrections$median_correction))) {
+      nearest_bin <- bin_corrections$mz_bin[which.min(abs(
+        bin_corrections$mz_bin - mz_corrections$mz_bin[i]
+      ))]
+      mz_corrections$median_correction[i] <- bin_corrections$median_correction[
+        bin_corrections$mz_bin == nearest_bin
+      ]
+    }
   }
 
-  suppressWarnings(
-    f <- stats::approx(
-      x = smooth_x_mz_dropna,
-      y = smooth_y_mz_dropna,
-      rule = 2,
-      xout = smooth_x_mz
+  # Apply corrections
+  scaled_mzs <- mz_corrections$MZ / (1 + mz_corrections$median_correction / 1e6)
+
+  # Apply corrections to matched results
+  results_corrections <- results %>%
+    dplyr::left_join(bin_corrections, by = "mz_bin")
+  scaled_mzs_res <- results$MZ_1 / (1 + results_corrections$median_correction / 1e6)
+
+  results <- results %>%
+    dplyr::mutate(
+      smooth_mz = results_corrections$median_correction,
+      smz = scaled_mzs_res
     )
-  )
 
-  smooth_x_mz <- results$MZ_1
-  smooth_y_mz <- f$y
-  scaled_mzs <-
-    scale_smooth(df2$MZ, smooth_x_mz + smooth_y_mz, smooth_y_mz)
-  scaled_mzs_res <- scale_smooth(results$MZ_1, smooth_x_mz + smooth_y_mz, smooth_y_mz)
-
-  results <- results |>
-    dplyr::mutate(smooth_mz = smooth_y_mz, smz = scaled_mzs_res)
-
-  # scale intensities -------------------------------------------------------
+  # Intensity scaling remains unchanged
   if ("Intensity_1" %in% names(results)) {
     temp_df1_int <- log10(results$Intensity_1)
     temp_df2_int <- log10(results$Intensity_2)
 
-    ## find slope for linear adjustment of log-intensity parameters
-    intensity_parameters <-
-      scale_intensity_parameters(temp_df1_int,
-        temp_df2_int,
-        min_int = minimum_int
-      )
+    intensity_parameters <- scale_intensity_parameters(
+      temp_df1_int,
+      temp_df2_int,
+      min_int = minimum_int
+    )
 
-    ## scale potential matches
-    scaled_vector_intensity <-
-      scale_intensity(temp_df2_int, intensity_parameters)
+    scaled_vector_intensity <- scale_intensity(temp_df2_int, intensity_parameters)
     scaled_vector_intensity <- 10^scaled_vector_intensity
     results$sintensity <- scaled_vector_intensity
 
-    # scale full results
     log_df2 <- log10(df2$Intensity)
-    scaled_intensity <-
-      scale_intensity(log_df2, intensity_parameters)
+    scaled_intensity <- scale_intensity(log_df2, intensity_parameters)
     scaled_intensity <- 10^scaled_intensity
+
     scaled_df <- data.frame(
       "RT" = results$srt,
       "MZ" = results$smz,
@@ -835,11 +804,16 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     )
   } else {
     scaled_df <- data.frame("RT" = results$srt, "MZ" = results$smz)
-    scaled_values <- data.frame("Compound_ID" = df2$Compound_ID, "RT" = scaled_rts, "MZ" = scaled_mzs)
+    scaled_values <- data.frame(
+      "Compound_ID" = df2$Compound_ID,
+      "RT" = scaled_rts,
+      "MZ" = scaled_mzs
+    )
   }
 
+  # Calculate final deviations
   dev_out <- get_cutoffs(
-    df1 = results |>
+    df1 = results %>%
       dplyr::select(dplyr::any_of(c(
         "Compound_ID_1", "RT_1", "MZ_1", "Intensity_1"
       ))),
@@ -847,11 +821,170 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int) {
     has_int = ("Intensity_1" %in% names(results))
   )
 
-  deviations <- dev_out$cutoffs
-  outliers <- dev_out$outliers
-
+  # Update object
   iso_matched(align_ms_obj) <- results
   scaled_values(align_ms_obj) <- scaled_values
-  cutoffs(align_ms_obj) <- deviations
+  cutoffs(align_ms_obj) <- dev_out$cutoffs
+
+  # Store bin statistics for diagnostic purposes
+  attr(align_ms_obj, "mz_bin_stats") <- bin_corrections
+
   return(align_ms_obj)
+}
+optimize_parameters <- function(ms1, ms2, match_method, n_iter = 10) {
+  bounds <- list(
+    rt_lower = c(-1, -.1),
+    rt_upper = c(.1, 1),
+    mz_lower = c(-20, -5),
+    mz_upper = c(5, 20),
+    rt_iso_threshold = c(0.01, 0.1),
+    mz_iso_threshold = c(1, 5)
+  )
+
+  # Create progress bar
+  pb <- progress::progress_bar$new(
+    format = "Optimization Progress [:bar] :percent | Iteration: :current/:total | Best Score: :best_score",
+    total = n_iter + 10,
+    width = 80,
+    clear = FALSE
+  )
+
+  best_score <- -Inf
+
+  objective <- function(rt_lower, rt_upper, mz_lower, mz_upper, rt_iso_threshold, mz_iso_threshold) {
+    result <- try(
+      {
+        align_obj <- methods::new("MergedMSObject")
+        ms1(align_obj) <- ms1
+        ms2(align_obj) <- ms2
+        align_obj <- align_obj %>%
+          align_isolated_compounds(
+            match_method = match_method,
+            rt_minus = rt_lower,
+            rt_plus = rt_upper,
+            mz_minus = mz_lower,
+            mz_plus = mz_upper
+          ) %>%
+          smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
+          final_results(rt_threshold = rt_upper, mz_threshold = mz_threshold, pref = pref)
+      },
+      silent = FALSE
+    )
+
+    if (inherits(result, "try-error")) {
+      return(list(Score = -Inf, Pred = 0))
+    }
+
+    score <- evaluate_matches(result)
+
+    # Update best score if needed
+    if (score > best_score) {
+      best_score <<- score
+    }
+
+    # Update progress bar with latest best score
+    pb$tick(tokens = list(best_score = sprintf("%.3f", best_score)))
+
+    return(list(Score = score, Pred = 0))
+  }
+
+  # Run Bayesian optimization
+  opt <- rBayesianOptimization::BayesianOptimization(
+    FUN = objective,
+    bounds = bounds,
+    init_points = 10,
+    n_iter = n_iter,
+    acq = "ucb",
+    verbose = FALSE # Suppress default output
+  )
+
+  # Clear progress bar
+  pb$terminate()
+
+  return(list(
+    parameters = opt$Best_Par,
+    final_score = opt$Best_Value,
+    optimization_history = opt$History
+  ))
+}
+
+
+#' Get pairs of known metabolites between datasets
+#' @param ms1 First MSObject
+#' @param ms2 Second MSObject
+#' @return Data frame of matching compound IDs for known metabolites
+get_known_pairs <- function(merged_ms) {
+  # Get data frames from MSObjects
+  df1 <- raw_df(ms1(merged_ms))
+  df2 <- raw_df(ms2(merged_ms))
+
+  metabs1 <- df1$Metabolite[!is.na(df1$Metabolite)]
+  metabs2 <- df2$Metabolite[!is.na(df2$Metabolite)]
+
+  # Find shared metabolites
+  shared_metabolites <- intersect(
+    df1$Metabolite[!is.na(df1$Metabolite)],
+    df2$Metabolite[!is.na(df2$Metabolite)]
+  )
+
+  # Create pairs dataframe
+  pairs <- data.frame(
+    metabolite = shared_metabolites,
+    ms1_id = df1$Compound_ID[match(shared_metabolites, df1$Metabolite)],
+    ms2_id = df2$Compound_ID[match(shared_metabolites, df2$Metabolite)]
+  ) %>%
+    dplyr::distinct()
+
+
+  return(pairs)
+}
+
+#' Evaluate matching quality using known metabolite pairs
+#' @param result Result from mass_combine
+#' @param known_pairs Data frame of known matching pairs
+#' @return Numeric score between 0 and 1
+evaluate_matches <- function(result) {
+  browser()
+  # Get raw dataframes
+  df1 <- raw_df(ms1(result))
+  df2 <- raw_df(ms2(result))
+
+  # Get all metabolites with multiplicities from original data
+  true_metabs1 <- df1$Metabolite[!is.na(df1$Metabolite)]
+  true_metabs2 <- df2$Metabolite[!is.na(df2$Metabolite)]
+
+  # Count occurrences in each set
+  count1 <- table(true_metabs1)
+  count2 <- table(true_metabs2)
+
+  # Find common elements and take the minimum count
+  common_elements <- intersect(names(count1), names(count2))
+  min_counts <- pmin(count1[common_elements], count2[common_elements])
+
+  # Create the resulting set Z
+  result_set <- rep(names(min_counts), min_counts)
+
+  # Get the total number of elements in the resulting set
+  total_number <- length(result_set)
+
+  # Get all matches from the result
+  matches <- all_matched(result)
+
+  # Pre-compute column names
+  ms1_metab_col <- paste0("Metabolite_", name(result@ms1))
+  ms2_metab_col <- paste0("Metabolite_", name(result@ms2))
+
+  # Create a named vector for renaming
+  rename_cols <- c(
+    metabolite_name_1 = ms1_metab_col,
+    metabolite_name_2 = ms2_metab_col
+  )
+
+  # Calculate valid matches (where metabolites are same)
+  n_matches <- matches |>
+    dplyr::rename(dplyr::any_of(rename_cols)) |>
+    dplyr::filter(metabolite_name_1 == metabolite_name_2) |>
+    nrow()
+  # Calculate possible matches per metabolite
+  return(n_matches / total_number)
 }

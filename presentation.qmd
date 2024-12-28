@@ -1,0 +1,278 @@
+---
+title: "massSight Benchmarking Framework"
+author: "Lab Meeting"
+format: 
+  revealjs:
+    theme: simple
+    transition: slide
+    slide-number: true
+    code-fold: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+library(tidyverse)
+library(patchwork)
+```
+
+## Overview
+
+1. Why benchmark massSight?
+2. Simulation Framework
+3. Types of Drift
+4. Performance Metrics
+5. Results & Insights
+6. Future Work
+
+---
+
+## Why Benchmark massSight?
+
+- Need to validate alignment performance
+- Real data lacks ground truth
+- Controlled experiments are expensive
+- Simulation allows testing edge cases
+- Quantify impact of different types of drift
+
+---
+
+## Simulation Framework
+
+:::: {.columns}
+
+::: {.column width="60%"}
+- Generate synthetic LC-MS features
+  - Retention time
+  - m/z values
+  - Intensities
+- Apply controlled drift
+- Compare alignment results
+:::
+
+::: {.column width="40%"}
+![Simulation Flow](simulation_flow.png)
+:::
+
+::::
+
+---
+
+## Feature Generation
+
+```{r feature-generation}
+#| fig-width: 12
+#| fig-height: 8
+#| layout-ncol: 2
+# Generate example feature data
+set.seed(42)
+n_features <- 1000
+
+# RT distribution (normal mixture)
+rt <- c(
+  rnorm(n_features * 0.4, mean = 5, sd = 1),
+  rnorm(n_features * 0.6, mean = 12, sd = 2)
+)
+
+# m/z clusters
+n_clusters <- 20
+cluster_centers <- runif(n_clusters, 100, 1000)
+mz <- unlist(lapply(cluster_centers, function(center) {
+  rnorm(n_features/n_clusters, mean = center, sd = 0.1)
+}))
+
+# Log-normal intensity distribution
+intensity <- rlnorm(n_features, meanlog = 10, sdlog = 1)
+
+# Create plots
+features_df <- tibble(
+  RT = rt,
+  MZ = mz,
+  Intensity = intensity
+)
+
+# RT distribution
+p1 <- ggplot(features_df, aes(x = RT)) +
+  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
+  labs(title = "RT Distribution",
+       x = "Retention Time (min)",
+       y = "Count") +
+  theme_minimal()
+
+# m/z distribution
+p2 <- ggplot(features_df, aes(x = MZ)) +
+  geom_histogram(bins = 100, fill = "darkred", alpha = 0.7) +
+  labs(title = "m/z Distribution",
+       x = "m/z",
+       y = "Count") +
+  theme_minimal()
+
+# Intensity distribution
+p3 <- ggplot(features_df, aes(x = log10(Intensity))) +
+  geom_histogram(bins = 50, fill = "darkgreen", alpha = 0.7) +
+  labs(title = "Log10 Intensity Distribution",
+       x = "Log10(Intensity)",
+       y = "Count") +
+  theme_minimal()
+
+# RT vs m/z scatter
+p4 <- ggplot(features_df, aes(x = RT, y = MZ, color = log10(Intensity))) +
+  geom_point(alpha = 0.6) +
+  scale_color_viridis_c() +
+  labs(title = "Feature Map",
+       x = "Retention Time (min)",
+       y = "m/z",
+       color = "Log10(Int)") +
+  theme_minimal()
+
+(p1 + p2) / (p3 + p4)
+```
+
+::: {.notes}
+Key characteristics:
+- Bimodal RT distribution (5 & 12 min peaks)
+- Clustered m/z values (20 clusters)
+- Log-normal intensity distribution
+- Realistic feature density
+:::
+
+---
+
+## Types of Drift
+
+```{r drift-plots}
+#| fig-width: 12
+#| fig-height: 5
+#| 
+# Create example data with different drift patterns
+# Create base RT values
+rt <- seq(1, 20, by = 0.1)
+
+# Create different RT drift scenarios
+rt_data <- tibble(
+  RT = rt,
+  `No Drift` = RT,
+  `Linear (5%)` = RT * 1.05,
+  `Linear (20%)` = RT * 1.20,
+  `Non-linear (10%)` = RT + 0.1 * sin(RT * 0.5)
+) %>%
+  pivot_longer(-RT, names_to = "Drift_Type", values_to = "Drifted_RT")
+
+# Create base m/z values
+mz <- seq(100, 1000, by = 10)
+
+# Create different mass drift scenarios
+mz_data <- tibble(
+  MZ = mz,
+  `No Drift` = MZ,
+  `2 ppm` = MZ * (1 + 2e-6),
+  `10 ppm` = MZ * (1 + 10e-6),
+  `Non-linear (5 ppm)` = MZ * (1 + 5e-6 * (1 + sin(MZ/100)))
+) %>%
+  pivot_longer(-MZ, names_to = "Drift_Type", values_to = "Drifted_MZ") %>%
+  mutate(PPM_Error = (Drifted_MZ - MZ)/MZ * 1e6)
+
+# RT drift plot
+rt_plot <- ggplot(rt_data, aes(x = RT, y = Drifted_RT - RT, color = Drift_Type)) +
+  geom_line(linewidth = 1) +
+  labs(x = "Original RT (min)",
+       y = "RT Drift (min)",
+       color = "Drift Type") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_brewer(palette = "Set2")
+
+# Mass drift plot
+mz_plot <- ggplot(mz_data, aes(x = MZ, y = PPM_Error, color = Drift_Type)) +
+  geom_line(linewidth = 1) +
+  labs(x = "m/z",
+       y = "Mass Error (ppm)",
+       color = "Drift Type") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_brewer(palette = "Set2")
+
+# Combine plots
+rt_plot + mz_plot +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+```
+
+::: {.notes}
+- Left plot shows RT drift patterns:
+  - Linear drift at 5% and 20%
+  - Non-linear sinusoidal drift
+- Right plot shows mass drift:
+  - Fixed ppm drift (2 and 10 ppm)
+  - Non-linear mass-dependent drift
+:::
+
+---
+
+## Performance Metrics
+
+1. **Matching Accuracy**
+   - Precision
+   - Recall
+   - F1 Score
+
+2. **Alignment Quality**
+   - RT RMSE
+   - m/z PPM RMSE
+   - Runtime
+
+---
+
+## Example Results
+
+:::: {.columns}
+
+::: {.column width="50%"}
+![F1 Scores](f1_scores.png)
+:::
+
+::: {.column width="50%"}
+**Key Observations:**
+- Performance vs feature count
+- Impact of drift magnitude
+- Linear vs non-linear drift
+:::
+
+::::
+
+---
+
+## Current Assumptions & Limitations
+
+1. Independent RT and m/z drift
+2. No missing values
+3. Perfect peak detection
+4. No intensity-dependent mass drift
+5. Simplified isotope patterns
+
+---
+
+## Future Work
+
+1. More realistic feature generation
+   - Incorporate real data distributions
+   - Add isotope patterns
+
+2. Additional drift patterns
+   - Intensity-dependent mass drift
+   - Local RT fluctuations
+
+3. Missing value scenarios
+   - Random missingness
+   - Intensity-dependent missingness
+
+---
+
+## Questions?
+
+Thank you for your attention!
+
+Contact: [your-email@institution.edu](mailto:your-email@institution.edu) 
