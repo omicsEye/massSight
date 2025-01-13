@@ -359,16 +359,16 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
     dplyr::anti_join(results, by = setNames(paste0("Compound_ID_", study1_name), "Compound_ID")) %>%
     dplyr::rename_with(~ paste0(.x, "_", study1_name), .cols = dplyr::everything()) %>%
     dplyr::mutate(
-      !!sym(paste0("Compound_ID_", study2_name)) := NA,
-      !!sym(paste0("RT_", study2_name)) := NA,
-      !!sym(paste0("MZ_", study2_name)) := NA,
-      !!sym(paste0("Intensity_", study2_name)) := NA,
-      !!sym(paste0("Metabolite_", study2_name)) := NA,
-      rep_Compound_ID = !!sym(paste0("Compound_ID_", study1_name)),
-      rep_RT = !!sym(paste0("RT_", study1_name)),
-      rep_MZ = !!sym(paste0("MZ_", study1_name)),
-      rep_Intensity = if ("Intensity" %in% names(df1)) !!sym(paste0("Intensity_", study1_name)) else NULL,
-      rep_Metabolite = if ("Metabolite" %in% names(df1)) !!sym(paste0("Metabolite_", study1_name)) else NULL
+      !!rlang::sym(paste0("Compound_ID_", study2_name)) := NA,
+      !!rlang::sym(paste0("RT_", study2_name)) := NA,
+      !!rlang::sym(paste0("MZ_", study2_name)) := NA,
+      !!rlang::sym(paste0("Intensity_", study2_name)) := NA,
+      !!rlang::sym(paste0("Metabolite_", study2_name)) := NA,
+      rep_Compound_ID = !!rlang::sym(paste0("Compound_ID_", study1_name)),
+      rep_RT = !!rlang::sym(paste0("RT_", study1_name)),
+      rep_MZ = !!rlang::sym(paste0("MZ_", study1_name)),
+      rep_Intensity = if ("Intensity" %in% names(df1)) !!rlang::sym(paste0("Intensity_", study1_name)) else NULL,
+      rep_Metabolite = if ("Metabolite" %in% names(df1)) !!rlang::sym(paste0("Metabolite_", study1_name)) else NULL
     )
 
   # Get unmatched metabolites from study2
@@ -377,16 +377,16 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
     dplyr::anti_join(results, by = setNames(paste0("Compound_ID_", study2_name), "Compound_ID")) %>%
     dplyr::rename_with(~ paste0(.x, "_", study2_name), .cols = dplyr::everything()) %>%
     dplyr::mutate(
-      !!sym(paste0("Compound_ID_", study1_name)) := NA,
-      !!sym(paste0("RT_", study1_name)) := NA,
-      !!sym(paste0("MZ_", study1_name)) := NA,
-      !!sym(paste0("Intensity_", study1_name)) := NA,
-      !!sym(paste0("Metabolite_", study1_name)) := NA,
-      rep_Compound_ID = !!sym(paste0("Compound_ID_", study2_name)),
-      rep_RT = !!sym(paste0("RT_", study2_name)),
-      rep_MZ = !!sym(paste0("MZ_", study2_name)),
-      rep_Intensity = if ("Intensity" %in% names(df2)) !!sym(paste0("Intensity_", study2_name)) else NULL,
-      rep_Metabolite = if ("Metabolite" %in% names(df2)) !!sym(paste0("Metabolite_", study2_name)) else NULL
+      !!rlang::sym(paste0("Compound_ID_", study1_name)) := NA,
+      !!rlang::sym(paste0("RT_", study1_name)) := NA,
+      !!rlang::sym(paste0("MZ_", study1_name)) := NA,
+      !!rlang::sym(paste0("Intensity_", study1_name)) := NA,
+      !!rlang::sym(paste0("Metabolite_", study1_name)) := NA,
+      rep_Compound_ID = !!rlang::sym(paste0("Compound_ID_", study2_name)),
+      rep_RT = !!rlang::sym(paste0("RT_", study2_name)),
+      rep_MZ = !!rlang::sym(paste0("MZ_", study2_name)),
+      rep_Intensity = if ("Intensity" %in% names(df2)) !!rlang::sym(paste0("Intensity_", study2_name)) else NULL,
+      rep_Metabolite = if ("Metabolite" %in% names(df2)) !!rlang::sym(paste0("Metabolite_", study2_name)) else NULL
     )
 
   # Combine matched and unmatched results
@@ -395,30 +395,30 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
     dplyr::bind_rows()
   all_results <- all_results %>%
     dplyr::mutate(
-      rep_Compound_ID = ifelse(is.na(!!sym(paste0("Compound_ID_", study1_name))),
-        !!sym(paste0("Compound_ID_", study2_name)),
-        !!sym(paste0("Compound_ID_", study1_name))
+      rep_Compound_ID = ifelse(is.na(!!rlang::sym(paste0("Compound_ID_", study1_name))),
+        !!rlang::sym(paste0("Compound_ID_", study2_name)),
+        !!rlang::sym(paste0("Compound_ID_", study1_name))
       ),
-      rep_RT = ifelse(is.na(!!sym(paste0("RT_", study1_name))),
-        !!sym(paste0("RT_", study2_name)),
-        !!sym(paste0("RT_", study1_name))
+      rep_RT = ifelse(is.na(!!rlang::sym(paste0("RT_", study1_name))),
+        !!rlang::sym(paste0("RT_", study2_name)),
+        !!rlang::sym(paste0("RT_", study1_name))
       ),
-      rep_MZ = ifelse(is.na(!!sym(paste0("MZ_", study1_name))),
-        !!sym(paste0("MZ_", study2_name)),
-        !!sym(paste0("MZ_", study1_name))
+      rep_MZ = ifelse(is.na(!!rlang::sym(paste0("MZ_", study1_name))),
+        !!rlang::sym(paste0("MZ_", study2_name)),
+        !!rlang::sym(paste0("MZ_", study1_name))
       ),
       rep_Intensity = if ("Intensity" %in% names(df1)) {
-        ifelse(is.na(!!sym(paste0("Intensity_", study1_name))),
-          !!sym(paste0("Intensity_", study2_name)),
-          !!sym(paste0("Intensity_", study1_name))
+        ifelse(is.na(!!rlang::sym(paste0("Intensity_", study1_name))),
+          !!rlang::sym(paste0("Intensity_", study2_name)),
+          !!rlang::sym(paste0("Intensity_", study1_name))
         )
       } else {
         NULL
       },
       rep_Metabolite = if ("Metabolite" %in% names(df1)) {
-        ifelse(is.na(!!sym(paste0("Metabolite_", study1_name))),
-          !!sym(paste0("Metabolite_", study2_name)),
-          !!sym(paste0("Metabolite_", study1_name))
+        ifelse(is.na(!!rlang::sym(paste0("Metabolite_", study1_name))),
+          !!rlang::sym(paste0("Metabolite_", study2_name)),
+          !!rlang::sym(paste0("Metabolite_", study1_name))
         )
       } else {
         NULL
@@ -427,7 +427,7 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
   # Reorder columns
   all_results <- all_results %>%
     dplyr::mutate(
-      matched = ifelse(is.na(!!sym(paste0("Compound_ID_", study1_name))) | is.na(!!sym(paste0("Compound_ID_", study2_name))), FALSE, TRUE)
+      matched = ifelse(is.na(!!rlang::sym(paste0("Compound_ID_", study1_name))) | is.na(!!rlang::sym(paste0("Compound_ID_", study2_name))), FALSE, TRUE)
     ) %>%
     dplyr::select(
       dplyr::starts_with("rep_"),
@@ -882,12 +882,14 @@ optimize_parameters <- function(ms1,
       try({
         if (match_method == "unsupervised") {
           if (iso_method == "manual") {
-            ref_iso <- getVectors(raw_df(ms1), 
-                                rt_sim = current_params$rt_iso_threshold, 
-                                mz_sim = current_params$mz_iso_threshold)
-            query_iso <- getVectors(raw_df(ms2), 
-                                  rt_sim = current_params$rt_iso_threshold, 
-                                  mz_sim = current_params$mz_iso_threshold)
+            ref_iso <- getVectors(raw_df(ms1),
+              rt_sim = current_params$rt_iso_threshold,
+              mz_sim = current_params$mz_iso_threshold
+            )
+            query_iso <- getVectors(raw_df(ms2),
+              rt_sim = current_params$rt_iso_threshold,
+              mz_sim = current_params$mz_iso_threshold
+            )
             isolated(ms1) <- raw_df(ms1) %>%
               dplyr::filter(.data$Compound_ID %in% ref_iso)
             isolated(ms2) <- raw_df(ms2) %>%
@@ -899,7 +901,6 @@ optimize_parameters <- function(ms1,
           isolated(ms2) <- raw_df(ms2) %>%
             dplyr::filter(.data$Metabolite != "")
         }
-
         align_obj <- methods::new("MergedMSObject")
         ms1(align_obj) <- ms1
         ms2(align_obj) <- ms2
@@ -1052,7 +1053,7 @@ evaluate_matches <- function(result) {
 #' @export
 get_unique_matches <- function(ms_object) {
   all_matched(ms_object) %>%
-    arrange(score) %>%
+    dplyr::arrange(score) %>%
     # Use slice_head() with a cumulative filter to ensure each compound is used only once
     dplyr::filter(!Compound_ID_hp1 %in% dplyr::lag(Compound_ID_hp2, default = ""),
            !Compound_ID_hp2 %in% dplyr::lag(Compound_ID_hp1, default = "")) %>%

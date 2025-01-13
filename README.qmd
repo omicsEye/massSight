@@ -63,6 +63,7 @@ library(massSight)
 
 ```{r, eval = T, echo = F}
 data(hp1)
+data(hp2)
 head(hp1) |>
   knitr::kable()
 ```
@@ -72,9 +73,6 @@ head(hp1) |>
 `massSight` creates and uses the `MSObject` class to store data and results pertaining to individual LC-MS experiments. Prior to alignment, LC-MS data frames or tibbles should be converted into an `MSObject` using `create_ms_obj`:
 
 ```{r}
-data(hp1)
-data(hp2)
-
 ms1 <-
   create_ms_obj(
     df = hp1,
