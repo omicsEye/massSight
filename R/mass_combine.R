@@ -53,7 +53,7 @@ mass_combine <- function(ms1,
                          log = "log.json",
                          output = NULL,
                          optimize = FALSE,
-                         n_iter = 10,
+                         n_iter = 5,
                          ...) {
   if (!is.null(log)) {
     time_start <- Sys.time()
@@ -133,7 +133,9 @@ mass_combine <- function(ms1,
       mz_plus = params[["mz_upper"]]
     ) %>%
     smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
-    final_results(rt_threshold = params[["rt_upper"]], mz_threshold = params[["mz_upper"]], pref = pref, rank_weight = params[["rank_weight"]], rt_weight = params[["rt_weight"]], mz_weight = params[["mz_weight"]])
+    final_results(rt_threshold = params[["rt_upper"]], mz_threshold = params[["mz_upper"]], pref = pref, alpha_rank = params[["alpha_rank"]], alpha_rt = params[["alpha_rt"]], alpha_mz = params[["alpha_mz"]])
+
+   
 
 
   if (!is.null(log)) {
@@ -270,7 +272,7 @@ align_isolated_compounds <-
     return(align_ms_obj)
   }
 
-final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, rank_weight = 0.75, rt_weight = 0, mz_weight = 0.25) {
+final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_rank, alpha_rt, alpha_mz) {
   study1_name <- name(ms1(align_ms_obj))
   study2_name <- name(ms2(align_ms_obj))
   df1 <- raw_df(ms1(align_ms_obj))
@@ -290,9 +292,9 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, rank_w
     potential_matches <- find_all_matches(df1, df2, 
                                         rt_threshold = rt_threshold, 
                                         mz_threshold = mz_threshold,
-                                        rank_weight = rank_weight,
-                                        rt_weight = rt_weight,
-                                        mz_weight = mz_weight)
+                                        alpha_rank = alpha_rank,
+                                        alpha_rt = alpha_rt,
+                                        alpha_mz = alpha_mz)
     # Calculate match scores for all potential matches
     message("Calculating match scores")
     potential_matches <- potential_matches %>%
@@ -481,7 +483,13 @@ find_all_matches_pref <- function(ref, query, rt_threshold, mz_threshold) {
 }
 
 
-find_all_matches <- function(ref, query, rt_threshold, mz_threshold, rank_weight = 0.75, rt_weight = 0, mz_weight = 0.25) {
+find_all_matches <- function(ref, query, rt_threshold, mz_threshold, alpha_rank, alpha_rt, alpha_mz) {
+
+  denom <- exp(alpha_rank) + exp(alpha_rt) + exp(alpha_mz)
+  rank_weight <- exp(alpha_rank) / denom
+  rt_weight <- exp(alpha_rt) / denom
+  mz_weight <- exp(alpha_mz) / denom
+
   ref <- ref %>%
     dplyr::rename(dplyr::any_of(c(
       "RT_1" = "RT",
@@ -490,7 +498,7 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold, rank_weight
       "Intensity_1" = "Intensity",
       "Metabolite_1" = "Metabolite"
     )))
-  query <- query %>%
+  query <- query %>%  
     dplyr::rename(dplyr::any_of(c(
       "RT_2" = "RT",
       "MZ_2" = "MZ",
@@ -540,8 +548,6 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold, rank_weight
                     (max(rt_diff, na.rm = TRUE) - min(rt_diff, na.rm = TRUE)),
       mz_score = (mz_diff - min(mz_diff, na.rm = TRUE)) / 
                     (max(mz_diff, na.rm = TRUE) - min(mz_diff, na.rm = TRUE)),
-      
-      # Combined weighted score - higher values (closer to 1) indicate better matches
       score = rank_weight * rank_score + rt_weight * rt_score + mz_weight * mz_score
     )
   return(matches)
@@ -886,9 +892,9 @@ optimize_parameters <- function(ms1,
             final_results(rt_threshold = rt_upper, 
                         mz_threshold = mz_upper, 
                         pref = pref,
-                        rank_weight = rank_weight,
-                        rt_weight = rt_weight,
-                        mz_weight = mz_weight)
+                        alpha_rank = alpha_rank,
+                        alpha_rt = alpha_rt,
+                        alpha_mz = alpha_mz)
         },
         silent = FALSE
       )
@@ -903,7 +909,7 @@ optimize_parameters <- function(ms1,
     # Update best score if needed and check for perfect score
     if (score > best_score) {
       best_score <<- score
-      if (score == 1) {
+      if (score >= 0.99) {
         # Signal to stop optimization by throwing a custom condition
         signalCondition(structure(
           list(message = "Perfect score achieved", 
@@ -914,9 +920,9 @@ optimize_parameters <- function(ms1,
                  mz_upper = mz_upper,
                  rt_iso_threshold = rt_iso_threshold,
                  mz_iso_threshold = mz_iso_threshold,
-                 rank_weight = rank_weight,
-                 rt_weight = rt_weight,
-                 mz_weight = mz_weight
+                 alpha_rank = alpha_rank,
+                 alpha_rt = alpha_rt,
+                 alpha_mz = alpha_mz
                )),
           class = c("perfect_score", "condition")
         ))
@@ -930,27 +936,44 @@ optimize_parameters <- function(ms1,
   }
 
   # Run Bayesian optimization with early stopping
-  opt <- tryCatch({
-    rBayesianOptimization::BayesianOptimization(
-      FUN = objective,
-      bounds = bounds,
-      init_points = 20,
-      n_iter = n_iter,
-      acq = "ucb",
-      verbose = FALSE
-    )
-  }, perfect_score = function(cond) {
-    # Return early with perfect parameters
-    list(
-      Best_Par = cond$parameters,
-      Best_Value = 1,
-      History = NULL,
-      early_stop = TRUE
-    )
-  })
+  opt <- tryCatch(
+    {
+      rBayesianOptimization::BayesianOptimization(
+        FUN = objective,
+        bounds = bounds,
+        init_points = 20,
+        n_iter = n_iter,
+        acq = "ucb",
+        verbose = FALSE
+      )
+    },
+    perfect_score = function(cond) {
+      # Return early with perfect parameters
+      list(
+        Best_Par = cond$parameters,
+        Best_Value = 1,
+        History = NULL,
+        early_stop = TRUE
+      )
+    }
+  )
 
   # Clear progress bar
   pb$terminate()
+
+  # Print best parameters if optimization completed successfully
+  if (!is.null(opt$Best_Par)) {
+    message("\nBest parameters found:")
+    message(sprintf("  RT lower: %.3f", opt$Best_Par$rt_lower))
+    message(sprintf("  RT upper: %.3f", opt$Best_Par$rt_upper)) 
+    message(sprintf("  m/z lower: %.3f", opt$Best_Par$mz_lower))
+    message(sprintf("  m/z upper: %.3f", opt$Best_Par$mz_upper))
+    message(sprintf("  RT isolation threshold: %.3f", opt$Best_Par$rt_iso_threshold))
+    message(sprintf("  m/z isolation threshold: %.3f", opt$Best_Par$mz_iso_threshold))
+    message(sprintf("  Rank weight: %.3f", opt$Best_Par$alpha_rank))
+    message(sprintf("  RT weight: %.3f", opt$Best_Par$alpha_rt))
+    message(sprintf("  m/z weight: %.3f", opt$Best_Par$alpha_mz))
+  }
 
   return(list(
     parameters = opt$Best_Par,
@@ -1046,39 +1069,12 @@ evaluate_matches <- function(result) {
 #' @return Data frame containing only unique 1-1 matches, where each feature appears only once
 #' @export
 get_unique_matches <- function(ms_object) {
-  all_matched <- all_matched(ms_object)
-  
-  # Order matches by score (ascending, as lower is better)
-  ordered_matches <- all_matched %>%
-    dplyr::arrange(score)
-  
-  # Initialize vectors to track used features
-  used_features1 <- character(0)
-  used_features2 <- character(0)
-  
-  # Initialize list for unique matches
-  unique_matches <- list()
-  
-  # Iterate through matches in order of score
-  for (i in seq_len(nrow(ordered_matches))) {
-    current_match <- ordered_matches[i,]
-    
-    # Check if either feature has been used
-    if (!current_match$Compound_ID_hp1 %in% used_features1 && 
-        !current_match$Compound_ID_hp2 %in% used_features2) {
-      
-      # Add to unique matches
-      unique_matches[[length(unique_matches) + 1]] <- current_match
-      
-      # Mark features as used
-      used_features1 <- c(used_features1, current_match$Compound_ID_hp1)
-      used_features2 <- c(used_features2, current_match$Compound_ID_hp2)
-    }
-  }
-  
-  # Convert list to data frame
-  result <- do.call(rbind, unique_matches)
-  
-  return(result)
+  all_matched(ms_object) %>%
+    arrange(score) %>%
+    # Use slice_head() with a cumulative filter to ensure each compound is used only once
+    dplyr::filter(!Compound_ID_hp1 %in% dplyr::lag(Compound_ID_hp2, default = ""),
+           !Compound_ID_hp2 %in% dplyr::lag(Compound_ID_hp1, default = "")) %>%
+    # Additional safety check to ensure absolute uniqueness
+    dplyr::filter(!duplicated(Compound_ID_hp1),
+           !duplicated(Compound_ID_hp2))
 }
-
