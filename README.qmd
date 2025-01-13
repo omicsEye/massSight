@@ -82,7 +82,8 @@ ms1 <-
     id_name = "Compound_ID",
     rt_name = "RT",
     mz_name = "MZ",
-    int_name = "Intensity"
+    int_name = "Intensity",
+    metab_name = "Metabolite"
   )
 
 ms2 <-
@@ -92,7 +93,8 @@ ms2 <-
     id_name = "Compound_ID",
     rt_name = "RT",
     mz_name = "MZ",
-    int_name = "Intensity"
+    int_name = "Intensity",
+    metab_name = "Metabolite"
   )
 ```
 
@@ -115,37 +117,19 @@ ms2 |>
 
 ### `mass_combine()`
 
-Alignment is performed using `mass_combine()`
+Alignment is performed using `mass_combine()`. This function uses a random search to optimize the alignment parameters.
 
 ```{r, eval = T}
 aligned <- mass_combine(
   ms1,
   ms2,
-  rt_lower = -.5,
-  rt_upper = .5,
-  mz_lower = -15,
-  mz_upper = 15,
+  optimize = TRUE,
   smooth_method = "gam",
   log = NULL
 )
 ```
 
 More information on the `mass_combine()` function can be found in the [package documentation](https://omicseye.github.io/massSight/reference/mass_combine.html)
-
-### `ml_match()` 
-
-The `ml_match()` function is an alternative method for merging LC-MS experiments with semi-annotated data sets. 
-
-```{r, eval = F}
-ml_match_aligned <- ml_match(
-  ms1,
-  ms2,
-  mz_thresh = 15,
-  rt_thresh = 0.5,
-  prob_thresh = .5,
-  seed = 72
-)
-```
 
 ## Results
 
@@ -172,15 +156,10 @@ iso_matched(aligned) |>
 
 The `final_plots()` function returns plots containing information on RT and MZ drift for pre isolation, isolation, and final matching results. These plots can be used for diagnostic purposes.
 
-```{r, eval = F}
-plots <- final_plots(aligned,
-  rt_lim = c(-.5, .5),
-  mz_lim = c(-15, 15)
-)
+```{r, eval = T}
+plots <- final_plots(aligned)
 plots
 ```
-
-![](man/figures/final_plot_out.png)
 
 This plot can be saved locally using `ggsave()` from the `ggplot2` package: 
 
