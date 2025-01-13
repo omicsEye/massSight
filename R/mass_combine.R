@@ -7,6 +7,8 @@
 #'   LC-MS experiment that will serve as the reference dataset.
 #' @param ms2 A `massSight` object representing the results of a second
 #'   preprocessed LC-MS experiment that will be aligned to ms1.
+#' @param optimize Logical: whether to optimize alignment parameters using known metabolites.
+#'   Default is TRUE
 #' @param pref Logical: whether to use preference-based matching (TRUE) or 
 #'   score-based matching (FALSE). Default is FALSE.
 #' @param rt_delta Numeric: the retention time window (+/-) in minutes to consider
@@ -31,10 +33,8 @@
 #' @param weights Numeric vector: weights for RT, m/z, and intensity in the alignment
 #'   scoring. Default is c(1, 1, 1).
 #' @param log Character: path to save the log file. Set to NULL to disable logging.
-#'   Default is "log.json".
+#'   Default is NULL.
 #' @param output Character: directory to save output files. Default is NULL (current directory).
-#' @param optimize Logical: whether to optimize alignment parameters using known metabolites.
-#'   Default is FALSE.
 #' @param n_iter Integer: number of optimization iterations if optimize=TRUE. Default is 50.
 #' @param ... Additional arguments passed to internal functions.
 #'
@@ -66,6 +66,7 @@
 #' @export
 mass_combine <- function(ms1,
                          ms2,
+                         optimize = TRUE,
                          pref = FALSE,
                          rt_delta = 0.5,
                          mz_delta = 15,
@@ -77,9 +78,8 @@ mass_combine <- function(ms1,
                          match_method = "unsupervised",
                          smooth_method = "gam",
                          weights = c(1, 1, 1),
-                         log = "log.json",
+                         log = NULL,
                          output = NULL,
-                         optimize = FALSE,
                          n_iter = 50,
                          ...) {
   if (!is.null(log)) {

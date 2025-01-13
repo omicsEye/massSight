@@ -7,75 +7,105 @@
 mass_combine(
   ms1,
   ms2,
-  rt_lower = -0.5,
-  rt_upper = 0.5,
-  mz_lower = -15,
-  mz_upper = 15,
+  optimize = TRUE,
+  pref = FALSE,
+  rt_delta = 0.5,
+  mz_delta = 15,
   minimum_intensity = 10,
   iso_method = "manual",
   eps = 0.1,
-  rt_iso_threshold = 0.1,
-  mz_iso_threshold = 5,
+  rt_iso_threshold = 0.01,
+  mz_iso_threshold = 2,
   match_method = "unsupervised",
   smooth_method = "gam",
   weights = c(1, 1, 1),
   log = NULL,
-  output = NULL
+  output = NULL,
+  n_iter = 50,
+  ...
 )
 }
 \arguments{
 \item{ms1}{A \code{massSight} object representing the results of a preprocessed
-LC-MS experiment.}
+LC-MS experiment that will serve as the reference dataset.}
 
 \item{ms2}{A \code{massSight} object representing the results of a second
-preprocessed LC-MS experiment.}
+preprocessed LC-MS experiment that will be aligned to ms1.}
 
-\item{rt_lower}{A numeric indicating the lower bound of the RT
-range to be considered for aligning two metabolites.}
+\item{optimize}{Logical: whether to optimize alignment parameters using known metabolites.
+Default is TRUE}
 
-\item{rt_upper}{A numeric indicating the upper bound of the RT
-range to be considered for aligning two metabolites.}
+\item{pref}{Logical: whether to use preference-based matching (TRUE) or
+score-based matching (FALSE). Default is FALSE.}
 
-\item{mz_lower}{A numeric indicating the lower bound of the m/z
-range to be considered for aligning two metabolites.}
+\item{rt_delta}{Numeric: the retention time window (+/-) in minutes to consider
+when aligning features. Default is 0.5.}
 
-\item{mz_upper}{A numeric indicating the upper bound of the m/z
-range to be considered for aligning two metabolites.}
+\item{mz_delta}{Numeric: the mass-to-charge ratio window (+/-) in ppm to consider
+when aligning features. Default is 15.}
 
-\item{minimum_intensity}{A numeric indicating the minimum intensity
-to be considered for alignment.}
+\item{minimum_intensity}{Numeric: the minimum intensity threshold for features
+to be considered in the alignment. Default is 10.}
 
-\item{iso_method}{The isolation method used before modeling drift. Can
-either be "manual" or "dbscan".}
+\item{iso_method}{Character: the method for isolating high-quality features before
+modeling drift. Options are "manual" or "dbscan". Default is "manual".}
 
-\item{eps}{Epsilon value for dbscan algorithm. Only used if iso_method =
-"dbscan"}
+\item{eps}{Numeric: epsilon parameter for DBSCAN clustering when iso_method = "dbscan".
+Default is 0.1.}
 
-\item{rt_iso_threshold}{A numeric indicating the isolation
-parameter for RT.}
+\item{rt_iso_threshold}{Numeric: the retention time similarity threshold for manual
+isolation. Default is 0.01.}
 
-\item{mz_iso_threshold}{A numeric indicating the isolation
-parameter for m/z.}
+\item{mz_iso_threshold}{Numeric: the m/z similarity threshold for manual isolation.
+Default is 2.}
 
-\item{match_method}{A character indicating the initial matching method to
-be used to detect inter-batch variability. Options are "unsupervised" and
-"supervised".}
+\item{match_method}{Character: the method for initial feature matching. Options are
+"unsupervised" (uses all features) or "supervised" (uses only known metabolites).
+Default is "unsupervised".}
 
-\item{smooth_method}{A character indicating the smoothing method to
-be used. Options are "gam", or "gaussian".}
+\item{smooth_method}{Character: the method for smoothing systematic drift. Options are
+"gam", "bayesian_gam", or "gp". Default is "gam".}
 
-\item{weights}{A numeric vector indicating the weights to be used for
-the alignment.}
+\item{weights}{Numeric vector: weights for RT, m/z, and intensity in the alignment
+scoring. Default is c(1, 1, 1).}
 
-\item{log}{A character indicating the name of the log file.}
+\item{log}{Character: path to save the log file. Set to NULL to disable logging.
+Default is NULL.}
 
-\item{output}{A character indicating the directory to save the output. If NULL,
-the output will be saved in the current working directory.}
+\item{output}{Character: directory to save output files. Default is NULL (current directory).}
+
+\item{n_iter}{Integer: number of optimization iterations if optimize=TRUE. Default is 50.}
+
+\item{...}{Additional arguments passed to internal functions.}
 }
 \value{
-A \code{MergedMSObject} containing the combined data.
+A \code{MergedMSObject} containing:
+\itemize{
+\item Original ms1 and ms2 objects
+\item Matched features between datasets
+\item Drift correction models
+\item Alignment quality metrics
+}
 }
 \description{
-Combines two \code{massSight} objects, resulting in a single
-\code{MergedMSObject}.
+Combines two \code{massSight} objects by aligning their features and
+correcting for systematic differences in retention time and mass-to-charge ratios.
+}
+\examples{
+\dontrun{
+# Basic usage with default parameters
+combined <- mass_combine(ms1_data, ms2_data)
+
+# Use optimization with known metabolites
+combined <- mass_combine(ms1_data, ms2_data, 
+                        optimize = TRUE,
+                        n_iter = 50)
+                        
+# Custom parameters for stricter matching
+combined <- mass_combine(ms1_data, ms2_data,
+                        rt_delta = 0.3,
+                        mz_delta = 10,
+                        minimum_intensity = 100)
+}
+
 }
