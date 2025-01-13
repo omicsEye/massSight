@@ -213,9 +213,11 @@ for (profiling_method in profiling_methods) {
   final_smooth[[profiling_method]] <- final_plots(aligned_df[[profiling_method]])
   print(final_smooth[[profiling_method]])
   ggsave(
-    filename = paste0("analysis/iHMP_PRISM/iHMP_vs_all_PRISM_excel_",
-                      profiling_method, 
-                      "_massSight_plots.png"),
+    filename = paste0(
+      "analysis/iHMP_PRISM/iHMP_vs_all_PRISM_excel_",
+      profiling_method,
+      "_massSight_plots.png"
+    ),
     plot = final_smooth[[profiling_method]],
     width = 5,
     height = 5,

@@ -136,7 +136,7 @@ final_plots <-
 
     mz_all <- all_matched |>
       ggplot2::ggplot(ggplot2::aes(
-        x = .data[[mz_name1]], 
+        x = .data[[mz_name1]],
         y = (.data[[mz_adj_name2]] - .data[[mz_name1]]) / .data[[mz_name1]] * 1e6
       )) +
       ggplot2::geom_point(

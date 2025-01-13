@@ -1,4 +1,6 @@
-min_max_scale <- \(x){(x-min(x))/(max(x)-min(x))}
+min_max_scale <- \(x){
+  (x - min(x)) / (max(x) - min(x))
+}
 
 validate_parameters <-
   function(iso_method,
