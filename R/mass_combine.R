@@ -1,47 +1,74 @@
 #' @export
 #' @title Mass Combine
-#' @description Combines two `massSight` objects, resulting in a single
-#' `MergedMSObject`.
+#' @description Combines two `massSight` objects by aligning their features and 
+#' correcting for systematic differences in retention time and mass-to-charge ratios.
 #'
 #' @param ms1 A `massSight` object representing the results of a preprocessed
-#' LC-MS experiment.
+#'   LC-MS experiment that will serve as the reference dataset.
 #' @param ms2 A `massSight` object representing the results of a second
-#' preprocessed LC-MS experiment.
-#' @param rt_threshold A numeric indicating the RT
-#' range to be considered for aligning two metabolites.
-#' @param mz_threshold A numeric indicating the m/z
-#' range to be considered for aligning two metabolites.
-#' @param minimum_intensity A numeric indicating the minimum intensity
-#' to be considered for alignment.
-#' @param iso_method The isolation method used before modeling drift. Can
-#' either be "manual" or "dbscan".
-#' @param eps Epsilon value for dbscan algorithm. Only used if iso_method =
-#' "dbscan"
-#' @param rt_iso_threshold A numeric indicating the isolation
-#' parameter for RT.
-#' @param mz_iso_threshold A numeric indicating the isolation
-#' parameter for m/z.
-#' @param match_method A character indicating the initial matching method to
-#' be used to detect inter-batch variability. Options are "unsupervised" and
-#' "supervised".
-#' @param smooth_method A character indicating the smoothing method to
-#' be used. Options are "gam", "bayesian_gam", or "gp".
-#' @param weights A numeric vector indicating the weights to be used for
-#' the alignment.
-#' @param log A character indicating the name of the log file.
-#' @param output A character indicating the directory to save the output. If NULL,
-#' the output will be saved in the current working directory.
-#' @param optimize Logical: whether to optimize parameters using known metabolites
-#' @param n_iter Number of optimization iterations if optimize=TRUE
+#'   preprocessed LC-MS experiment that will be aligned to ms1.
+#' @param pref Logical: whether to use preference-based matching (TRUE) or 
+#'   score-based matching (FALSE). Default is FALSE.
+#' @param rt_delta Numeric: the retention time window (+/-) in minutes to consider
+#'   when aligning features. Default is 0.5.
+#' @param mz_delta Numeric: the mass-to-charge ratio window (+/-) in ppm to consider
+#'   when aligning features. Default is 15.
+#' @param minimum_intensity Numeric: the minimum intensity threshold for features
+#'   to be considered in the alignment. Default is 10.
+#' @param iso_method Character: the method for isolating high-quality features before
+#'   modeling drift. Options are "manual" or "dbscan". Default is "manual".
+#' @param eps Numeric: epsilon parameter for DBSCAN clustering when iso_method = "dbscan".
+#'   Default is 0.1.
+#' @param rt_iso_threshold Numeric: the retention time similarity threshold for manual
+#'   isolation. Default is 0.01.
+#' @param mz_iso_threshold Numeric: the m/z similarity threshold for manual isolation.
+#'   Default is 2.
+#' @param match_method Character: the method for initial feature matching. Options are
+#'   "unsupervised" (uses all features) or "supervised" (uses only known metabolites).
+#'   Default is "unsupervised".
+#' @param smooth_method Character: the method for smoothing systematic drift. Options are
+#'   "gam", "bayesian_gam", or "gp". Default is "gam".
+#' @param weights Numeric vector: weights for RT, m/z, and intensity in the alignment
+#'   scoring. Default is c(1, 1, 1).
+#' @param log Character: path to save the log file. Set to NULL to disable logging.
+#'   Default is "log.json".
+#' @param output Character: directory to save output files. Default is NULL (current directory).
+#' @param optimize Logical: whether to optimize alignment parameters using known metabolites.
+#'   Default is FALSE.
+#' @param n_iter Integer: number of optimization iterations if optimize=TRUE. Default is 50.
+#' @param ... Additional arguments passed to internal functions.
 #'
-#' @return A `MergedMSObject` containing the combined data.
+#' @return A `MergedMSObject` containing:
+#'   \itemize{
+#'     \item Original ms1 and ms2 objects
+#'     \item Matched features between datasets
+#'     \item Drift correction models
+#'     \item Alignment quality metrics
+#'   }
+#'
+#' @examples
+#' \dontrun{
+#' # Basic usage with default parameters
+#' combined <- mass_combine(ms1_data, ms2_data)
+#'
+#' # Use optimization with known metabolites
+#' combined <- mass_combine(ms1_data, ms2_data, 
+#'                         optimize = TRUE,
+#'                         n_iter = 50)
+#'                         
+#' # Custom parameters for stricter matching
+#' combined <- mass_combine(ms1_data, ms2_data,
+#'                         rt_delta = 0.3,
+#'                         mz_delta = 10,
+#'                         minimum_intensity = 100)
+#' }
+#'
+#' @export
 mass_combine <- function(ms1,
                          ms2,
                          pref = FALSE,
-                         rt_lower = -.5,
-                         rt_upper = .5,
-                         mz_lower = -15,
-                         mz_upper = 15,
+                         rt_delta = 0.5,
+                         mz_delta = 15,
                          minimum_intensity = 10,
                          iso_method = "manual",
                          eps = .1,
@@ -53,7 +80,7 @@ mass_combine <- function(ms1,
                          log = "log.json",
                          output = NULL,
                          optimize = FALSE,
-                         n_iter = 5,
+                         n_iter = 50,
                          ...) {
   if (!is.null(log)) {
     time_start <- Sys.time()
@@ -95,10 +122,8 @@ mass_combine <- function(ms1,
 
   } else {
     params <- list(
-      rt_lower = rt_lower,
-      rt_upper = rt_upper,
-      mz_lower = mz_lower,
-      mz_upper = mz_upper
+      rt_delta = rt_delta,
+      mz_delta = mz_delta
     )
   }
 
@@ -127,13 +152,16 @@ mass_combine <- function(ms1,
   align_obj <- align_obj %>%
     align_isolated_compounds(
       match_method = match_method,
-      rt_minus = params[["rt_lower"]],
-      rt_plus = params[["rt_upper"]],
-      mz_minus = params[["mz_lower"]],
-      mz_plus = params[["mz_upper"]]
+      rt_delta = params[["rt_delta"]],
+      mz_delta = params[["mz_delta"]]
     ) %>%
     smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
-    final_results(rt_threshold = params[["rt_upper"]], mz_threshold = params[["mz_upper"]], pref = pref, alpha_rank = params[["alpha_rank"]], alpha_rt = params[["alpha_rt"]], alpha_mz = params[["alpha_mz"]])
+    final_results(rt_threshold = params[["rt_delta"]], 
+                 mz_threshold = params[["mz_delta"]], 
+                 pref = pref,
+                 alpha_rank = params[["alpha_rank"]], 
+                 alpha_rt = params[["alpha_rt"]], 
+                 alpha_mz = params[["alpha_mz"]])
 
    
 
@@ -204,10 +232,8 @@ scale_smooth <- function(query_values, smooth_x, smooth_y) {
 align_isolated_compounds <-
   function(align_ms_obj,
            match_method,
-           rt_minus = -.5,
-           rt_plus = .5,
-           mz_minus = -15,
-           mz_plus = 15,
+           rt_delta = 0.5,
+           mz_delta = 15,
            keep = FALSE) {
     df1 <- isolated(ms1(align_ms_obj))
     df2 <- isolated(ms2(align_ms_obj))
@@ -237,10 +263,10 @@ align_isolated_compounds <-
       )
       results <- df1 %>%
         dplyr::mutate(
-          rt_upper = RT_1 + rt_plus,
-          rt_lower = RT_1 + rt_minus,
-          mz_upper = MZ_1 + (MZ_1 * 5 / 1e6),
-          mz_lower = MZ_1 + (MZ_1 * -5 / 1e6)
+          rt_upper = RT_1 + rt_delta,
+          rt_lower = RT_1 - rt_delta,
+          mz_upper = MZ_1 + (MZ_1 * mz_delta / 1e6),
+          mz_lower = MZ_1 - (MZ_1 * mz_delta / 1e6)
         ) %>%
         dplyr::inner_join(df2,
           by = dplyr::join_by(
@@ -816,169 +842,125 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
 
   return(align_ms_obj)
 }
+
 optimize_parameters <- function(ms1, 
-                                ms2, 
-                                n_iter = 10,
-                                match_method = "unsupervised", 
-                                iso_method = "manual", smooth_method = "gam", 
-                                minimum_intensity = 10, 
-                                pref = FALSE) {
+                              ms2, 
+                              n_iter = 50,  # Increased default iterations for random search
+                              match_method = "unsupervised", 
+                              iso_method = "manual", 
+                              smooth_method = "gam", 
+                              minimum_intensity = 10, 
+                              pref = FALSE) {
   bounds <- list(
-    rt_lower = c(-1, -.1),
-    rt_upper = c(.1, 1),
-    mz_lower = c(-20, -2),
-    mz_upper = c(2, 20),
+    rt_delta = c(0.1, 1.0),
+    mz_delta = c(1, 20),
     rt_iso_threshold = c(0.01, 0.1),
     mz_iso_threshold = c(1, 5),
     alpha_rank = c(-2, 2),
-    alpha_rt   = c(-2, 2),
-    alpha_mz   = c(-2, 2)
+    alpha_rt = c(-2, 2),
+    alpha_mz = c(-2, 2)
   )
 
   # Create progress bar
   pb <- progress::progress_bar$new(
     format = "Optimization Progress [:bar] :percent | Iteration: :current/:total | Best Score: :best_score",
-    total = n_iter + 20,
+    total = n_iter,
     width = 80,
     clear = FALSE
   )
 
   best_score <- -Inf
+  best_params <- NULL
+  history <- data.frame()
 
-  # Move these parameters outside the objective function
-  objective <- function(rt_lower, rt_upper, mz_lower, mz_upper, 
-                     rt_iso_threshold, mz_iso_threshold,
-                     alpha_rank, alpha_rt, alpha_mz) {
-    # Normalize weights to sum to 1
-    denom <- exp(alpha_rank) + exp(alpha_rt) + exp(alpha_mz)
-    rank_weight <- exp(alpha_rank) / denom
-    rt_weight   <- exp(alpha_rt)   / denom
-    mz_weight   <- exp(alpha_mz)   / denom
+  for (i in 1:n_iter) {
+    # Sample random parameters
+    current_params <- lapply(bounds, function(b) runif(1, b[1], b[2]))
     
-    result <- suppressMessages(
-      try(
-        {
-          if (match_method == "unsupervised") {
-            if (iso_method == "manual") {
-              ref_iso <- getVectors(raw_df(ms1), rt_sim = rt_iso_threshold, mz_sim = mz_iso_threshold)
-              query_iso <- getVectors(raw_df(ms2), rt_sim = rt_iso_threshold, mz_sim = mz_iso_threshold)
-              isolated(ms1) <- raw_df(ms1) %>%
-                dplyr::filter(.data$Compound_ID %in% ref_iso)
-              isolated(ms2) <- raw_df(ms2) %>%
-                dplyr::filter(.data$Compound_ID %in% query_iso)
-            } else if (iso_method == "dbscan") {
-              isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
-              isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
-            }
-          } else if (match_method == "supervised") {
+    # Try the current parameter combination
+    score <- suppressMessages(
+      try({
+        if (match_method == "unsupervised") {
+          if (iso_method == "manual") {
+            ref_iso <- getVectors(raw_df(ms1), 
+                                rt_sim = current_params$rt_iso_threshold, 
+                                mz_sim = current_params$mz_iso_threshold)
+            query_iso <- getVectors(raw_df(ms2), 
+                                  rt_sim = current_params$rt_iso_threshold, 
+                                  mz_sim = current_params$mz_iso_threshold)
             isolated(ms1) <- raw_df(ms1) %>%
-              dplyr::filter(.data$Metabolite != "")
+              dplyr::filter(.data$Compound_ID %in% ref_iso)
             isolated(ms2) <- raw_df(ms2) %>%
-              dplyr::filter(.data$Metabolite != "")
+              dplyr::filter(.data$Compound_ID %in% query_iso)
           }
+        } else if (match_method == "supervised") {
+          isolated(ms1) <- raw_df(ms1) %>%
+            dplyr::filter(.data$Metabolite != "")
+          isolated(ms2) <- raw_df(ms2) %>%
+            dplyr::filter(.data$Metabolite != "")
+        }
 
-          align_obj <- methods::new("MergedMSObject")
-          ms1(align_obj) <- ms1
-          ms2(align_obj) <- ms2
-          align_obj <- align_obj %>%
-            align_isolated_compounds(
-              match_method = match_method,
-              rt_minus = rt_lower,
-              rt_plus = rt_upper,
-              mz_minus = mz_lower,
-              mz_plus = mz_upper
-            ) %>%
-            smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
-            final_results(rt_threshold = rt_upper, 
-                        mz_threshold = mz_upper, 
-                        pref = pref,
-                        alpha_rank = alpha_rank,
-                        alpha_rt = alpha_rt,
-                        alpha_mz = alpha_mz)
-        },
-        silent = FALSE
-      )
+        align_obj <- methods::new("MergedMSObject")
+        ms1(align_obj) <- ms1
+        ms2(align_obj) <- ms2
+        align_obj <- align_obj %>%
+          align_isolated_compounds(
+            match_method = match_method,
+            rt_delta = current_params$rt_delta,
+            mz_delta = current_params$mz_delta
+          ) %>%
+          smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
+          final_results(rt_threshold = current_params$rt_delta, 
+                      mz_threshold = current_params$mz_delta, 
+                      pref = pref,
+                      alpha_rank = current_params$alpha_rank,
+                      alpha_rt = current_params$alpha_rt,
+                      alpha_mz = current_params$alpha_mz)
+
+        evaluate_matches(align_obj)
+      }, silent = TRUE)
     )
 
-    if (inherits(result, "try-error")) {
-      return(list(Score = -Inf, Pred = 0))
+    # Handle errors by assigning worst possible score
+    if (inherits(score, "try-error")) {
+      score <- -Inf
     }
 
-    score <- evaluate_matches(result)
+    # Update history
+    history <- rbind(history, 
+                    data.frame(iteration = i,
+                              score = score,
+                              rt_delta = current_params$rt_delta,
+                              mz_delta = current_params$mz_delta,
+                              rt_iso_threshold = current_params$rt_iso_threshold,
+                              mz_iso_threshold = current_params$mz_iso_threshold,
+                              alpha_rank = current_params$alpha_rank,
+                              alpha_rt = current_params$alpha_rt,
+                              alpha_mz = current_params$alpha_mz))
 
-    # Update best score if needed and check for perfect score
+    # Update best score if needed
     if (score > best_score) {
-      best_score <<- score
-      if (score >= 0.99) {
-        # Signal to stop optimization by throwing a custom condition
-        signalCondition(structure(
-          list(message = "Perfect score achieved", 
-               parameters = list(
-                 rt_lower = rt_lower,
-                 rt_upper = rt_upper,
-                 mz_lower = mz_lower,
-                 mz_upper = mz_upper,
-                 rt_iso_threshold = rt_iso_threshold,
-                 mz_iso_threshold = mz_iso_threshold,
-                 alpha_rank = alpha_rank,
-                 alpha_rt = alpha_rt,
-                 alpha_mz = alpha_mz
-               )),
-          class = c("perfect_score", "condition")
-        ))
+      best_score <- score
+      best_params <- current_params
+      
+      # Early stopping if we find a perfect score
+      if (score == 1) {
+        message("\nPerfect score achieved. Stopping early.")
+        break
       }
     }
 
-    # Update progress bar with latest best score
+    # Update progress bar
     pb$tick(tokens = list(best_score = sprintf("%.3f", best_score)))
-
-    return(list(Score = score, Pred = 0))
   }
-
-  # Run Bayesian optimization with early stopping
-  opt <- tryCatch(
-    {
-      rBayesianOptimization::BayesianOptimization(
-        FUN = objective,
-        bounds = bounds,
-        init_points = 20,
-        n_iter = n_iter,
-        acq = "ucb",
-        verbose = FALSE
-      )
-    },
-    perfect_score = function(cond) {
-      # Return early with perfect parameters
-      list(
-        Best_Par = cond$parameters,
-        Best_Value = 1,
-        History = NULL,
-        early_stop = TRUE
-      )
-    }
-  )
 
   # Clear progress bar
   pb$terminate()
 
-  # Print best parameters if optimization completed successfully
-  if (!is.null(opt$Best_Par)) {
-    message("\nBest parameters found:")
-    message(sprintf("  RT lower: %.3f", opt$Best_Par$rt_lower))
-    message(sprintf("  RT upper: %.3f", opt$Best_Par$rt_upper)) 
-    message(sprintf("  m/z lower: %.3f", opt$Best_Par$mz_lower))
-    message(sprintf("  m/z upper: %.3f", opt$Best_Par$mz_upper))
-    message(sprintf("  RT isolation threshold: %.3f", opt$Best_Par$rt_iso_threshold))
-    message(sprintf("  m/z isolation threshold: %.3f", opt$Best_Par$mz_iso_threshold))
-    message(sprintf("  Rank weight: %.3f", opt$Best_Par$alpha_rank))
-    message(sprintf("  RT weight: %.3f", opt$Best_Par$alpha_rt))
-    message(sprintf("  m/z weight: %.3f", opt$Best_Par$alpha_mz))
-  }
-
   return(list(
-    parameters = opt$Best_Par,
-    final_score = opt$Best_Value,
-    optimization_history = opt$History
+    parameters = best_params,
+    final_score = best_score,
+    optimization_history = history
   ))
 }
 
