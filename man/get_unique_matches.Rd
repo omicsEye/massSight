@@ -4,10 +4,13 @@
 \alias{get_unique_matches}
 \title{Get unique 1-1 matches from mass_combine output}
 \usage{
-get_unique_matches(ms_object)
+get_unique_matches(ms_object, pref = FALSE)
 }
 \arguments{
-\item{all_matched}{Data frame containing all potential matches from mass_combine}
+\item{ms_object}{MergedMSObject containing match results}
+
+\item{pref}{Logical: whether to ensure every metabolite from dataset 1 gets a match (TRUE)
+or to optimize for overall match quality (FALSE). Default is FALSE.}
 }
 \value{
 Data frame containing only unique 1-1 matches, where each feature appears only once

@@ -8,8 +8,6 @@ evaluate_matches(result)
 }
 \arguments{
 \item{result}{Result from mass_combine}
-
-\item{known_pairs}{Data frame of known matching pairs}
 }
 \value{
 Numeric score between 0 and 1

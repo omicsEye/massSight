@@ -8,7 +8,6 @@ mass_combine(
   ms1,
   ms2,
   optimize = TRUE,
-  pref = FALSE,
   rt_delta = 0.5,
   mz_delta = 15,
   minimum_intensity = 10,
@@ -34,9 +33,6 @@ preprocessed LC-MS experiment that will be aligned to ms1.}
 
 \item{optimize}{Logical: whether to optimize alignment parameters using known metabolites.
 Default is TRUE}
-
-\item{pref}{Logical: whether to use preference-based matching (TRUE) or
-score-based matching (FALSE). Default is FALSE.}
 
 \item{rt_delta}{Numeric: the retention time window (+/-) in minutes to consider
 when aligning features. Default is 0.5.}

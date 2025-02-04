@@ -1,3 +1,5 @@
+#' @importFrom ParamHelpers makeParamSet makeNumericParam
+#' @importFrom mlrMBO makeMBOControl setMBOControlTermination mbo
 #' @export
 #' @title Mass Combine
 #' @description Combines two `massSight` objects by aligning their features and 
@@ -9,8 +11,6 @@
 #'   preprocessed LC-MS experiment that will be aligned to ms1.
 #' @param optimize Logical: whether to optimize alignment parameters using known metabolites.
 #'   Default is TRUE
-#' @param pref Logical: whether to use preference-based matching (TRUE) or 
-#'   score-based matching (FALSE). Default is FALSE.
 #' @param rt_delta Numeric: the retention time window (+/-) in minutes to consider
 #'   when aligning features. Default is 0.5.
 #' @param mz_delta Numeric: the mass-to-charge ratio window (+/-) in ppm to consider
@@ -67,7 +67,6 @@
 mass_combine <- function(ms1,
                          ms2,
                          optimize = TRUE,
-                         pref = FALSE,
                          rt_delta = 0.5,
                          mz_delta = 15,
                          minimum_intensity = 10,
@@ -107,61 +106,76 @@ mass_combine <- function(ms1,
 
   validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
 
-  # Check if optimization is requested and possible
-  if (optimize) {
-    # TODO
-  }
-
   # Either optimize parameters or use provided/default parameters
   if (optimize) {
-    message("Optimizing parameters using known metabolites...")
-    opt_result <- optimize_parameters(ms1, ms2, match_method = match_method, n_iter = n_iter, smooth_method = smooth_method)
+    message("Optimizing parameters using Bayesian optimization...")
+    opt_result <- optimize_parameters(ms1, ms2, ...)
     params <- opt_result$parameters
+    align_obj <- opt_result$best_object # Use the stored best object
 
     message(sprintf("Optimization complete. Final score: %.3f", opt_result$final_score))
-
+    message("\nOptimal parameters:")
+    message(sprintf("  RT delta: %.3f", params[["rt_delta"]]))
+    message(sprintf("  MZ delta: %.3f", params[["mz_delta"]]))
+    message(sprintf("  RT isolation threshold: %.3f", params[["rt_iso_threshold"]]))
+    message(sprintf("  MZ isolation threshold: %.3f", params[["mz_iso_threshold"]]))
+    message(sprintf("  Alpha rank: %.3f", params[["alpha_rank"]]))
+    message(sprintf("  Alpha RT: %.3f", params[["alpha_rt"]]))
+    message(sprintf("  Alpha MZ: %.3f", params[["alpha_mz"]]))
   } else {
     params <- list(
       rt_delta = rt_delta,
-      mz_delta = mz_delta
+      mz_delta = mz_delta,
+      rt_iso_threshold = rt_iso_threshold,
+      mz_iso_threshold = mz_iso_threshold,
+      alpha_rank = .5, # default values when not optimizing
+      alpha_rt = .5,
+      alpha_mz = .5
     )
-  }
 
-  if (match_method == "unsupervised") {
-    if (iso_method == "manual") {
-      ref_iso <- getVectors(raw_df(ms1), rt_sim = rt_iso_threshold, mz_sim = mz_iso_threshold)
-      query_iso <- getVectors(raw_df(ms2), rt_sim = rt_iso_threshold, mz_sim = mz_iso_threshold)
+    if (match_method == "unsupervised") {
+      if (iso_method == "manual") {
+        ref_iso <- getVectors(raw_df(ms1),
+          rt_sim = params[["rt_iso_threshold"]], # Use optimized parameter
+          mz_sim = params[["mz_iso_threshold"]]
+        ) # Use optimized parameter
+        query_iso <- getVectors(raw_df(ms2),
+          rt_sim = params[["rt_iso_threshold"]], # Use optimized parameter
+          mz_sim = params[["mz_iso_threshold"]]
+        ) # Use optimized parameter
+        isolated(ms1) <- raw_df(ms1) %>%
+          dplyr::filter(.data$Compound_ID %in% ref_iso)
+        isolated(ms2) <- raw_df(ms2) %>%
+          dplyr::filter(.data$Compound_ID %in% query_iso)
+      } else if (iso_method == "dbscan") {
+        isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
+        isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
+      }
+    } else if (match_method == "supervised") {
       isolated(ms1) <- raw_df(ms1) %>%
-        dplyr::filter(.data$Compound_ID %in% ref_iso)
+        dplyr::filter(.data$Metabolite != "")
       isolated(ms2) <- raw_df(ms2) %>%
-        dplyr::filter(.data$Compound_ID %in% query_iso)
-    } else if (iso_method == "dbscan") {
-      isolated(ms1) <- iso_dbscan(raw_df(ms1), eps)
-      isolated(ms2) <- iso_dbscan(raw_df(ms2), eps)
+        dplyr::filter(.data$Metabolite != "")
     }
-  } else if (match_method == "supervised") {
-    isolated(ms1) <- raw_df(ms1) %>%
-      dplyr::filter(.data$Metabolite != "")
-    isolated(ms2) <- raw_df(ms2) %>%
-      dplyr::filter(.data$Metabolite != "")
-  }
 
-  align_obj <- methods::new("MergedMSObject")
-  ms1(align_obj) <- ms1
-  ms2(align_obj) <- ms2
-  align_obj <- align_obj %>%
-    align_isolated_compounds(
-      match_method = match_method,
-      rt_delta = params[["rt_delta"]],
-      mz_delta = params[["mz_delta"]]
-    ) %>%
-    smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
-    final_results(rt_threshold = params[["rt_delta"]], 
-                 mz_threshold = params[["mz_delta"]], 
-                 pref = pref,
-                 alpha_rank = params[["alpha_rank"]], 
-                 alpha_rt = params[["alpha_rt"]], 
-                 alpha_mz = params[["alpha_mz"]])
+    align_obj <- methods::new("MergedMSObject")
+    ms1(align_obj) <- ms1
+    ms2(align_obj) <- ms2
+    align_obj <- align_obj %>%
+      align_isolated_compounds(
+        match_method = match_method,
+        rt_delta = params[["rt_delta"]],
+        mz_delta = params[["mz_delta"]]
+      ) %>%
+      smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
+      final_results(
+        rt_threshold = params[["rt_delta"]],
+        mz_threshold = params[["mz_delta"]],
+        alpha_rank = params[["alpha_rank"]],
+        alpha_rt = params[["alpha_rt"]],
+        alpha_mz = params[["alpha_mz"]]
+      )
+  }
 
    
 
@@ -179,7 +193,12 @@ mass_combine <- function(ms1,
     )
   }
   if (optimize) {
-    attr(align_obj, "optimization") <- opt_result
+        # Store optimization history in the object attributes
+    attr(align_obj, "optimization") <- list(
+      parameters = opt_result$parameters,
+      final_score = opt_result$final_score,
+      history = opt_result$optimization_history
+    )
   }
   return(align_obj)
 }
@@ -298,7 +317,7 @@ align_isolated_compounds <-
     return(align_ms_obj)
   }
 
-final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_rank, alpha_rt, alpha_mz) {
+final_results <- function(align_ms_obj, rt_threshold, mz_threshold, alpha_rank, alpha_rt, alpha_mz) {
   study1_name <- name(ms1(align_ms_obj))
   study2_name <- name(ms2(align_ms_obj))
   df1 <- raw_df(ms1(align_ms_obj))
@@ -312,9 +331,6 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
 
   # Create a joined matrix of potential matches
   message("Creating potential final matches")
-  if (pref) {
-    best_matches <- find_all_matches_pref(df1, df2, rt_threshold = rt_threshold, mz_threshold = mz_threshold)
-  } else {
     potential_matches <- find_all_matches(df1, df2, 
                                         rt_threshold = rt_threshold, 
                                         mz_threshold = mz_threshold,
@@ -329,8 +345,7 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
         delta_MZ = (MZ_adj_2 - MZ_1) / MZ_1 * 1e6, # Convert to ppm
       )
     
-    best_matches <- potential_matches
-  }
+  best_matches <- potential_matches
   # Prepare the final results dataframe
   results <- best_matches %>%
     dplyr::rename(
@@ -437,16 +452,15 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
 
   # match metadata from ms1 and ms2 to final results
   metadata2 <- metadata(ms2(align_ms_obj))
-  if (!pref) {
-    metadata1 <- metadata(ms1(align_ms_obj))
-    if (nrow(metadata1) > 0) {
-      all_results <- all_results %>%
+  metadata1 <- metadata(ms1(align_ms_obj))
+  if (nrow(metadata1) > 0) {
+    all_results <- all_results %>%
         dplyr::left_join(metadata1, by = structure(
           "Compound_ID",
           names = paste0("Compound_ID_", study1_name)
         ))
     }
-  }
+  
   if (nrow(metadata2) > 0) {
     all_results <- all_results %>%
       dplyr::left_join(metadata2, by = structure(
@@ -460,54 +474,6 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, pref, alpha_
 
   return(align_ms_obj)
 }
-
-find_all_matches_pref <- function(ref, query, rt_threshold, mz_threshold) {
-  ref <- ref %>%
-    dplyr::rename(dplyr::any_of(c(
-      "RT_1" = "RT",
-      "MZ_1" = "MZ",
-      "Compound_ID_1" = "Compound_ID",
-      "Intensity_1" = "Intensity",
-      "Metabolite_1" = "Metabolite"
-    )))
-  query <- query %>%
-    dplyr::rename(dplyr::any_of(c(
-      "RT_2" = "RT",
-      "MZ_2" = "MZ",
-      "Compound_ID_2" = "Compound_ID",
-      "Intensity_2" = "Intensity",
-      "Metabolite_2" = "Metabolite"
-    )))
-
-  matches <- ref %>%
-    dplyr::mutate(
-      mz_upper = MZ_1 + mz_threshold * MZ_1 / 1e6,
-      mz_lower = MZ_1 - mz_threshold * MZ_1 / 1e6,
-      rt_upper = RT_1 + rt_threshold,
-      rt_lower = RT_1 - rt_threshold
-    ) %>%
-    dplyr::left_join(
-      query,
-      dplyr::join_by(
-        mz_lower < MZ_adj_2,
-        mz_upper > MZ_adj_2,
-        rt_lower < RT_adj_2,
-        rt_upper > RT_adj_2
-      )
-    ) %>%
-    dplyr::select(-mz_upper, -mz_lower, -rt_upper, -rt_lower) %>%
-    dplyr::mutate(
-      score = sqrt((RT_1 - RT_adj_2)^2 / (30)^2 + (MZ_1 - MZ_adj_2)^2 / (5e-6 * MZ_1)^2)
-    ) %>%
-    dplyr::group_by(Compound_ID_1) %>%
-    dplyr::slice_min(score, n = 1, with_ties = FALSE) %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(Compound_ID_1) %>%
-    dplyr::slice_min(score, n = 1, with_ties = FALSE)
-
-  return(matches)
-}
-
 
 find_all_matches <- function(ref, query, rt_threshold, mz_threshold, alpha_rank, alpha_rt, alpha_mz) {
 
@@ -845,123 +811,162 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
 
 optimize_parameters <- function(ms1, 
                               ms2, 
-                              n_iter = 50,  # Increased default iterations for random search
+                              n_iter = 50,
                               match_method = "unsupervised", 
                               iso_method = "manual", 
                               smooth_method = "gam", 
-                              minimum_intensity = 10, 
-                              pref = FALSE) {
-  bounds <- list(
-    rt_delta = c(0.1, 1.0),
-    mz_delta = c(1, 20),
-    rt_iso_threshold = c(0.01, 0.1),
-    mz_iso_threshold = c(1, 5),
-    alpha_rank = c(-2, 2),
-    alpha_rt = c(-2, 2),
-    alpha_mz = c(-2, 2)
+                              minimum_intensity = 10) {
+  
+  message("Initializing optimization...")
+  
+  # Define parameter space
+  param_set <- ParamHelpers::makeParamSet(
+    ParamHelpers::makeNumericParam("rt_delta", lower = 0.1, upper = 1.0),
+    ParamHelpers::makeNumericParam("mz_delta", lower = 1, upper = 20),
+    ParamHelpers::makeNumericParam("rt_iso_threshold", lower = 0.01, upper = 0.1),
+    ParamHelpers::makeNumericParam("mz_iso_threshold", lower = 1, upper = 5),
+    ParamHelpers::makeNumericParam("alpha_rank", lower = -2, upper = 2),
+    ParamHelpers::makeNumericParam("alpha_rt", lower = -2, upper = 2),
+    ParamHelpers::makeNumericParam("alpha_mz", lower = -2, upper = 2)
   )
 
-  # Create progress bar
+  # Create progress bar with more informative format
+  total_iters <- n_iter + 20  # Initial design + iterations
   pb <- progress::progress_bar$new(
-    format = "Optimization Progress [:bar] :percent | Iteration: :current/:total | Best Score: :best_score",
-    total = n_iter,
-    width = 80,
-    clear = FALSE
+    format = "  Optimization [:bar] :percent | Iter :current/:total | Best score: :best_score | Elapsed: :elapsed",
+    total = total_iters,
+    clear = FALSE,
+    width = 100
+  )
+  
+  # Create an environment to store optimization state
+  opt_state <- new.env(parent = emptyenv())
+  opt_state$best_score <- -Inf
+  opt_state$best_params <- NULL
+  opt_state$best_object <- NULL  # Add storage for best MergedMSObject
+  opt_state$target_achieved <- FALSE
+  
+  # Define objective function with progress updates
+  obj_fun <- smoof::makeSingleObjectiveFunction(
+    name = "alignment_score",
+    fn = function(x) {
+      # Check if we already found a perfect score
+      if (opt_state$target_achieved) {
+        return(1)
+      }
+      
+      score <- suppressMessages(
+        try({
+          if (match_method == "unsupervised") {
+            if (iso_method == "manual") {
+              ref_iso <- getVectors(raw_df(ms1),
+                rt_sim = x[["rt_iso_threshold"]],
+                mz_sim = x[["mz_iso_threshold"]]
+              )
+              query_iso <- getVectors(raw_df(ms2),
+                rt_sim = x[["rt_iso_threshold"]],
+                mz_sim = x[["mz_iso_threshold"]]
+              )
+              isolated(ms1) <- raw_df(ms1) %>%
+                dplyr::filter(.data$Compound_ID %in% ref_iso)
+              isolated(ms2) <- raw_df(ms2) %>%
+                dplyr::filter(.data$Compound_ID %in% query_iso)
+            }
+          } else if (match_method == "supervised") {
+            isolated(ms1) <- raw_df(ms1) %>%
+              dplyr::filter(.data$Metabolite != "")
+            isolated(ms2) <- raw_df(ms2) %>%
+              dplyr::filter(.data$Metabolite != "")
+          }
+          
+          align_obj <- methods::new("MergedMSObject")
+          ms1(align_obj) <- ms1
+          ms2(align_obj) <- ms2
+          align_obj <- align_obj %>%
+            align_isolated_compounds(
+              match_method = match_method,
+              rt_delta = x[["rt_delta"]],
+              mz_delta = x[["mz_delta"]]
+            ) %>%
+            smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
+            final_results(rt_threshold = x[["rt_delta"]], 
+                       mz_threshold = x[["mz_delta"]], 
+                       alpha_rank = x[["alpha_rank"]], 
+                       alpha_rt = x[["alpha_rt"]], 
+                       alpha_mz = x[["alpha_mz"]])
+
+          score <- evaluate_matches(align_obj)
+          
+          # Update best object if score is better
+          if (score > opt_state$best_score) {
+            opt_state$best_object <- align_obj
+          }
+          
+          score
+        }, silent = TRUE)
+      )
+      
+      # Update best score and parameters if current score is better
+      if (!inherits(score, "try-error") && !is.infinite(score) && !is.na(score)) {
+        if (score > opt_state$best_score && !opt_state$target_achieved) {
+          opt_state$best_score <- score
+          opt_state$best_params <- x
+          # Check if we've found a perfect score
+          if (score >= .99 && !opt_state$target_achieved) {
+            opt_state$target_achieved <- TRUE
+            message("\nTarget score achieved! Stopping optimization.")
+            return(1)
+          }
+        }
+      }
+      
+      # Tick progress bar with updated best score
+      pb$tick(tokens = list(best_score = sprintf("%.4f", opt_state$best_score)))
+
+      if (inherits(score, "try-error") || is.infinite(score) || is.na(score)) {
+        return(0)
+      }
+      return(score)
+    },
+    par.set = param_set,
+    minimize = FALSE,
   )
 
-  best_score <- -Inf
-  best_params <- NULL
-  history <- data.frame()
-
-  for (i in 1:n_iter) {
-    # Sample random parameters
-    current_params <- lapply(bounds, function(b) runif(1, b[1], b[2]))
-    
-    # Try the current parameter combination
-    score <- suppressMessages(
-      try({
-        if (match_method == "unsupervised") {
-          if (iso_method == "manual") {
-            ref_iso <- getVectors(raw_df(ms1),
-              rt_sim = current_params$rt_iso_threshold,
-              mz_sim = current_params$mz_iso_threshold
-            )
-            query_iso <- getVectors(raw_df(ms2),
-              rt_sim = current_params$rt_iso_threshold,
-              mz_sim = current_params$mz_iso_threshold
-            )
-            isolated(ms1) <- raw_df(ms1) %>%
-              dplyr::filter(.data$Compound_ID %in% ref_iso)
-            isolated(ms2) <- raw_df(ms2) %>%
-              dplyr::filter(.data$Compound_ID %in% query_iso)
-          }
-        } else if (match_method == "supervised") {
-          isolated(ms1) <- raw_df(ms1) %>%
-            dplyr::filter(.data$Metabolite != "")
-          isolated(ms2) <- raw_df(ms2) %>%
-            dplyr::filter(.data$Metabolite != "")
-        }
-        align_obj <- methods::new("MergedMSObject")
-        ms1(align_obj) <- ms1
-        ms2(align_obj) <- ms2
-        align_obj <- align_obj %>%
-          align_isolated_compounds(
-            match_method = match_method,
-            rt_delta = current_params$rt_delta,
-            mz_delta = current_params$mz_delta
-          ) %>%
-          smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
-          final_results(rt_threshold = current_params$rt_delta, 
-                      mz_threshold = current_params$mz_delta, 
-                      pref = pref,
-                      alpha_rank = current_params$alpha_rank,
-                      alpha_rt = current_params$alpha_rt,
-                      alpha_mz = current_params$alpha_mz)
-
-        evaluate_matches(align_obj)
-      }, silent = TRUE)
+  # Configure MBO control
+  control <- mlrMBO::makeMBOControl() %>%
+    mlrMBO::setMBOControlTermination(
+      iters = n_iter,
+      target.fun.value = .99
     )
 
-    # Handle errors by assigning worst possible score
-    if (inherits(score, "try-error")) {
-      score <- -Inf
-    }
-
-    # Update history
-    history <- rbind(history, 
-                    data.frame(iteration = i,
-                              score = score,
-                              rt_delta = current_params$rt_delta,
-                              mz_delta = current_params$mz_delta,
-                              rt_iso_threshold = current_params$rt_iso_threshold,
-                              mz_iso_threshold = current_params$mz_iso_threshold,
-                              alpha_rank = current_params$alpha_rank,
-                              alpha_rt = current_params$alpha_rt,
-                              alpha_mz = current_params$alpha_mz))
-
-    # Update best score if needed
-    if (score > best_score) {
-      best_score <- score
-      best_params <- current_params
-      
-      # Early stopping if we find a perfect score
-      if (score == 1) {
-        message("\nPerfect score achieved. Stopping early.")
-        break
-      }
-    }
-
-    # Update progress bar
-    pb$tick(tokens = list(best_score = sprintf("%.3f", best_score)))
-  }
+  # Run optimization
+  suppressWarnings({
+    design <- ParamHelpers::generateDesign(
+      n = 20,
+      par.set = param_set
+    ) %>%
+      as.data.frame() %>%
+      dplyr::mutate(
+        across(everything(), 
+              ~.x + runif(n(), -1e-6, 1e-6))
+      )
+    
+    result <- mlrMBO::mbo(
+      fun = obj_fun,
+      design = design,
+      control = control,
+      show.info = FALSE
+    )
+  })
 
   # Clear progress bar
   pb$terminate()
 
   return(list(
-    parameters = best_params,
-    final_score = best_score,
-    optimization_history = history
+    parameters = opt_state$best_params,
+    final_score = opt_state$best_score,
+    optimization_history = as.data.frame(result$opt.path),
+    best_object = opt_state$best_object  # Return the best MergedMSObject
   ))
 }
 
@@ -998,7 +1003,6 @@ get_known_pairs <- function(merged_ms) {
 
 #' Evaluate matching quality using known metabolite pairs
 #' @param result Result from mass_combine
-#' @param known_pairs Data frame of known matching pairs
 #' @return Numeric score between 0 and 1
 evaluate_matches <- function(result) {
   # Get raw dataframes
@@ -1048,16 +1052,69 @@ evaluate_matches <- function(result) {
 
 #' Get unique 1-1 matches from mass_combine output
 #' 
-#' @param all_matched Data frame containing all potential matches from mass_combine
+#' @param ms_object MergedMSObject containing match results
+#' @param pref Logical: whether to ensure every metabolite from dataset 1 gets a match (TRUE)
+#'   or to optimize for overall match quality (FALSE). Default is FALSE.
 #' @return Data frame containing only unique 1-1 matches, where each feature appears only once
 #' @export
-get_unique_matches <- function(ms_object) {
-  all_matched(ms_object) %>%
-    dplyr::arrange(score) %>%
-    # Use slice_head() with a cumulative filter to ensure each compound is used only once
-    dplyr::filter(!Compound_ID_hp1 %in% dplyr::lag(Compound_ID_hp2, default = ""),
-           !Compound_ID_hp2 %in% dplyr::lag(Compound_ID_hp1, default = "")) %>%
-    # Additional safety check to ensure absolute uniqueness
-    dplyr::filter(!duplicated(Compound_ID_hp1),
-           !duplicated(Compound_ID_hp2))
+get_unique_matches <- function(ms_object, pref = FALSE) {
+  # Get study names from ms_object
+  study1_name <- name(ms_object@ms1)
+  study2_name <- name(ms_object@ms2)
+  
+  # Create column names dynamically based on study names
+  id_col1 <- paste0("Compound_ID_", study1_name)
+  id_col2 <- paste0("Compound_ID_", study2_name)
+  
+  # Get matched data
+  matched_data <- all_matched(ms_object)
+  
+  # Verify required columns exist
+  required_cols <- c(id_col1, id_col2)
+  missing_cols <- setdiff(required_cols, names(matched_data))
+  if (length(missing_cols) > 0) {
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+  }
+  
+  # Check if score column exists, if not create simple ranking
+  if (!"score" %in% names(matched_data)) {
+    warning("No score column found. Using row order as score.")
+    matched_data$score <- seq_len(nrow(matched_data))
+  }
+  
+  if (pref) {
+    # Preference-based matching: ensure every metabolite from dataset 1 gets a match
+    result <- matched_data %>%
+      # Remove rows where either ID is NA
+      dplyr::filter(!is.na(.data[[id_col1]]), !is.na(.data[[id_col2]])) %>%
+      # Sort by score (best scores first)
+      dplyr::arrange(score) %>%
+      # First, get best match for each ID in dataset 1
+      dplyr::group_by(.data[[id_col1]]) %>%
+      dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
+      dplyr::ungroup() %>%
+      # Then handle any duplicates in dataset 2 by keeping best score
+      dplyr::group_by(.data[[id_col2]]) %>%
+      dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
+      dplyr::ungroup()
+  } else {
+    # Original behavior: optimize for overall match quality
+    result <- matched_data %>%
+      # Remove rows where either ID is NA
+      dplyr::filter(!is.na(.data[[id_col1]]), !is.na(.data[[id_col2]])) %>%
+      # Sort by score (best scores first)
+      dplyr::arrange(score) %>%
+      # Keep only first occurrence of each ID in either column
+      dplyr::filter(!duplicated(.data[[id_col1]]) & !duplicated(.data[[id_col2]]))
+  }
+  
+  # Add informative attributes
+  attr(result, "n_input_rows") <- nrow(matched_data)
+  attr(result, "n_output_rows") <- nrow(result)
+  
+  if (nrow(result) == 0) {
+    warning("No unique matches found. Input had ", nrow(matched_data), " rows.")
+  }
+  
+  return(result)
 }
