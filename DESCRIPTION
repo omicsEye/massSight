@@ -46,6 +46,7 @@ Suggests:
     jsonlite,
     knitr,
     rmarkdown,
+    shiny,
     spelling,
     testthat (>= 3.0.0),
     usethis

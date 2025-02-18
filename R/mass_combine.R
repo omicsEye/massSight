@@ -947,8 +947,8 @@ optimize_parameters <- function(ms1,
     ) %>%
       as.data.frame() %>%
       dplyr::mutate(
-        across(everything(), 
-              ~.x + runif(n(), -1e-6, 1e-6))
+        dplyr::across(dplyr::everything(), 
+              ~.x + runif(dplyr::n(), -1e-6, 1e-6))
       )
     
     result <- mlrMBO::mbo(
