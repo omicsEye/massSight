@@ -1064,7 +1064,13 @@ get_unique_matches <- function(ms_object, pref = FALSE) {
   
   # Create column names dynamically based on study names
   id_col1 <- paste0("Compound_ID_", study1_name)
+  mz_col1 <- paste0("MZ_", study1_name)
+  rt_col1 <- paste0("RT_", study1_name)
+  metab_col1 <- paste0("Metabolite_", study1_name)
   id_col2 <- paste0("Compound_ID_", study2_name)
+  mz_col2 <- paste0("MZ_", study2_name)
+  rt_col2 <- paste0("RT_", study2_name)
+  metab_col2 <- paste0("Metabolite_", study2_name)
   
   # Get matched data
   matched_data <- all_matched(ms_object)
@@ -1083,7 +1089,18 @@ get_unique_matches <- function(ms_object, pref = FALSE) {
   }
   
   if (pref) {
-    # Preference-based matching: ensure every metabolite from dataset 1 gets a match
+    # Identify metadata sample columns (those ending with study2_name)
+    # Remove columns containing ".x"
+    matched_data <- matched_data |>
+      dplyr::select(-dplyr::contains(".x")) |>
+      dplyr::select(-dplyr::any_of(names(ms_object@ms1@metadata))) |>
+      dplyr::rename_with(~ gsub("\\.y$", "", .x), dplyr::contains(".y"))
+    # Add essential columns to keep
+    cols_to_keep <- unique(c(
+      "rep_Compound_ID", "rep_RT", "rep_MZ", "rep_Intensity", "rep_Metabolite",
+      "matched", "score"
+    ))
+    
     result <- matched_data %>%
       # Remove rows where either ID is NA
       dplyr::filter(!is.na(.data[[id_col1]]), !is.na(.data[[id_col2]])) %>%
@@ -1098,7 +1115,6 @@ get_unique_matches <- function(ms_object, pref = FALSE) {
       dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
       dplyr::ungroup()
   } else {
-    # Original behavior: optimize for overall match quality
     result <- matched_data %>%
       # Remove rows where either ID is NA
       dplyr::filter(!is.na(.data[[id_col1]]), !is.na(.data[[id_col2]])) %>%
