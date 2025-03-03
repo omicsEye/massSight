@@ -12,11 +12,13 @@ build: no
 
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
+install.packages(c("mlrMBO", "ParamHelpers"))
 ```
+
 
 ```{r, eval = F, message = F}
 install.packages("devtools")
-devtools::install_github("omicsEye/massSight")
+devtools::install_github("omicsEye/massSight", ref = "dev", force = TRUE)
 ```
 
 
@@ -77,7 +79,7 @@ if (!file.exists(prism_file)) {
 # iHMP published data
 loaded_data <-
   massSight::load_data(
-    input = "data/HMP2_metabolomics.xlsx",
+    input = "~/Downloads/HMP2_metabolomics.xlsx", # "data/HMP2_metabolomics.xlsx"
     type = "all",
     sheet = 1,
     id = "Compound_ID"
@@ -104,7 +106,7 @@ ref_input <-
 ```{r, results = 'True', message=TRUE, warning=TRUE}
 PRISM <-
   massSight::load_data(
-    input = "data/41564_2018_306_MOESM_combined3_4_ESM.xlsx",
+    input = "~/Downloads/41564_2018_306_MOESM_combined3_4_ESM.xlsx",
     type = "all",
     sheet = 1,
     id = "Compound_ID"
@@ -156,12 +158,19 @@ for (profiling_method in profiling_methods) {
     )
 
   # create and save distribution of MZ and RT of features
-  ms1_distr <- massSight::distribution_plot(query[[profiling_method]])
-  ms2_distr <- massSight::distribution_plot(ref[[profiling_method]])
-  print(ms1_distr)
-  print(ms2_distr)
+  #ms1_distr <- massSight::distribution_plot(query[[profiling_method]])
+  #ms2_distr <- massSight::distribution_plot(ref[[profiling_method]])
+  #print(ms1_distr)
+  #print(ms2_distr)
 }
 ```
+
+# simple test: combine a datastes to itself
+```{r, results = 'hide', message=TRUE, warning=TRUE}
+ test_combine <-
+    mass_combine(query[["C8-pos"]], query[["C8-pos"]], smooth_method = "gam", log = NULL)
+```
+
 
 These plots can be saved locally as well.
 
