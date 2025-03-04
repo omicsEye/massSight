@@ -1,28 +1,29 @@
 #' @export
 #' @title Auto Scale
+
 #' @description This function will automatically scale your data based on the
-#'  normalization method you choose. It will also calculate the CVs for each
-#' sample and each metabolite.
+#'   normalization method you choose. It will also calculate the CVs for each
+#'   sample and each metabolite.
 #' @param is_to_use A vector of the internal standards to use for normalization.
-#' If you do not want to use internal standards, leave this blank.
+#'   If you do not want to use internal standards, leave this blank.
 #' @param pref_to_use A string of the preferred reference to use for
-#' normalization. If you do not want to use a preferred reference, leave this
-#' blank.
+#'   normalization. If you do not want to use a preferred reference, leave this
+#'   blank.
 #' @param prefs_to_remove A vector of the preferred references to remove from
-#' the data. If you do not want to remove any preferred references, leave this
-#' blank.
+#'   the data. If you do not want to remove any preferred references, leave this
+#'   blank.
 #' @param normalization A string of the normalization method to use. This can be
-#' "IS", "NN", or "SMOOTH".
+#'   "IS", "NN", or "SMOOTH".
 #' @param data A data frame of the data to be normalized. This should be the
-#' output of the \code{read_data} function.
+#'   output of the \code{read_data} function.
 #' @param sample_information A data frame of the sample information. This should
-#' be the output of the \code{read_sample_information} function.
+#'   be the output of the \code{read_sample_information} function.
 #' @param pool_missing_p A numeric value indicating the percentage of missing
-#' pools allowed before skipping normalization (0-100).
+#'   pools allowed before skipping normalization (0-100).
 #' @param fill_method A string indicating how to fill missing values. This can
-#' be "half-min" or "none".
+#'   be "half-min" or "none".
 #' @param smooth_method A string indicating the smoothing method to use. This
-#' can be "lowess", "line", "spline", or "gaussian".
+#'   can be "lowess", "line", "spline", or "gaussian".
 #' @return A data frame of the normalized data.
 auto_scale <- function(data,
                        sample_information,
@@ -34,7 +35,11 @@ auto_scale <- function(data,
                        fill_method = "none",
                        smooth_method = "lowess") {
   normalization <- toupper(normalization)
-  error <- verify_df(is_to_use, normalization, data, sample_information, pool_missing_p)
+  error <- verify_df(is_to_use,
+                     normalization,
+                     data,
+                     sample_information,
+                     pool_missing_p)
 
   if (nchar(error) > 0) {
     return(error)
@@ -61,9 +66,11 @@ auto_scale <- function(data,
 
       if (any(is.na(scalars))) {
         warnings <- paste0(
-          warnings, "There are missing or zero values in your internal standards. ",
+          warnings,
+          "There are missing or zero values in your internal standards. ",
           "The following samples were not IS normalized, and their IS values were filled with 1.0: ",
-          paste(colnames(data)[is.na(scalars)], collapse = ", "), "\n"
+          paste(colnames(data)[is.na(scalars)], collapse = ", "),
+          "\n"
         )
         scalars[is.na(scalars)] <- 1.0
       }
@@ -77,7 +84,11 @@ auto_scale <- function(data,
 
   if ("NN" %in% normalization) {
     message("Starting NN...")
-    nn_result <- nn_normalize(ndata, sample_information, pref_to_use, prefs_to_remove, pool_missing_p)
+    nn_result <- nn_normalize(ndata,
+                              sample_information,
+                              pref_to_use,
+                              prefs_to_remove,
+                              pool_missing_p)
     if (is.character(nn_result)) {
       return(nn_result)
     }
@@ -86,7 +97,14 @@ auto_scale <- function(data,
     message("NN is complete.")
   } else if ("SMOOTH" %in% normalization) {
     message("Starting smooth normalization...")
-    smooth_result <- smooth_normalize(ndata, sample_information, pref_to_use, prefs_to_remove, pool_missing_p, smooth_method)
+    smooth_result <- smooth_normalize(
+      ndata,
+      sample_information,
+      pref_to_use,
+      prefs_to_remove,
+      pool_missing_p,
+      smooth_method
+    )
     if (is.character(smooth_result)) {
       return(smooth_result)
     }
@@ -131,7 +149,11 @@ auto_scale <- function(data,
   return(ndata)
 }
 
-smooth_normalize <- function(ndata, sample_information, pref_to_use, prefs_to_remove, pool_missing_p,
+smooth_normalize <- function(ndata,
+                             sample_information,
+                             pref_to_use,
+                             prefs_to_remove,
+                             pool_missing_p,
                              smooth_method = "lowess") {
   skipped <- 0
   prefs_information <- check_prefs(sample_information, pref_to_use, prefs_to_remove)
@@ -158,15 +180,20 @@ smooth_normalize <- function(ndata, sample_information, pref_to_use, prefs_to_re
       next
     }
 
-    pools_to_use_ind <- get_normalization_indices(sample_injection_order, pool_injections, pool_names, ref_to_use)
+    pools_to_use_ind <- get_normalization_indices(sample_injection_order,
+                                                  pool_injections,
+                                                  pool_names,
+                                                  ref_to_use)
 
     if (length(pool_values) < 2 || length(pool_injections) < 2) {
       if (length(pool_values) == 0 || length(pool_injections) == 0) {
         normalized_data[i, ] <- as.numeric(ndata[i, ])
         nn_normalized[i] <- "Not smooth normalized"
         message(
-          "Not smooth normalized, pool values:", paste(pool_values, collapse = ", "),
-          " pool injections:", paste(pool_injections, collapse = ", ")
+          "Not smooth normalized, pool values:",
+          paste(pool_values, collapse = ", "),
+          " pool injections:",
+          paste(pool_injections, collapse = ", ")
         )
         next
       } else {
@@ -192,7 +219,8 @@ smooth_normalize <- function(ndata, sample_information, pref_to_use, prefs_to_re
       smooth_y <- predict(f, sample_injection_order)$y
     } else if (smooth_method == "gaussian") {
       if (!requireNamespace("kernlab", quietly = TRUE)) {
-        stop("Package \"kernlab\" needed for Gaussian smoothing. Please install it.", call. = FALSE)
+        stop("Package \"kernlab\" needed for Gaussian smoothing. Please install it.",
+             call. = FALSE)
       }
       gp <- kernlab::gausspr(smooth_x, smooth_y)
       smooth_y <- kernlab::predict(gp, matrix(sample_injection_order, ncol = 1))
@@ -206,7 +234,11 @@ smooth_normalize <- function(ndata, sample_information, pref_to_use, prefs_to_re
   return(list(normalized_data = normalized_data, nn_normalized = nn_normalized))
 }
 
-nn_normalize <- function(ndata, sample_information, pref_to_use, prefs_to_remove, pool_missing_p) {
+nn_normalize <- function(ndata,
+                         sample_information,
+                         pref_to_use,
+                         prefs_to_remove,
+                         pool_missing_p) {
   skipped <- 0
   prefs_information <- check_prefs(sample_information, pref_to_use, prefs_to_remove)
   prefs_raw_data <- ndata[, prefs_information$Collaborator_ID]
@@ -233,7 +265,10 @@ nn_normalize <- function(ndata, sample_information, pref_to_use, prefs_to_remove
       next
     }
 
-    pools_to_use_indices <- get_normalization_indices(sample_injection_order, pool_injections, pool_names, ref_to_use)
+    pools_to_use_indices <- get_normalization_indices(sample_injection_order,
+                                                      pool_injections,
+                                                      pool_names,
+                                                      ref_to_use)
     normalization_scalars <- pool_values[pools_to_use_indices] / stats::median(pool_values[unique(pools_to_use_indices)])
 
     normalized_data[i, ] <- as.numeric(ndata[i, ]) / normalization_scalars
@@ -277,15 +312,28 @@ find_indx <- function(df, word = "Metabolite") {
   }
 }
 
-verify_df <- function(is_to_use, normalization, data, sample_information, pool_missing_p) {
+verify_df <- function(is_to_use,
+                      normalization,
+                      data,
+                      sample_information,
+                      pool_missing_p) {
   error <- character()
 
   if (!(0.0 <= pool_missing_p && pool_missing_p <= 100.0)) {
-    error <- c(error, sprintf("Your pool missingness value must range from 0 to 100. You selected %s\n", pool_missing_p))
+    error <- c(
+      error,
+      sprintf(
+        "Your pool missingness value must range from 0 to 100. You selected %s\n",
+        pool_missing_p
+      )
+    )
   }
 
   if ("IS" %in% normalization && is_to_use == "") {
-    error <- c(error, "You have selected IS normalization but have not specified any internal standards. Either specify a standard or uncheck the IS box in the previous window.\n")
+    error <- c(
+      error,
+      "You have selected IS normalization but have not specified any internal standards. Either specify a standard or uncheck the IS box in the previous window.\n"
+    )
   }
 
   required_columns <- c("Compound_ID", "MZ", "RT", "Metabolite")
@@ -295,10 +343,14 @@ verify_df <- function(is_to_use, normalization, data, sample_information, pool_m
     }
   }
 
-  required_sample_info_columns <- c("Broad_name", "Collaborator_ID", "Injection_order", "Ref_to_use")
+  required_sample_info_columns <- c("Broad_name",
+                                    "Collaborator_ID",
+                                    "Injection_order",
+                                    "Ref_to_use")
   for (col in required_sample_info_columns) {
     if (!(col %in% colnames(sample_information))) {
-      error <- c(error, sprintf("There must be '%s' in your sample info columns.\n", col))
+      error <- c(error,
+                 sprintf("There must be '%s' in your sample info columns.\n", col))
     }
   }
 
@@ -307,44 +359,76 @@ verify_df <- function(is_to_use, normalization, data, sample_information, pool_m
     column_name <- colnames(data)[metabolite_col + i]
     sample_info <- sample_information$Broad_name[i]
     if (column_name != sample_info) {
-      error <- c(error, sprintf("There is at least one mismatch in your sample setup or sample name, starting with '%s' and '%s'.\n", column_name, sample_info))
+      error <- c(
+        error,
+        sprintf(
+          "There is at least one mismatch in your sample setup or sample name, starting with '%s' and '%s'.\n",
+          column_name,
+          sample_info
+        )
+      )
       break
     }
   }
 
   for (IS in is_to_use) {
     if (!(IS %in% data$Metabolite)) {
-      error <- c(error, sprintf("Your internal standard '%s' was not found in the 'Metabolite' column.\n", IS))
+      error <- c(
+        error,
+        sprintf(
+          "Your internal standard '%s' was not found in the 'Metabolite' column.\n",
+          IS
+        )
+      )
     }
   }
 
   prefa_count <- sum(grepl("PREFA", sample_information$Collaborator_ID))
   prefb_count <- sum(grepl("PREFB", sample_information$Collaborator_ID))
   if (prefa_count == 0 && prefb_count == 0) {
-    error <- c(error, sprintf("PREFs are missing. I counted %s PREFAs and %s PREFBs. There must be at least one pool reference.\n", prefa_count, prefb_count))
+    error <- c(
+      error,
+      sprintf(
+        "PREFs are missing. I counted %s PREFAs and %s PREFBs. There must be at least one pool reference.\n",
+        prefa_count,
+        prefb_count
+      )
+    )
   }
 
   for (pref in unique(sample_information$Ref_to_use)) {
-    if (!is.na(pref) && !(pref %in% sample_information$Collaborator_ID)) {
-      error <- c(error, sprintf("Your 'Ref_to_use' '%s' was not found in the 'Collaborator_ID' column.\n", pref))
+    if (!is.na(pref) &&
+        !(pref %in% sample_information$Collaborator_ID)) {
+      error <- c(
+        error,
+        sprintf(
+          "Your 'Ref_to_use' '%s' was not found in the 'Collaborator_ID' column.\n",
+          pref
+        )
+      )
     }
   }
 
   # Check for duplicate Injection_order
   if (any(duplicated(sample_information$Injection_order))) {
-    error <- c(error, "There are duplicate Injection_order values in your sample information.\n")
+    error <- c(error,
+               "There are duplicate Injection_order values in your sample information.\n")
   }
 
   # Check for duplicate PREF names
   pref_names <- sample_information$Collaborator_ID[grep("PREF", sample_information$Collaborator_ID)]
   if (any(duplicated(pref_names))) {
-    error <- c(error, "There are duplicate PREF names in your Collaborator_ID column.\n")
+    error <- c(error,
+               "There are duplicate PREF names in your Collaborator_ID column.\n")
   }
 
   return(paste(error, collapse = ""))
 }
 
-get_normalization_indices <- function(sample_injection, pool_injection, pool_names, ref_to_use) {
+get_normalization_indices <- function(sample_injection,
+                                      pool_injection,
+                                      pool_names,
+                                      ref_to_use) {
   pool_to_use_indices <- integer(length(sample_injection))
 
   pool_names_set <- unique(pool_names)
@@ -353,7 +437,8 @@ get_normalization_indices <- function(sample_injection, pool_injection, pool_nam
     injection <- sample_injection[i]
     ref_to_use_single <- ref_to_use[i]
 
-    if (!is.na(ref_to_use_single) && ref_to_use_single %in% pool_names_set) {
+    if (!is.na(ref_to_use_single) &&
+        ref_to_use_single %in% pool_names_set) {
       pool_to_use_indices[i] <- which(pool_names == ref_to_use_single)[1]
     } else {
       closest_pool_index <- which.min(abs(pool_injection - injection))
@@ -364,7 +449,9 @@ get_normalization_indices <- function(sample_injection, pool_injection, pool_nam
   return(pool_to_use_indices)
 }
 
-check_prefs <- function(sample_info, pref_to_use, prefs_to_remove) {
+check_prefs <- function(sample_info,
+                        pref_to_use,
+                        prefs_to_remove) {
   for (pool in prefs_to_remove) {
     sample_info$Broad_name[grepl(pool, sample_info$Broad_name)] <- "do not use"
   }
@@ -413,7 +500,10 @@ nn_normalize <- function(ndata,
       next
     }
 
-    pools_to_use_indices <- get_normalization_indices(sample_injection_order, pool_injections, pool_names, ref_to_use)
+    pools_to_use_indices <- get_normalization_indices(sample_injection_order,
+                                                      pool_injections,
+                                                      pool_names,
+                                                      ref_to_use)
     normalization_scalars <- pool_values[pools_to_use_indices] / stats::median(pool_values[unique(pools_to_use_indices)])
 
     normalized_data[i, ] <- as.numeric(ndata[i, ]) / normalization_scalars
@@ -454,16 +544,23 @@ smooth_normalize <- function(ndata,
       next
     }
 
-    pools_to_use_ind <- get_normalization_indices(sample_injection_order, pool_injections, pool_names, ref_to_use)
+    pools_to_use_ind <- get_normalization_indices(sample_injection_order,
+                                                  pool_injections,
+                                                  pool_names,
+                                                  ref_to_use)
 
     if (length(pool_values) < 2 || length(pool_injections) < 2) {
       if (length(pool_values) == 0 || length(pool_injections) == 0) {
         normalized_data[i, ] <- as.numeric(ndata[i, ])
         nn_normalized[i] <- "Not smooth normalized"
-        message(paste(
-          "Not smooth normalized, pool values:", paste(pool_values, collapse = ", "),
-          "pool injections:", paste(pool_injections, collapse = ", ")
-        ))
+        message(
+          paste(
+            "Not smooth normalized, pool values:",
+            paste(pool_values, collapse = ", "),
+            "pool injections:",
+            paste(pool_injections, collapse = ", ")
+          )
+        )
         next
       } else {
         normalization_scalars <- pool_values[pools_to_use_ind] / stats::median(pool_values[unique(pools_to_use_ind)])
@@ -488,7 +585,8 @@ smooth_normalize <- function(ndata,
       smooth_y <- predict(f, sample_injection_order)$y
     } else if (smooth_method == "gaussian") {
       if (!requireNamespace("kernlab", quietly = TRUE)) {
-        stop("Package \"kernlab\" needed for Gaussian smoothing. Please install it.", call. = FALSE)
+        stop("Package \"kernlab\" needed for Gaussian smoothing. Please install it.",
+             call. = FALSE)
       }
       gp <- kernlab::gausspr(smooth_x, smooth_y)
       smooth_y <- kernlab::predict(gp, matrix(sample_injection_order, ncol = 1))
@@ -500,7 +598,9 @@ smooth_normalize <- function(ndata,
     smooth_min <- smooth_y_dropna[which.min(smooth_x_dropna)]
     smooth_max <- smooth_y_dropna[which.max(smooth_x_dropna)]
 
-    f <- stats::approxfun(smooth_x_dropna, smooth_y_dropna,
+    f <- stats::approxfun(
+      smooth_x_dropna,
+      smooth_y_dropna,
       method = "linear",
       yleft = smooth_min,
       yright = smooth_max
@@ -549,15 +649,28 @@ find_indx <- function(df, word = "Metabolite") {
   }
 }
 
-verify_df <- function(is_to_use, normalization, data, sample_information, pool_missing_p) {
+verify_df <- function(is_to_use,
+                      normalization,
+                      data,
+                      sample_information,
+                      pool_missing_p) {
   error <- character()
 
   if (!(0.0 <= pool_missing_p && pool_missing_p <= 100.0)) {
-    error <- c(error, sprintf("Your pool missingness value must range from 0 to 100. You selected %s\n", pool_missing_p))
+    error <- c(
+      error,
+      sprintf(
+        "Your pool missingness value must range from 0 to 100. You selected %s\n",
+        pool_missing_p
+      )
+    )
   }
 
   if ("IS" %in% normalization && is_to_use == "") {
-    error <- c(error, "You have selected IS normalization but have not specified any internal standards. Either specify a standard or uncheck the IS box in the previous window.\n")
+    error <- c(
+      error,
+      "You have selected IS normalization but have not specified any internal standards. Either specify a standard or uncheck the IS box in the previous window.\n"
+    )
   }
 
   required_columns <- c("Compound_ID", "MZ", "RT", "Metabolite")
@@ -567,10 +680,14 @@ verify_df <- function(is_to_use, normalization, data, sample_information, pool_m
     }
   }
 
-  required_sample_info_columns <- c("Broad_name", "Collaborator_ID", "Injection_order", "Ref_to_use")
+  required_sample_info_columns <- c("Broad_name",
+                                    "Collaborator_ID",
+                                    "Injection_order",
+                                    "Ref_to_use")
   for (col in required_sample_info_columns) {
     if (!(col %in% colnames(sample_information))) {
-      error <- c(error, sprintf("There must be '%s' in your sample info columns.\n", col))
+      error <- c(error,
+                 sprintf("There must be '%s' in your sample info columns.\n", col))
     }
   }
 
@@ -579,44 +696,76 @@ verify_df <- function(is_to_use, normalization, data, sample_information, pool_m
     column_name <- colnames(data)[metabolite_col + i]
     sample_info <- sample_information$Broad_name[i]
     if (column_name != sample_info) {
-      error <- c(error, sprintf("There is at least one mismatch in your sample setup or sample name, starting with '%s' and '%s'.\n", column_name, sample_info))
+      error <- c(
+        error,
+        sprintf(
+          "There is at least one mismatch in your sample setup or sample name, starting with '%s' and '%s'.\n",
+          column_name,
+          sample_info
+        )
+      )
       break
     }
   }
 
   for (IS in is_to_use) {
     if (!(IS %in% data$Metabolite)) {
-      error <- c(error, sprintf("Your internal standard '%s' was not found in the 'Metabolite' column.\n", IS))
+      error <- c(
+        error,
+        sprintf(
+          "Your internal standard '%s' was not found in the 'Metabolite' column.\n",
+          IS
+        )
+      )
     }
   }
 
   prefa_count <- sum(grepl("PREFA", sample_information$Collaborator_ID))
   prefb_count <- sum(grepl("PREFB", sample_information$Collaborator_ID))
   if (prefa_count == 0 && prefb_count == 0) {
-    error <- c(error, sprintf("PREFs are missing. I counted %s PREFAs and %s PREFBs. There must be at least one pool reference.\n", prefa_count, prefb_count))
+    error <- c(
+      error,
+      sprintf(
+        "PREFs are missing. I counted %s PREFAs and %s PREFBs. There must be at least one pool reference.\n",
+        prefa_count,
+        prefb_count
+      )
+    )
   }
 
   for (pref in unique(sample_information$Ref_to_use)) {
-    if (!is.na(pref) && !(pref %in% sample_information$Collaborator_ID)) {
-      error <- c(error, sprintf("Your 'Ref_to_use' '%s' was not found in the 'Collaborator_ID' column.\n", pref))
+    if (!is.na(pref) &&
+        !(pref %in% sample_information$Collaborator_ID)) {
+      error <- c(
+        error,
+        sprintf(
+          "Your 'Ref_to_use' '%s' was not found in the 'Collaborator_ID' column.\n",
+          pref
+        )
+      )
     }
   }
 
   # Check for duplicate Injection_order
   if (any(duplicated(sample_information$Injection_order))) {
-    error <- c(error, "There are duplicate Injection_order values in your sample information.\n")
+    error <- c(error,
+               "There are duplicate Injection_order values in your sample information.\n")
   }
 
   # Check for duplicate PREF names
   pref_names <- sample_information$Collaborator_ID[grep("PREF", sample_information$Collaborator_ID)]
   if (any(duplicated(pref_names))) {
-    error <- c(error, "There are duplicate PREF names in your Collaborator_ID column.\n")
+    error <- c(error,
+               "There are duplicate PREF names in your Collaborator_ID column.\n")
   }
 
   return(paste(error, collapse = ""))
 }
 
-get_normalization_indices <- function(sample_injection, pool_injection, pool_names, ref_to_use) {
+get_normalization_indices <- function(sample_injection,
+                                      pool_injection,
+                                      pool_names,
+                                      ref_to_use) {
   pool_to_use_indices <- integer(length(sample_injection))
 
   pool_names_set <- unique(pool_names)
@@ -625,7 +774,8 @@ get_normalization_indices <- function(sample_injection, pool_injection, pool_nam
     injection <- sample_injection[i]
     ref_to_use_single <- ref_to_use[i]
 
-    if (!is.na(ref_to_use_single) && ref_to_use_single %in% pool_names_set) {
+    if (!is.na(ref_to_use_single) &&
+        ref_to_use_single %in% pool_names_set) {
       pool_to_use_indices[i] <- which(pool_names == ref_to_use_single)[1]
     } else {
       closest_pool_index <- which.min(abs(pool_injection - injection))
@@ -636,7 +786,9 @@ get_normalization_indices <- function(sample_injection, pool_injection, pool_nam
   return(pool_to_use_indices)
 }
 
-check_prefs <- function(sample_info, pref_to_use, prefs_to_remove) {
+check_prefs <- function(sample_info,
+                        pref_to_use,
+                        prefs_to_remove) {
   for (pool in prefs_to_remove) {
     sample_info$Broad_name[grepl(pool, sample_info$Broad_name)] <- "do not use"
   }
@@ -685,7 +837,10 @@ nn_normalize <- function(ndata,
       next
     }
 
-    pools_to_use_indices <- get_normalization_indices(sample_injection_order, pool_injections, pool_names, ref_to_use)
+    pools_to_use_indices <- get_normalization_indices(sample_injection_order,
+                                                      pool_injections,
+                                                      pool_names,
+                                                      ref_to_use)
     normalization_scalars <- pool_values[pools_to_use_indices] / stats::median(pool_values[unique(pools_to_use_indices)])
 
     normalized_data[i, ] <- as.numeric(ndata[i, ]) / normalization_scalars
@@ -726,16 +881,23 @@ smooth_normalize <- function(ndata,
       next
     }
 
-    pools_to_use_ind <- get_normalization_indices(sample_injection_order, pool_injections, pool_names, ref_to_use)
+    pools_to_use_ind <- get_normalization_indices(sample_injection_order,
+                                                  pool_injections,
+                                                  pool_names,
+                                                  ref_to_use)
 
     if (length(pool_values) < 2 || length(pool_injections) < 2) {
       if (length(pool_values) == 0 || length(pool_injections) == 0) {
         normalized_data[i, ] <- as.numeric(ndata[i, ])
         nn_normalized[i] <- "Not smooth normalized"
-        message(paste(
-          "Not smooth normalized, pool values:", paste(pool_values, collapse = ", "),
-          "pool injections:", paste(pool_injections, collapse = ", ")
-        ))
+        message(
+          paste(
+            "Not smooth normalized, pool values:",
+            paste(pool_values, collapse = ", "),
+            "pool injections:",
+            paste(pool_injections, collapse = ", ")
+          )
+        )
         next
       } else {
         normalization_scalars <- pool_values[pools_to_use_ind] / stats::median(pool_values[unique(pools_to_use_ind)])
@@ -760,7 +922,8 @@ smooth_normalize <- function(ndata,
       smooth_y <- predict(f, sample_injection_order)$y
     } else if (smooth_method == "gaussian") {
       if (!requireNamespace("kernlab", quietly = TRUE)) {
-        stop("Package \"kernlab\" needed for Gaussian smoothing. Please install it.", call. = FALSE)
+        stop("Package \"kernlab\" needed for Gaussian smoothing. Please install it.",
+             call. = FALSE)
       }
       gp <- kernlab::gausspr(smooth_x, smooth_y)
       smooth_y <- kernlab::predict(gp, matrix(sample_injection_order, ncol = 1))
@@ -772,7 +935,9 @@ smooth_normalize <- function(ndata,
     smooth_min <- smooth_y_dropna[which.min(smooth_x_dropna)]
     smooth_max <- smooth_y_dropna[which.max(smooth_x_dropna)]
 
-    f <- stats::approxfun(smooth_x_dropna, smooth_y_dropna,
+    f <- stats::approxfun(
+      smooth_x_dropna,
+      smooth_y_dropna,
       method = "linear",
       yleft = smooth_min,
       yright = smooth_max

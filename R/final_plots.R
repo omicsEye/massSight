@@ -11,21 +11,19 @@
 #' @return A `cowplot` grid of alignment visualization plots
 #' @export
 final_plots <- function(merged_ms_obj,
-                       rt_lim = c(-.5, .5),
-                       mz_lim = c(-15, 15),
-                       point_params = list(
-                         alpha = 0.25,
-                         size = 1.5,
-                         stroke = 0.05
-                       ),
-                       smooth_color = "#AA9868",
-                       point_color = "#033C5A",
-                       label_size = 8) {
+                        rt_lim = c(-.5, .5),
+                        mz_lim = c(-15, 15),
+                        point_params = list(alpha = 0.25,
+                                            size = 1.5,
+                                            stroke = 0.05),
+                        smooth_color = "#AA9868",
+                        point_color = "#033C5A",
+                        label_size = 8) {
   # Input validation
   if (!inherits(merged_ms_obj, "MergedMSObject")) {
     stop("merged_ms_obj must be a MergedMSObject")
   }
-  
+
   # Helper function to create column names
   get_names <- function(ms_obj) {
     list(
@@ -101,11 +99,9 @@ final_plots <- function(merged_ms_obj,
       label = iso_pairs,
       size = 8 / ggplot2::.pt
     ) +
-    ggplot2::labs(
-      title = "Isolated Matches",
-      x = "RT 1",
-      y = expression(Delta * "RT")
-    ) +
+    ggplot2::labs(title = "Isolated Matches",
+                  x = "RT 1",
+                  y = expression(Delta * "RT")) +
     theme_omicsEye()
 
   rt_iso <-
@@ -135,11 +131,9 @@ final_plots <- function(merged_ms_obj,
       label = all_pairs,
       size = 8 / ggplot2::.pt
     ) +
-    ggplot2::labs(
-      title = "Scaled Matches",
-      x = "RT 1",
-      y = expression(Delta * "RT")
-    ) +
+    ggplot2::labs(title = "Scaled Matches",
+                  x = "RT 1",
+                  y = expression(Delta * "RT")) +
     theme_omicsEye()
 
   rt_all <-
@@ -150,9 +144,7 @@ final_plots <- function(merged_ms_obj,
     )
 
   mz_iso <- iso_matched(merged_ms_obj) |>
-    dplyr::mutate(
-      delta_MZ = ((.data$MZ_2 - .data$MZ_1) / .data$MZ_1 * 1e6)
-    ) |>
+    dplyr::mutate(delta_MZ = ((.data$MZ_2 - .data$MZ_1) / .data$MZ_1 * 1e6)) |>
     ggplot2::ggplot(ggplot2::aes(x = .data$MZ_1, y = .data$delta_MZ)) +
     ggplot2::geom_point(
       alpha = I(0.25),
@@ -171,19 +163,14 @@ final_plots <- function(merged_ms_obj,
       col = "#AA9868"
     ) +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
-    ggplot2::labs(
-      title = "Mass Error Distribution",
-      x = "m/z",
-      y = expression(Delta * "MZ (ppm)")
-    ) +
+    ggplot2::labs(title = "Mass Error Distribution",
+                  x = "m/z",
+                  y = expression(Delta * "MZ (ppm)")) +
     ggplot2::ylim(mz_lim) +
     theme_omicsEye()
 
   mz_all <- all_matched |>
-    ggplot2::ggplot(ggplot2::aes(
-      x = .data[[mz_name1]],
-      y = (.data[[mz_adj_name2]] - .data[[mz_name1]]) / .data[[mz_name1]] * 1e6
-    )) +
+    ggplot2::ggplot(ggplot2::aes(x = .data[[mz_name1]], y = (.data[[mz_adj_name2]] - .data[[mz_name1]]) / .data[[mz_name1]] * 1e6)) +
     ggplot2::geom_point(
       alpha = I(0.25),
       shape = 21,
@@ -193,11 +180,9 @@ final_plots <- function(merged_ms_obj,
       stroke = 0.05
     ) +
     ggplot2::geom_hline(yintercept = 0, col = "#AA9868") +
-    ggplot2::labs(
-      title = "Scaled Matches",
-      x = "MZ 1",
-      y = expression(Delta * "MZ")
-    ) +
+    ggplot2::labs(title = "Scaled Matches",
+                  x = "MZ 1",
+                  y = expression(Delta * "MZ")) +
     ggplot2::ylim(mz_lim) +
     theme_omicsEye()
 
@@ -209,10 +194,8 @@ final_plots <- function(merged_ms_obj,
     )
 
   out <- cowplot::plot_grid(rt_iso, rt_all, mz_iso, mz_all, nrow = 2) +
-    ggplot2::theme(
-      plot.background =
-        ggplot2::element_rect(fill = "white")
-    )
+    ggplot2::theme(plot.background =
+                     ggplot2::element_rect(fill = "white"))
 
   return(out)
 }

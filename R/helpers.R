@@ -1,4 +1,4 @@
-min_max_scale <- \(x){
+min_max_scale <- \(x) {
   (x - min(x)) / (max(x) - min(x))
 }
 
@@ -7,27 +7,36 @@ validate_parameters <-
            match_method,
            smooth_method,
            minimum_intensity) {
-    checkmate::assert_choice(smooth_method, c("gam", "bayesian_gam", "gp", "lm"), .var.name = "smooth_method")
+    checkmate::assert_choice(smooth_method,
+                             c("gam", "bayesian_gam", "gp", "lm"),
+                             .var.name = "smooth_method")
     checkmate::assert_choice(iso_method, c("manual", "dbscan"), .var.name = "iso_method")
     checkmate::assert_choice(match_method, c("supervised", "unsupervised"), .var.name = "match_method")
     checkmate::assert_numeric(minimum_intensity)
   }
 
-log_parameters <- function(log, log_params, log_r, log_date, align_obj, ms1, ms2, time_start) {
+log_parameters <- function(log,
+                           log_params,
+                           log_r,
+                           log_date,
+                           align_obj,
+                           ms1,
+                           ms2,
+                           time_start) {
   final_results <- all_matched(align_obj)
   compound_id_1 <- paste("Compound_ID", name(ms1), sep = "_")
   compound_id_2 <- paste("Compound_ID", name(ms2), sep = "_")
   n1 <- final_results |>
     dplyr::filter(!is.na(!!rlang::sym(compound_id_1)) &
-      is.na(!!rlang::sym(compound_id_2))) |>
+                    is.na(!!rlang::sym(compound_id_2))) |>
     nrow()
   n2 <- final_results |>
     dplyr::filter(is.na(!!rlang::sym(compound_id_1)) &
-      !is.na(!!rlang::sym(compound_id_2))) |>
+                    !is.na(!!rlang::sym(compound_id_2))) |>
     nrow()
   n12 <- final_results |>
     dplyr::filter(!is.na(!!rlang::sym(compound_id_1)) &
-      !is.na(!!rlang::sym(compound_id_2))) |>
+                    !is.na(!!rlang::sym(compound_id_2))) |>
     nrow()
 
   metabolite_1 <- paste("Metabolite", name(ms1), sep = "_")
@@ -37,7 +46,7 @@ log_parameters <- function(log, log_params, log_r, log_date, align_obj, ms1, ms2
     nrow()
   m_total <- final_results |>
     dplyr::filter(!is.na(!!rlang::sym(metabolite_1)) &
-      !is.na(!!rlang::sym(metabolite_2))) |>
+                    !is.na(!!rlang::sym(metabolite_2))) |>
     nrow()
 
   log_results <- list(

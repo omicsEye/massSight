@@ -2,7 +2,7 @@
 #' @importFrom mlrMBO makeMBOControl setMBOControlTermination mbo
 #' @export
 #' @title Mass Combine
-#' @description Combines two `massSight` objects by aligning their features and 
+#' @description Combines two `massSight` objects by aligning their features and
 #' correcting for systematic differences in retention time and mass-to-charge ratios.
 #'
 #' @param ms1 A `massSight` object representing the results of a preprocessed
@@ -52,10 +52,10 @@
 #' combined <- mass_combine(ms1_data, ms2_data)
 #'
 #' # Use optimization with known metabolites
-#' combined <- mass_combine(ms1_data, ms2_data, 
+#' combined <- mass_combine(ms1_data, ms2_data,
 #'                         optimize = TRUE,
 #'                         n_iter = 50)
-#'                         
+#'
 #' # Custom parameters for stricter matching
 #' combined <- mass_combine(ms1_data, ms2_data,
 #'                         rt_delta = 0.3,
@@ -113,7 +113,10 @@ mass_combine <- function(ms1,
     params <- opt_result$parameters
     align_obj <- opt_result$best_object # Use the stored best object
 
-    message(sprintf("Optimization complete. Final score: %.3f", opt_result$final_score))
+    message(sprintf(
+      "Optimization complete. Final score: %.3f",
+      opt_result$final_score
+    ))
     message("\nOptimal parameters:")
     message(sprintf("  RT delta: %.3f", params[["rt_delta"]]))
     message(sprintf("  MZ delta: %.3f", params[["mz_delta"]]))
@@ -128,21 +131,18 @@ mass_combine <- function(ms1,
       mz_delta = mz_delta,
       rt_iso_threshold = rt_iso_threshold,
       mz_iso_threshold = mz_iso_threshold,
-      alpha_rank = .5, # default values when not optimizing
+      alpha_rank = .5,
+      # default values when not optimizing
       alpha_rt = .5,
       alpha_mz = .5
     )
 
     if (match_method == "unsupervised") {
       if (iso_method == "manual") {
-        ref_iso <- getVectors(raw_df(ms1),
-          rt_sim = params[["rt_iso_threshold"]], # Use optimized parameter
-          mz_sim = params[["mz_iso_threshold"]]
-        ) # Use optimized parameter
-        query_iso <- getVectors(raw_df(ms2),
-          rt_sim = params[["rt_iso_threshold"]], # Use optimized parameter
-          mz_sim = params[["mz_iso_threshold"]]
-        ) # Use optimized parameter
+        ref_iso <- getVectors(raw_df(ms1), rt_sim = params[["rt_iso_threshold"]], # Use optimized parameter
+                              mz_sim = params[["mz_iso_threshold"]]) # Use optimized parameter
+        query_iso <- getVectors(raw_df(ms2), rt_sim = params[["rt_iso_threshold"]], # Use optimized parameter
+                                mz_sim = params[["mz_iso_threshold"]]) # Use optimized parameter
         isolated(ms1) <- raw_df(ms1) %>%
           dplyr::filter(.data$Compound_ID %in% ref_iso)
         isolated(ms2) <- raw_df(ms2) %>%
@@ -177,23 +177,21 @@ mass_combine <- function(ms1,
       )
   }
 
-   
+
 
 
   if (!is.null(log)) {
-    log_parameters(
-      log,
-      log_params,
-      log_r,
-      log_date,
-      align_obj,
-      ms1,
-      ms2,
-      time_start
-    )
+    log_parameters(log,
+                   log_params,
+                   log_r,
+                   log_date,
+                   align_obj,
+                   ms1,
+                   ms2,
+                   time_start)
   }
   if (optimize) {
-        # Store optimization history in the object attributes
+    # Store optimization history in the object attributes
     attr(align_obj, "optimization") <- list(
       parameters = opt_result$parameters,
       final_score = opt_result$final_score,
@@ -204,7 +202,7 @@ mass_combine <- function(ms1,
 }
 
 mad_based_outlier <- function(points, thresh = 5) {
-  diff <- sqrt((points - stats::median(points, na.rm = TRUE))^2)
+  diff <- sqrt((points - stats::median(points, na.rm = TRUE)) ^ 2)
   med_abs_deviation <- stats::median(diff, na.rm = TRUE)
   if (med_abs_deviation == 0) {
     mod_z_score <- rep(0, length(diff))
@@ -219,9 +217,7 @@ scale_intensity <- function(data, intensity) {
 }
 
 scale_intensity_parameters <-
-  function(data_int1,
-           data_int2,
-           min_int = 0) {
+  function(data_int1, data_int2, min_int = 0) {
     min_int <- log10(min_int)
     # Filter both vectors using the minimum intensity threshold
     valid_idx <- data_int1 > min_int & data_int2 > min_int &
@@ -258,28 +254,24 @@ align_isolated_compounds <-
     df2 <- isolated(ms2(align_ms_obj))
     if (match_method == "unsupervised") {
       df1 <- df1 %>%
-        dplyr::rename(
-          dplyr::any_of(
-            c(
-              "RT_1" = "RT",
-              "MZ_1" = "MZ",
-              "Intensity_1" = "Intensity",
-              "Compound_ID_1" = "Compound_ID",
-              "Metabolite_1" = "Metabolite"
-            )
-          )
-        )
-      df2 <- df2 %>% dplyr::rename(
-        dplyr::any_of(
+        dplyr::rename(dplyr::any_of(
           c(
-            "RT_2" = "RT",
-            "MZ_2" = "MZ",
-            "Intensity_2" = "Intensity",
-            "Compound_ID_2" = "Compound_ID",
-            "Metabolite_2" = "Metabolite"
+            "RT_1" = "RT",
+            "MZ_1" = "MZ",
+            "Intensity_1" = "Intensity",
+            "Compound_ID_1" = "Compound_ID",
+            "Metabolite_1" = "Metabolite"
           )
+        ))
+      df2 <- df2 %>% dplyr::rename(dplyr::any_of(
+        c(
+          "RT_2" = "RT",
+          "MZ_2" = "MZ",
+          "Intensity_2" = "Intensity",
+          "Compound_ID_2" = "Compound_ID",
+          "Metabolite_2" = "Metabolite"
         )
-      )
+      ))
       results <- df1 %>%
         dplyr::mutate(
           rt_upper = RT_1 + rt_delta,
@@ -288,17 +280,16 @@ align_isolated_compounds <-
           mz_lower = MZ_1 - (MZ_1 * mz_delta / 1e6)
         ) %>%
         dplyr::inner_join(df2,
-          by = dplyr::join_by(
-            rt_lower < RT_2,
-            rt_upper > RT_2,
-            mz_lower < MZ_2,
-            mz_upper > MZ_2
-          )
-        ) %>%
+                          by = dplyr::join_by(
+                            rt_lower < RT_2,
+                            rt_upper > RT_2,
+                            mz_lower < MZ_2,
+                            mz_upper > MZ_2
+                          )) %>%
         dplyr::select(-rt_upper, -rt_lower, -mz_upper, -mz_lower)
     } else if (match_method == "supervised") {
       stopifnot("Metabolite" %in% colnames(df1) &
-        "Metabolite" %in% colnames(df2))
+                  "Metabolite" %in% colnames(df2))
       vec_1 <- df1 %>%
         dplyr::rename(df1 = .data$Compound_ID) %>%
         dplyr::filter(.data$Metabolite != "")
@@ -317,7 +308,12 @@ align_isolated_compounds <-
     return(align_ms_obj)
   }
 
-final_results <- function(align_ms_obj, rt_threshold, mz_threshold, alpha_rank, alpha_rt, alpha_mz) {
+final_results <- function(align_ms_obj,
+                          rt_threshold,
+                          mz_threshold,
+                          alpha_rank,
+                          alpha_rt,
+                          alpha_mz) {
   study1_name <- name(ms1(align_ms_obj))
   study2_name <- name(ms2(align_ms_obj))
   df1 <- raw_df(ms1(align_ms_obj))
@@ -331,173 +327,182 @@ final_results <- function(align_ms_obj, rt_threshold, mz_threshold, alpha_rank, 
 
   # Create a joined matrix of potential matches
   message("Creating potential final matches")
-    potential_matches <- find_all_matches(df1, df2, 
-                                        rt_threshold = rt_threshold, 
-                                        mz_threshold = mz_threshold,
-                                        alpha_rank = alpha_rank,
-                                        alpha_rt = alpha_rt,
-                                        alpha_mz = alpha_mz)
-    # Calculate match scores for all potential matches
-    message("Calculating match scores")
-    potential_matches <- potential_matches %>%
-      dplyr::mutate(
-        delta_RT = RT_adj_2 - RT_1,
-        delta_MZ = (MZ_adj_2 - MZ_1) / MZ_1 * 1e6, # Convert to ppm
-      )
-    
-  best_matches <- potential_matches
-  # Prepare the final results dataframe
-  results <- best_matches %>%
-    dplyr::rename(
-      dplyr::any_of(c(
-        # Rename columns for study1
-        rlang::set_names("Compound_ID_1", paste0("Compound_ID_", study1_name)),
-        rlang::set_names("RT_1", paste0("RT_", study1_name)),
-        rlang::set_names("MZ_1", paste0("MZ_", study1_name)),
-        rlang::set_names("Intensity_1", paste0("Intensity_", study1_name)),
-        rlang::set_names("Metabolite_1", paste0("Metabolite_", study1_name)),
+  potential_matches <- find_all_matches(
+    df1,
+    df2,
+    rt_threshold = rt_threshold,
+    mz_threshold = mz_threshold,
+    alpha_rank = alpha_rank,
+    alpha_rt = alpha_rt,
+    alpha_mz = alpha_mz
+  )
+  # Calculate match scores for all potential matches
+  message("Calculating match scores")
+  potential_matches <- potential_matches %>%
+    dplyr::mutate(delta_RT = RT_adj_2 - RT_1,
+                  delta_MZ = (MZ_adj_2 - MZ_1) / MZ_1 * 1e6,
+                  # Convert to ppm)
 
-        # Rename columns for study2
-        rlang::set_names("Compound_ID_2", paste0("Compound_ID_", study2_name)),
-        rlang::set_names("RT_2", paste0("RT_", study2_name)),
-        rlang::set_names("RT_adj_2", paste0("RT_adj_", study2_name)),
-        rlang::set_names("MZ_2", paste0("MZ_", study2_name)),
-        rlang::set_names("MZ_adj_2", paste0("MZ_adj_", study2_name)),
-        rlang::set_names("Intensity_2", paste0("Intensity_", study2_name)),
-        rlang::set_names("Metabolite_2", paste0("Metabolite_", study2_name))
-      ))
-    )
+                  best_matches <- potential_matches
+                  # Prepare the final results dataframe
+                  results <- best_matches %>%
+                    dplyr::rename(dplyr::any_of(
+                      c(
+                        # Rename columns for study1
+                        rlang::set_names("Compound_ID_1", paste0("Compound_ID_", study1_name)),
+                        rlang::set_names("RT_1", paste0("RT_", study1_name)),
+                        rlang::set_names("MZ_1", paste0("MZ_", study1_name)),
+                        rlang::set_names("Intensity_1", paste0("Intensity_", study1_name)),
+                        rlang::set_names("Metabolite_1", paste0("Metabolite_", study1_name)),
 
-  # Add representative columns
+                        # Rename columns for study2
+                        rlang::set_names("Compound_ID_2", paste0("Compound_ID_", study2_name)),
+                        rlang::set_names("RT_2", paste0("RT_", study2_name)),
+                        rlang::set_names("RT_adj_2", paste0("RT_adj_", study2_name)),
+                        rlang::set_names("MZ_2", paste0("MZ_", study2_name)),
+                        rlang::set_names("MZ_adj_2", paste0("MZ_adj_", study2_name)),
+                        rlang::set_names("Intensity_2", paste0("Intensity_", study2_name)),
+                        rlang::set_names("Metabolite_2", paste0("Metabolite_", study2_name))
+                      )
+                    ))
 
-  unmatched_study1 <- df1 %>%
-    dplyr::anti_join(results, by = setNames(paste0("Compound_ID_", study1_name), "Compound_ID")) %>%
-    dplyr::rename_with(~ paste0(.x, "_", study1_name), .cols = dplyr::everything()) %>%
-    dplyr::mutate(
-      !!rlang::sym(paste0("Compound_ID_", study2_name)) := NA,
-      !!rlang::sym(paste0("RT_", study2_name)) := NA,
-      !!rlang::sym(paste0("MZ_", study2_name)) := NA,
-      !!rlang::sym(paste0("Intensity_", study2_name)) := NA,
-      !!rlang::sym(paste0("Metabolite_", study2_name)) := NA,
-      rep_Compound_ID = !!rlang::sym(paste0("Compound_ID_", study1_name)),
-      rep_RT = !!rlang::sym(paste0("RT_", study1_name)),
-      rep_MZ = !!rlang::sym(paste0("MZ_", study1_name)),
-      rep_Intensity = if ("Intensity" %in% names(df1)) !!rlang::sym(paste0("Intensity_", study1_name)) else NULL,
-      rep_Metabolite = if ("Metabolite" %in% names(df1)) !!rlang::sym(paste0("Metabolite_", study1_name)) else NULL
-    )
+                  # Add representative columns
 
-  # Get unmatched metabolites from study2
-  unmatched_study2 <- df2 %>%
-    dplyr::select(-c(RT_adj_2, MZ_adj_2)) %>%
-    dplyr::anti_join(results, by = setNames(paste0("Compound_ID_", study2_name), "Compound_ID")) %>%
-    dplyr::rename_with(~ paste0(.x, "_", study2_name), .cols = dplyr::everything()) %>%
-    dplyr::mutate(
-      !!rlang::sym(paste0("Compound_ID_", study1_name)) := NA,
-      !!rlang::sym(paste0("RT_", study1_name)) := NA,
-      !!rlang::sym(paste0("MZ_", study1_name)) := NA,
-      !!rlang::sym(paste0("Intensity_", study1_name)) := NA,
-      !!rlang::sym(paste0("Metabolite_", study1_name)) := NA,
-      rep_Compound_ID = !!rlang::sym(paste0("Compound_ID_", study2_name)),
-      rep_RT = !!rlang::sym(paste0("RT_", study2_name)),
-      rep_MZ = !!rlang::sym(paste0("MZ_", study2_name)),
-      rep_Intensity = if ("Intensity" %in% names(df2)) !!rlang::sym(paste0("Intensity_", study2_name)) else NULL,
-      rep_Metabolite = if ("Metabolite" %in% names(df2)) !!rlang::sym(paste0("Metabolite_", study2_name)) else NULL
-    )
+                  unmatched_study1 <- df1 %>%
+                    dplyr::anti_join(results, by = setNames(paste0("Compound_ID_", study1_name), "Compound_ID")) %>%
+                    dplyr::rename_with( ~ paste0(.x, "_", study1_name), .cols = dplyr::everything()) %>%
+                    dplyr::mutate(
+                      !!rlang::sym(paste0("Compound_ID_", study2_name)) := NA,!!rlang::sym(paste0("RT_", study2_name)) := NA,!!rlang::sym(paste0("MZ_", study2_name)) := NA,!!rlang::sym(paste0("Intensity_", study2_name)) := NA,!!rlang::sym(paste0("Metabolite_", study2_name)) := NA,
+                      rep_Compound_ID = !!rlang::sym(paste0("Compound_ID_", study1_name)),
+                      rep_RT = !!rlang::sym(paste0("RT_", study1_name)),
+                      rep_MZ = !!rlang::sym(paste0("MZ_", study1_name)),
+                      rep_Intensity = if ("Intensity" %in% names(df1))
+                        !!rlang::sym(paste0("Intensity_", study1_name))
+                      else
+                        NULL,
+                      rep_Metabolite = if ("Metabolite" %in% names(df1))
+                        !!rlang::sym(paste0("Metabolite_", study1_name))
+                      else
+                        NULL
+                    )
 
-  # Combine matched and unmatched results
-  all_results <- list(results, unmatched_study1, unmatched_study2) %>%
-    purrr::keep(~ nrow(.) > 0) %>%
-    dplyr::bind_rows()
-  all_results <- all_results %>%
-    dplyr::mutate(
-      rep_Compound_ID = ifelse(is.na(!!rlang::sym(paste0("Compound_ID_", study1_name))),
-        !!rlang::sym(paste0("Compound_ID_", study2_name)),
-        !!rlang::sym(paste0("Compound_ID_", study1_name))
-      ),
-      rep_RT = ifelse(is.na(!!rlang::sym(paste0("RT_", study1_name))),
-        !!rlang::sym(paste0("RT_", study2_name)),
-        !!rlang::sym(paste0("RT_", study1_name))
-      ),
-      rep_MZ = ifelse(is.na(!!rlang::sym(paste0("MZ_", study1_name))),
-        !!rlang::sym(paste0("MZ_", study2_name)),
-        !!rlang::sym(paste0("MZ_", study1_name))
-      ),
-      rep_Intensity = if ("Intensity" %in% names(df1)) {
-        ifelse(is.na(!!rlang::sym(paste0("Intensity_", study1_name))),
-          !!rlang::sym(paste0("Intensity_", study2_name)),
-          !!rlang::sym(paste0("Intensity_", study1_name))
-        )
-      } else {
-        NULL
-      },
-      rep_Metabolite = if ("Metabolite" %in% names(df1)) {
-        ifelse(is.na(!!rlang::sym(paste0("Metabolite_", study1_name))),
-          !!rlang::sym(paste0("Metabolite_", study2_name)),
-          !!rlang::sym(paste0("Metabolite_", study1_name))
-        )
-      } else {
-        NULL
-      }
-    )
-  # Reorder columns
-  all_results <- all_results %>%
-    dplyr::mutate(
-      matched = ifelse(is.na(!!rlang::sym(paste0("Compound_ID_", study1_name))) | is.na(!!rlang::sym(paste0("Compound_ID_", study2_name))), FALSE, TRUE)
-    ) %>%
-    dplyr::select(
-      dplyr::starts_with("rep_"),
-      matched,
-      dplyr::everything()
-    )
+                  # Get unmatched metabolites from study2
+                  unmatched_study2 <- df2 %>%
+                    dplyr::select(-c(RT_adj_2, MZ_adj_2)) %>%
+                    dplyr::anti_join(results, by = setNames(paste0("Compound_ID_", study2_name), "Compound_ID")) %>%
+                    dplyr::rename_with( ~ paste0(.x, "_", study2_name), .cols = dplyr::everything()) %>%
+                    dplyr::mutate(
+                      !!rlang::sym(paste0("Compound_ID_", study1_name)) := NA,!!rlang::sym(paste0("RT_", study1_name)) := NA,!!rlang::sym(paste0("MZ_", study1_name)) := NA,!!rlang::sym(paste0("Intensity_", study1_name)) := NA,!!rlang::sym(paste0("Metabolite_", study1_name)) := NA,
+                      rep_Compound_ID = !!rlang::sym(paste0("Compound_ID_", study2_name)),
+                      rep_RT = !!rlang::sym(paste0("RT_", study2_name)),
+                      rep_MZ = !!rlang::sym(paste0("MZ_", study2_name)),
+                      rep_Intensity = if ("Intensity" %in% names(df2))
+                        !!rlang::sym(paste0("Intensity_", study2_name))
+                      else
+                        NULL,
+                      rep_Metabolite = if ("Metabolite" %in% names(df2))
+                        !!rlang::sym(paste0("Metabolite_", study2_name))
+                      else
+                        NULL
+                    )
 
-  # match metadata from ms1 and ms2 to final results
-  metadata2 <- metadata(ms2(align_ms_obj))
-  metadata1 <- metadata(ms1(align_ms_obj))
-  if (nrow(metadata1) > 0) {
-    all_results <- all_results %>%
-        dplyr::left_join(metadata1, by = structure(
-          "Compound_ID",
-          names = paste0("Compound_ID_", study1_name)
-        ))
-    }
-  
-  if (nrow(metadata2) > 0) {
-    all_results <- all_results %>%
-      dplyr::left_join(metadata2, by = structure(
-        "Compound_ID",
-        names = paste0("Compound_ID_", study2_name)
-      ))
-  }
+                  # Combine matched and unmatched results
+                  all_results <- list(results, unmatched_study1, unmatched_study2) %>%
+                    purrr::keep( ~ nrow(.) > 0) %>%
+                    dplyr::bind_rows()
+                  all_results <- all_results %>%
+                    dplyr::mutate(
+                      rep_Compound_ID = ifelse(
+                        is.na(!!rlang::sym(paste0(
+                          "Compound_ID_", study1_name
+                        ))),!!rlang::sym(paste0("Compound_ID_", study2_name)),!!rlang::sym(paste0("Compound_ID_", study1_name))
+                      ),
+                      rep_RT = ifelse(
+                        is.na(!!rlang::sym(paste0(
+                          "RT_", study1_name
+                        ))),!!rlang::sym(paste0("RT_", study2_name)),!!rlang::sym(paste0("RT_", study1_name))
+                      ),
+                      rep_MZ = ifelse(
+                        is.na(!!rlang::sym(paste0(
+                          "MZ_", study1_name
+                        ))),!!rlang::sym(paste0("MZ_", study2_name)),!!rlang::sym(paste0("MZ_", study1_name))
+                      ),
+                      rep_Intensity = if ("Intensity" %in% names(df1)) {
+                        ifelse(is.na(!!rlang::sym(paste0(
+                          "Intensity_", study1_name
+                        ))),!!rlang::sym(paste0("Intensity_", study2_name)),!!rlang::sym(paste0("Intensity_", study1_name)))
+                      } else {
+                        NULL
+                      },
+                      rep_Metabolite = if ("Metabolite" %in% names(df1)) {
+                        ifelse(is.na(!!rlang::sym(paste0(
+                          "Metabolite_", study1_name
+                        ))),!!rlang::sym(paste0("Metabolite_", study2_name)),!!rlang::sym(paste0("Metabolite_", study1_name)))
+                      } else {
+                        NULL
+                      }
+                    )
+                  # Reorder columns
+                  all_results <- all_results %>%
+                    dplyr::mutate(matched = ifelse(is.na(!!rlang::sym(
+                      paste0("Compound_ID_", study1_name)
+                    )) |
+                      is.na(!!rlang::sym(
+                        paste0("Compound_ID_", study2_name)
+                      )), FALSE, TRUE)) %>%
+                    dplyr::select(dplyr::starts_with("rep_"), matched, dplyr::everything())
 
-  all_matched(align_ms_obj) <- all_results
-  adjusted_df(align_ms_obj) <- scaled_df
+                  # match metadata from ms1 and ms2 to final results
+                  metadata2 <- metadata(ms2(align_ms_obj))
+                  metadata1 <- metadata(ms1(align_ms_obj))
+                  if (nrow(metadata1) > 0) {
+                    all_results <- all_results %>%
+                      dplyr::left_join(metadata1, by = structure("Compound_ID", names = paste0("Compound_ID_", study1_name)))
+                  }
 
-  return(align_ms_obj)
+                  if (nrow(metadata2) > 0) {
+                    all_results <- all_results %>%
+                      dplyr::left_join(metadata2, by = structure("Compound_ID", names = paste0("Compound_ID_", study2_name)))
+                  }
+
+                  all_matched(align_ms_obj) <- all_results
+                  adjusted_df(align_ms_obj) <- scaled_df
+
+                  return(align_ms_obj)
 }
 
-find_all_matches <- function(ref, query, rt_threshold, mz_threshold, alpha_rank, alpha_rt, alpha_mz) {
-
+find_all_matches <- function(ref,
+                             query,
+                             rt_threshold,
+                             mz_threshold,
+                             alpha_rank,
+                             alpha_rt,
+                             alpha_mz) {
   denom <- exp(alpha_rank) + exp(alpha_rt) + exp(alpha_mz)
   rank_weight <- exp(alpha_rank) / denom
   rt_weight <- exp(alpha_rt) / denom
   mz_weight <- exp(alpha_mz) / denom
 
   ref <- ref %>%
-    dplyr::rename(dplyr::any_of(c(
-      "RT_1" = "RT",
-      "MZ_1" = "MZ",
-      "Compound_ID_1" = "Compound_ID",
-      "Intensity_1" = "Intensity",
-      "Metabolite_1" = "Metabolite"
-    )))
-  query <- query %>%  
-    dplyr::rename(dplyr::any_of(c(
-      "RT_2" = "RT",
-      "MZ_2" = "MZ",
-      "Compound_ID_2" = "Compound_ID",
-      "Intensity_2" = "Intensity",
-      "Metabolite_2" = "Metabolite"
-    )))
+    dplyr::rename(dplyr::any_of(
+      c(
+        "RT_1" = "RT",
+        "MZ_1" = "MZ",
+        "Compound_ID_1" = "Compound_ID",
+        "Intensity_1" = "Intensity",
+        "Metabolite_1" = "Metabolite"
+      )
+    ))
+  query <- query %>%
+    dplyr::rename(dplyr::any_of(
+      c(
+        "RT_2" = "RT",
+        "MZ_2" = "MZ",
+        "Compound_ID_2" = "Compound_ID",
+        "Intensity_2" = "Intensity",
+        "Metabolite_2" = "Metabolite"
+      )
+    ))
 
   # Add normalized RT rank information (0 to 1 scale)
   ref <- ref %>%
@@ -531,15 +536,15 @@ find_all_matches <- function(ref, query, rt_threshold, mz_threshold, alpha_rank,
       rank_diff = abs(RT_rank_2 - RT_rank_1),
       rt_diff = abs(RT_adj_2 - RT_1),
       mz_diff = abs((MZ_adj_2 - MZ_1) / MZ_1 * 1e6),
-      
+
       # Min-max scaling with NA removal and inversion (1 - score)
       # This way, smaller differences = scores closer to 1
-      rank_score = (rank_diff - min(rank_diff, na.rm = TRUE)) / 
-                      (max(rank_diff, na.rm = TRUE) - min(rank_diff, na.rm = TRUE)),
-      rt_score = (rt_diff - min(rt_diff, na.rm = TRUE)) / 
-                    (max(rt_diff, na.rm = TRUE) - min(rt_diff, na.rm = TRUE)),
-      mz_score = (mz_diff - min(mz_diff, na.rm = TRUE)) / 
-                    (max(mz_diff, na.rm = TRUE) - min(mz_diff, na.rm = TRUE)),
+      rank_score = (rank_diff - min(rank_diff, na.rm = TRUE)) /
+        (max(rank_diff, na.rm = TRUE) - min(rank_diff, na.rm = TRUE)),
+      rt_score = (rt_diff - min(rt_diff, na.rm = TRUE)) /
+        (max(rt_diff, na.rm = TRUE) - min(rt_diff, na.rm = TRUE)),
+      mz_score = (mz_diff - min(mz_diff, na.rm = TRUE)) /
+        (max(mz_diff, na.rm = TRUE) - min(mz_diff, na.rm = TRUE)),
       score = rank_weight * rank_score + rt_weight * rt_score + mz_weight * mz_score
     )
   return(matches)
@@ -554,11 +559,9 @@ get_cutoffs <- function(df1, df2, has_int = TRUE) {
       !mad_based_outlier(data_mz) &
       !mad_based_outlier(data_int)
     data_int <- replace(data_int, is.infinite(data_int), NA)
-    cutoffs <- c(
-      sd(data_rt[not_outliers], na.rm = TRUE),
-      sd(data_mz[not_outliers], na.rm = TRUE),
-      sd(data_int[not_outliers], na.rm = TRUE)
-    )
+    cutoffs <- c(sd(data_rt[not_outliers], na.rm = TRUE),
+                 sd(data_mz[not_outliers], na.rm = TRUE),
+                 sd(data_int[not_outliers], na.rm = TRUE))
   } else {
     not_outliers <- !mad_based_outlier(data_rt) &
       !mad_based_outlier(data_mz)
@@ -577,7 +580,10 @@ get_cutoffs <- function(df1, df2, has_int = TRUE) {
   return(list("cutoffs" = cutoffs, "outliers" = outliers))
 }
 
-smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size = 100) {
+smooth_drift <- function(align_ms_obj,
+                         smooth_method,
+                         minimum_int,
+                         mz_bin_size = 100) {
   df1 <- align_ms_obj %>%
     ms1() %>%
     raw_df()
@@ -645,11 +651,9 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
   } else if (smooth_method == "gp") {
     message("Starting gaussian smoothing for RT")
 
-    gp_fit <- brms::brm(
-      delta_RT ~ gp(RT, cov = "matern52", scale = TRUE),
-      results,
-      algorithm = "meanfield"
-    )
+    gp_fit <- brms::brm(delta_RT ~ gp(RT, cov = "matern52", scale = TRUE),
+                        results,
+                        algorithm = "meanfield")
 
     smooth_x_rt <- results$RT_1
     smooth_y_rt <- brms::posterior_predict(gp_fit, newdata = data.frame(RT_1 = smooth_x_rt))
@@ -674,7 +678,8 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
   # MZ smoothing using the selected method
   if (smooth_method == "bayesian_gam") {
     message("Starting bayesian GAM smoothing for mass error")
-    gam_data <- data.frame(MZ_1 = results$MZ_1, mass_error_ppm = results$mass_error_ppm)
+    gam_data <- data.frame(MZ_1 = results$MZ_1,
+                           mass_error_ppm = results$mass_error_ppm)
 
     # Define the model formula for mass error
     formula <- brms::bf(mass_error_ppm ~ s(MZ_1))
@@ -716,11 +721,9 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
 
   } else if (smooth_method == "gp") {
     message("Starting gaussian process smoothing for mass error")
-    gp_fit_mz <- brms::brm(
-      mass_error_ppm ~ gp(MZ_1, cov = "matern52", scale = TRUE),
-      results,
-      algorithm = "meanfield"
-    )
+    gp_fit_mz <- brms::brm(mass_error_ppm ~ gp(MZ_1, cov = "matern52", scale = TRUE),
+                           results,
+                           algorithm = "meanfield")
 
     smooth_x_mz <- results$MZ_1
     smooth_y_mz <- brms::posterior_predict(gp_fit_mz, newdata = data.frame(MZ_1 = smooth_x_mz))
@@ -747,29 +750,22 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
   scaled_mzs_res <- results$MZ_1 / (1 + smooth_y_mz / 1e6)
 
   results <- results %>%
-    dplyr::mutate(
-      smooth_mz = smooth_y_mz,
-      smz = scaled_mzs_res
-    )
+    dplyr::mutate(smooth_mz = smooth_y_mz, smz = scaled_mzs_res)
 
   # Intensity scaling remains unchanged
   if ("Intensity_1" %in% names(results)) {
     temp_df1_int <- log10(results$Intensity_1)
     temp_df2_int <- log10(results$Intensity_2)
 
-    intensity_parameters <- scale_intensity_parameters(
-      temp_df1_int,
-      temp_df2_int,
-      min_int = minimum_int
-    )
+    intensity_parameters <- scale_intensity_parameters(temp_df1_int, temp_df2_int, min_int = minimum_int)
 
     scaled_vector_intensity <- scale_intensity(temp_df2_int, intensity_parameters)
-    scaled_vector_intensity <- 10^scaled_vector_intensity
+    scaled_vector_intensity <- 10 ^ scaled_vector_intensity
     results$sintensity <- scaled_vector_intensity
 
     log_df2 <- log10(df2$Intensity)
     scaled_intensity <- scale_intensity(log_df2, intensity_parameters)
-    scaled_intensity <- 10^scaled_intensity
+    scaled_intensity <- 10 ^ scaled_intensity
 
     scaled_df <- data.frame(
       "RT" = results$srt,
@@ -794,9 +790,9 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
   # Calculate final deviations
   dev_out <- get_cutoffs(
     df1 = results %>%
-      dplyr::select(dplyr::any_of(c(
-        "Compound_ID_1", "RT_1", "MZ_1", "Intensity_1"
-      ))),
+      dplyr::select(dplyr::any_of(
+        c("Compound_ID_1", "RT_1", "MZ_1", "Intensity_1")
+      )),
     df2 = scaled_df,
     has_int = ("Intensity_1" %in% names(results))
   )
@@ -809,16 +805,15 @@ smooth_drift <- function(align_ms_obj, smooth_method, minimum_int, mz_bin_size =
   return(align_ms_obj)
 }
 
-optimize_parameters <- function(ms1, 
-                              ms2, 
-                              n_iter = 50,
-                              match_method = "unsupervised", 
-                              iso_method = "manual", 
-                              smooth_method = "gam", 
-                              minimum_intensity = 10) {
-  
+optimize_parameters <- function(ms1,
+                                ms2,
+                                n_iter = 50,
+                                match_method = "unsupervised",
+                                iso_method = "manual",
+                                smooth_method = "gam",
+                                minimum_intensity = 10) {
   message("Initializing optimization...")
-  
+
   # Define parameter space
   param_set <- ParamHelpers::makeParamSet(
     ParamHelpers::makeNumericParam("rt_delta", lower = 0.1, upper = 1.0),
@@ -838,14 +833,14 @@ optimize_parameters <- function(ms1,
     clear = FALSE,
     width = 100
   )
-  
+
   # Create an environment to store optimization state
   opt_state <- new.env(parent = emptyenv())
   opt_state$best_score <- -Inf
   opt_state$best_params <- NULL
   opt_state$best_object <- NULL  # Add storage for best MergedMSObject
   opt_state$target_achieved <- FALSE
-  
+
   # Define objective function with progress updates
   obj_fun <- smoof::makeSingleObjectiveFunction(
     name = "alignment_score",
@@ -854,60 +849,59 @@ optimize_parameters <- function(ms1,
       if (opt_state$target_achieved) {
         return(1)
       }
-      
-      score <- suppressMessages(
-        try({
-          if (match_method == "unsupervised") {
-            if (iso_method == "manual") {
-              ref_iso <- getVectors(raw_df(ms1),
-                rt_sim = x[["rt_iso_threshold"]],
-                mz_sim = x[["mz_iso_threshold"]]
-              )
-              query_iso <- getVectors(raw_df(ms2),
-                rt_sim = x[["rt_iso_threshold"]],
-                mz_sim = x[["mz_iso_threshold"]]
-              )
-              isolated(ms1) <- raw_df(ms1) %>%
-                dplyr::filter(.data$Compound_ID %in% ref_iso)
-              isolated(ms2) <- raw_df(ms2) %>%
-                dplyr::filter(.data$Compound_ID %in% query_iso)
-            }
-          } else if (match_method == "supervised") {
-            isolated(ms1) <- raw_df(ms1) %>%
-              dplyr::filter(.data$Metabolite != "")
-            isolated(ms2) <- raw_df(ms2) %>%
-              dplyr::filter(.data$Metabolite != "")
-          }
-          
-          align_obj <- methods::new("MergedMSObject")
-          ms1(align_obj) <- ms1
-          ms2(align_obj) <- ms2
-          align_obj <- align_obj %>%
-            align_isolated_compounds(
-              match_method = match_method,
-              rt_delta = x[["rt_delta"]],
-              mz_delta = x[["mz_delta"]]
-            ) %>%
-            smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
-            final_results(rt_threshold = x[["rt_delta"]], 
-                       mz_threshold = x[["mz_delta"]], 
-                       alpha_rank = x[["alpha_rank"]], 
-                       alpha_rt = x[["alpha_rt"]], 
-                       alpha_mz = x[["alpha_mz"]])
 
-          score <- evaluate_matches(align_obj)
-          
-          # Update best object if score is better
-          if (score > opt_state$best_score) {
-            opt_state$best_object <- align_obj
+      score <- suppressMessages(try({
+        if (match_method == "unsupervised") {
+          if (iso_method == "manual") {
+            ref_iso <- getVectors(raw_df(ms1),
+                                  rt_sim = x[["rt_iso_threshold"]],
+                                  mz_sim = x[["mz_iso_threshold"]])
+            query_iso <- getVectors(raw_df(ms2),
+                                    rt_sim = x[["rt_iso_threshold"]],
+                                    mz_sim = x[["mz_iso_threshold"]])
+            isolated(ms1) <- raw_df(ms1) %>%
+              dplyr::filter(.data$Compound_ID %in% ref_iso)
+            isolated(ms2) <- raw_df(ms2) %>%
+              dplyr::filter(.data$Compound_ID %in% query_iso)
           }
-          
-          score
-        }, silent = TRUE)
-      )
-      
+        } else if (match_method == "supervised") {
+          isolated(ms1) <- raw_df(ms1) %>%
+            dplyr::filter(.data$Metabolite != "")
+          isolated(ms2) <- raw_df(ms2) %>%
+            dplyr::filter(.data$Metabolite != "")
+        }
+
+        align_obj <- methods::new("MergedMSObject")
+        ms1(align_obj) <- ms1
+        ms2(align_obj) <- ms2
+        align_obj <- align_obj %>%
+          align_isolated_compounds(
+            match_method = match_method,
+            rt_delta = x[["rt_delta"]],
+            mz_delta = x[["mz_delta"]]
+          ) %>%
+          smooth_drift(smooth_method = smooth_method, minimum_int = minimum_intensity) %>%
+          final_results(
+            rt_threshold = x[["rt_delta"]],
+            mz_threshold = x[["mz_delta"]],
+            alpha_rank = x[["alpha_rank"]],
+            alpha_rt = x[["alpha_rt"]],
+            alpha_mz = x[["alpha_mz"]]
+          )
+
+        score <- evaluate_matches(align_obj)
+
+        # Update best object if score is better
+        if (score > opt_state$best_score) {
+          opt_state$best_object <- align_obj
+        }
+
+        score
+      }, silent = TRUE))
+
       # Update best score and parameters if current score is better
-      if (!inherits(score, "try-error") && !is.infinite(score) && !is.na(score)) {
+      if (!inherits(score, "try-error") &&
+          !is.infinite(score) && !is.na(score)) {
         if (score > opt_state$best_score && !opt_state$target_achieved) {
           opt_state$best_score <- score
           opt_state$best_params <- x
@@ -919,11 +913,12 @@ optimize_parameters <- function(ms1,
           }
         }
       }
-      
+
       # Tick progress bar with updated best score
       pb$tick(tokens = list(best_score = sprintf("%.4f", opt_state$best_score)))
 
-      if (inherits(score, "try-error") || is.infinite(score) || is.na(score)) {
+      if (inherits(score, "try-error") ||
+          is.infinite(score) || is.na(score)) {
         return(0)
       }
       return(score)
@@ -934,23 +929,14 @@ optimize_parameters <- function(ms1,
 
   # Configure MBO control
   control <- mlrMBO::makeMBOControl() %>%
-    mlrMBO::setMBOControlTermination(
-      iters = n_iter,
-      target.fun.value = .99
-    )
+    mlrMBO::setMBOControlTermination(iters = n_iter, target.fun.value = .99)
 
   # Run optimization
   suppressWarnings({
-    design <- ParamHelpers::generateDesign(
-      n = 20,
-      par.set = param_set
-    ) %>%
+    design <- ParamHelpers::generateDesign(n = 20, par.set = param_set) %>%
       as.data.frame() %>%
-      dplyr::mutate(
-        dplyr::across(dplyr::everything(), 
-              ~.x + runif(dplyr::n(), -1e-6, 1e-6))
-      )
-    
+      dplyr::mutate(dplyr::across(dplyr::everything(), ~ .x + runif(dplyr::n(), -1e-6, 1e-6)))
+
     result <- mlrMBO::mbo(
       fun = obj_fun,
       design = design,
@@ -962,12 +948,14 @@ optimize_parameters <- function(ms1,
   # Clear progress bar
   pb$terminate()
 
-  return(list(
-    parameters = opt_state$best_params,
-    final_score = opt_state$best_score,
-    optimization_history = as.data.frame(result$opt.path),
-    best_object = opt_state$best_object  # Return the best MergedMSObject
-  ))
+  return(
+    list(
+      parameters = opt_state$best_params,
+      final_score = opt_state$best_score,
+      optimization_history = as.data.frame(result$opt.path),
+      best_object = opt_state$best_object  # Return the best MergedMSObject
+    )
+  )
 }
 
 
@@ -984,10 +972,7 @@ get_known_pairs <- function(merged_ms) {
   metabs2 <- df2$Metabolite[!is.na(df2$Metabolite)]
 
   # Find shared metabolites
-  shared_metabolites <- intersect(
-    df1$Metabolite[!is.na(df1$Metabolite)],
-    df2$Metabolite[!is.na(df2$Metabolite)]
-  )
+  shared_metabolites <- intersect(df1$Metabolite[!is.na(df1$Metabolite)], df2$Metabolite[!is.na(df2$Metabolite)])
 
   # Create pairs dataframe
   pairs <- data.frame(
@@ -1036,10 +1021,8 @@ evaluate_matches <- function(result) {
   ms2_metab_col <- paste0("Metabolite_", name(result@ms2))
 
   # Create a named vector for renaming
-  rename_cols <- c(
-    metabolite_name_1 = ms1_metab_col,
-    metabolite_name_2 = ms2_metab_col
-  )
+  rename_cols <- c(metabolite_name_1 = ms1_metab_col,
+                   metabolite_name_2 = ms2_metab_col)
 
   # Calculate valid matches (where metabolites are same)
   n_matches <- matches |>
@@ -1051,7 +1034,7 @@ evaluate_matches <- function(result) {
 }
 
 #' Get unique 1-1 matches from mass_combine output
-#' 
+#'
 #' @param ms_object MergedMSObject containing match results
 #' @param pref Logical: whether to ensure every metabolite from dataset 1 gets a match (TRUE)
 #'   or to optimize for overall match quality (FALSE). Default is FALSE.
@@ -1061,27 +1044,28 @@ get_unique_matches <- function(ms_object, pref = FALSE) {
   # Get study names from ms_object
   study1_name <- name(ms_object@ms1)
   study2_name <- name(ms_object@ms2)
-  
+
   # Create column names dynamically based on study names
   id_col1 <- paste0("Compound_ID_", study1_name)
   id_col2 <- paste0("Compound_ID_", study2_name)
-  
+
   # Get matched data
   matched_data <- all_matched(ms_object)
-  
+
   # Verify required columns exist
   required_cols <- c(id_col1, id_col2)
   missing_cols <- setdiff(required_cols, names(matched_data))
   if (length(missing_cols) > 0) {
-    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+    stop("Missing required columns: ",
+         paste(missing_cols, collapse = ", "))
   }
-  
+
   # Check if score column exists, if not create simple ranking
   if (!"score" %in% names(matched_data)) {
     warning("No score column found. Using row order as score.")
     matched_data$score <- seq_len(nrow(matched_data))
   }
-  
+
   if (pref) {
     # Preference-based matching: ensure every metabolite from dataset 1 gets a match
     result <- matched_data %>%
@@ -1091,11 +1075,15 @@ get_unique_matches <- function(ms_object, pref = FALSE) {
       dplyr::arrange(score) %>%
       # First, get best match for each ID in dataset 1
       dplyr::group_by(.data[[id_col1]]) %>%
-      dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
+      dplyr::slice_min(order_by = score,
+                       n = 1,
+                       with_ties = FALSE) %>%
       dplyr::ungroup() %>%
       # Then handle any duplicates in dataset 2 by keeping best score
       dplyr::group_by(.data[[id_col2]]) %>%
-      dplyr::slice_min(order_by = score, n = 1, with_ties = FALSE) %>%
+      dplyr::slice_min(order_by = score,
+                       n = 1,
+                       with_ties = FALSE) %>%
       dplyr::ungroup()
   } else {
     # Original behavior: optimize for overall match quality
@@ -1105,16 +1093,19 @@ get_unique_matches <- function(ms_object, pref = FALSE) {
       # Sort by score (best scores first)
       dplyr::arrange(score) %>%
       # Keep only first occurrence of each ID in either column
-      dplyr::filter(!duplicated(.data[[id_col1]]) & !duplicated(.data[[id_col2]]))
+      dplyr::filter(!duplicated(.data[[id_col1]]) &
+                      !duplicated(.data[[id_col2]]))
   }
-  
+
   # Add informative attributes
   attr(result, "n_input_rows") <- nrow(matched_data)
   attr(result, "n_output_rows") <- nrow(result)
-  
+
   if (nrow(result) == 0) {
-    warning("No unique matches found. Input had ", nrow(matched_data), " rows.")
+    warning("No unique matches found. Input had ",
+            nrow(matched_data),
+            " rows.")
   }
-  
+
   return(result)
 }

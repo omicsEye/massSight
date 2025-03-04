@@ -23,17 +23,13 @@ consolidate <-
     stopifnot(!consolidated(ms_obj), "Data is already consolidated")
     df <- ms_obj@raw
     if (use_rt) {
-      stopifnot(
-        !is.null(rt_threshold),
-        "If `use_rt` is true, `rt_threshold` must be defined"
-      )
+      stopifnot(!is.null(rt_threshold),
+                "If `use_rt` is true, `rt_threshold` must be defined")
       rt_adducts <- find_adducts(df, "RT", rt_threshold)
     }
     if (use_mz) {
-      stopifnot(
-        !is.null(mz_threshold),
-        "If `use_mz` is true, `mz_threshold` must be defined"
-      )
+      stopifnot(!is.null(mz_threshold),
+                "If `use_mz` is true, `mz_threshold` must be defined")
       mz_adducts <- find_adducts(df, "MZ", mz_threshold)
     }
     if (use_mz && use_rt) {
