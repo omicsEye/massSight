@@ -91,8 +91,8 @@ loaded_data$feature_metadata$RT <-
 feature_metadata2 <-
   loaded_data$feature_metadata[colnames(loaded_data$data), ]
 feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm = T)
-feature_metadata <- cbind(feature_metadata2, t(loaded_data$data))
-ref_input <-
+feature_metadata2 <- cbind(feature_metadata2, t(loaded_data$data))
+iHMP <-
   feature_metadata2[!is.na(feature_metadata2$MZ) &
     !is.na(feature_metadata2$RT), ]
 # ids <- sapply(str_split(feature_metadata2$Compound_ID, "_"), "[[", 2)
@@ -139,7 +139,7 @@ ref <- query <- final_smooth <- aligned_df
 for (profiling_method in profiling_methods) {
   ref[[profiling_method]] <-
     create_ms_obj(
-      df = ref_input[ref_input$Method == profiling_method, ],
+      df = iHMP[iHMP$Method == profiling_method, ],
       name = "iHMP",
       id_name = "Compound_ID",
       rt_name = "RT",
@@ -168,7 +168,7 @@ for (profiling_method in profiling_methods) {
 # simple test: combine a datastes to itself
 ```{r, results = 'hide', message=TRUE, warning=TRUE}
  test_combine <-
-    mass_combine(query[["C8-pos"]], query[["C8-pos"]], smooth_method = "gam", log = NULL)
+    mass_combine(query[["C8-pos"]], query[["C8-pos"]], optimize = F, smooth_method = "gam", log = NULL)
 ```
 
 
@@ -199,7 +199,7 @@ ggsave(
 for (profiling_method in profiling_methods) {
   print(profiling_method)
   aligned_df[[profiling_method]] <-
-    mass_combine(ref[[profiling_method]], query[[profiling_method]], smooth_method = "gam", log = NULL)
+    mass_combine(ref[[profiling_method]], query[[profiling_method]], optimize = F, smooth_method = "gam", log = NULL)
 }
 ```
 
