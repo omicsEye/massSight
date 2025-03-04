@@ -53,17 +53,21 @@ get_shared_metabolites <- function(ms1, ms2) {
   ms2_df <- raw_df(ms2)
   ms1_known <- ms1_df |>
     dplyr::filter(.data$Metabolite != "" &
-      .data$Compound_ID != .data$Metabolite)
+                    .data$Compound_ID != .data$Metabolite)
   ms1_known_scaled <- ms1_df |>
     dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale)) |>
     dplyr::filter(.data$Metabolite != "" &
-      .data$Compound_ID != .data$Metabolite)
+                    .data$Compound_ID != .data$Metabolite)
   ms2_known <- ms2_df |>
     dplyr::filter(.data$Metabolite != "" &
-      .data$Compound_ID != .data$Metabolite)
+                    .data$Compound_ID != .data$Metabolite)
   known <-
     dplyr::inner_join(ms1_known, ms2_known, by = "Metabolite") |>
-    dplyr::select(.data$MZ.x, .data$MZ.y, .data$RT.x, .data$RT.y, .data$Metabolite) |>
+    dplyr::select(.data$MZ.x,
+                  .data$MZ.y,
+                  .data$RT.x,
+                  .data$RT.y,
+                  .data$Metabolite) |>
     dplyr::rename(
       MZ_1 = .data$MZ.x,
       MZ_2 = .data$MZ.y,
@@ -71,10 +75,7 @@ get_shared_metabolites <- function(ms1, ms2) {
       RT_2 = .data$RT.y,
       Metabolite_1 = .data$Metabolite
     ) |>
-    dplyr::mutate(
-      Class = "matched",
-      Metabolite_2 = .data$Metabolite_1
-    )
+    dplyr::mutate(Class = "matched", Metabolite_2 = .data$Metabolite_1)
   out <- list(
     "known" = known,
     "ms1_known" = ms1_known,
@@ -97,15 +98,12 @@ get_training_data <-
       ms1_sample <- ms1_known[i, ]
       ms1_sample_scaled <- ms1_known_scaled[i, ]
       ms2_sample <- ms2@raw_df |>
-        dplyr::filter(
-          .data$Metabolite != ms1_sample_scaled[1, "Metabolite"]
-        )
+        dplyr::filter(.data$Metabolite != ms1_sample_scaled[1, "Metabolite"])
       ms2_sample_scaled <- ms2@raw_df |>
         dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale)) |>
-        dplyr::filter(
-          .data$Metabolite != ms1_sample_scaled[1, "Metabolite"]
-        )
-      distance <- sqrt((ms1_sample$MZ - ms2_sample$MZ)^2 + (ms1_sample$RT - ms2_sample$RT)^2)
+        dplyr::filter(.data$Metabolite != ms1_sample_scaled[1, "Metabolite"])
+      distance <- sqrt((ms1_sample$MZ - ms2_sample$MZ) ^ 2 + (ms1_sample$RT - ms2_sample$RT) ^
+                         2)
       ms2_sample <- ms2_sample[which.min(distance), ]
       row <- data.frame(
         MZ_1 = ms1_sample$MZ,
@@ -167,12 +165,10 @@ create_pred_data <-
       dplyr::select(-.data$Intensity)
 
     combined <- tidyr::crossing(ms1_df_unknown, ms2_df_unknown) |>
-      dplyr::mutate(
-        delta_MZ = .data$MZ_1 - .data$MZ_2,
-        delta_RT = .data$RT_1 - .data$RT_2
-      ) |>
+      dplyr::mutate(delta_MZ = .data$MZ_1 - .data$MZ_2,
+                    delta_RT = .data$RT_1 - .data$RT_2) |>
       dplyr::filter(abs(.data$delta_MZ) < mz_thresh &
-        abs(.data$delta_RT) < rt_thresh)
+                      abs(.data$delta_RT) < rt_thresh)
     return(combined)
   }
 
@@ -200,12 +196,7 @@ plot_decision_boundary <- function(matched_list) {
   plot_data$pred_prob <-
     stats::predict(matched_list$model, plot_data, type = "prob")$matched
   plot_data |>
-    dplyr::mutate(match = dplyr::case_when(
-      pred_prob > .5 ~ "yes",
-      T ~ "no"
-    )) |>
-    ggplot2::ggplot(
-      ggplot2::aes(x = delta_RT, y = delta_MZ, fill = match)
-    ) +
+    dplyr::mutate(match = dplyr::case_when(pred_prob > .5 ~ "yes", T ~ "no")) |>
+    ggplot2::ggplot(ggplot2::aes(x = delta_RT, y = delta_MZ, fill = match)) +
     ggplot2::geom_tile()
 }

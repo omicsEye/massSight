@@ -1,13 +1,14 @@
 #' @title Distribution Plot
+
 #' @description Plot distributions of retention times and mass to charge ratios
-#' of individual MS experiments
+#'   of individual MS experiments
 #'
 #' @param ms_obj Either a `MSObject`, or `MergedMSObject`
 #' @param subset Whether to plot all metabolites or only isolated metabolites.
-#' Can either be "all" or "isolated"
+#'   Can either be "all" or "isolated"
 #'
 #' @return a scatter plot of the retention times vs mass to charge ratios with
-#' marginal histograms
+#'   marginal histograms
 #' @export
 
 distribution_plot <- function(ms_obj, subset = "all") {

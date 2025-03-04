@@ -18,7 +18,11 @@
 #' results <- detect_adducts(data, ion_mode = "pos")
 #' print(results)
 #' @export
-detect_adducts <- function(data, ppm_tolerance = 5, rt_tolerance = 0.1, ion_mode = "pos", adducts = NULL) {
+detect_adducts <- function(data,
+                           ppm_tolerance = 5,
+                           rt_tolerance = 0.1,
+                           ion_mode = "pos",
+                           adducts = NULL) {
   # Ensure that required columns are present
   if (!all(c("RT", "MZ") %in% colnames(data))) {
     stop("Data frame must contain 'RT' and 'MZ' columns.")
@@ -51,7 +55,9 @@ detect_adducts <- function(data, ppm_tolerance = 5, rt_tolerance = 0.1, ion_mode
   rt_values <- data$RT
 
   # Create all combinations of peaks
-  comb_indices <- which(upper.tri(matrix(1, nrow = length(mz_values), ncol = length(mz_values))), arr.ind = TRUE)
+  comb_indices <- which(upper.tri(matrix(
+    1, nrow = length(mz_values), ncol = length(mz_values)
+  )), arr.ind = TRUE)
   idx1 <- comb_indices[, 1]
   idx2 <- comb_indices[, 2]
 

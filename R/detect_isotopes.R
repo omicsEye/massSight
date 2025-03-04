@@ -5,15 +5,20 @@
 #' @return An MSObject with isotopic labels added
 #'
 #' @export
-detect_isotopes <- function(ms_obj, ppm_tolerance = 5, rt_tolerance = 0.1) {
+detect_isotopes <- function(ms_obj,
+                            ppm_tolerance = 5,
+                            rt_tolerance = 0.1) {
   # Extract raw data from the MSObject
   raw_data <- raw_df(ms_obj)
 
   # Known mass differences for common isotopes
   isotope_differences <- list(
-    C13 = 1.003355, # 13C vs 12C
-    N15 = 0.997035, # 15N vs 14N
-    O18 = 2.004244, # 18O vs 16O
+    C13 = 1.003355,
+    # 13C vs 12C
+    N15 = 0.997035,
+    # 15N vs 14N
+    O18 = 2.004244,
+    # 18O vs 16O
     S34 = 1.995796 # 34S vs 32S
   )
 
@@ -31,10 +36,8 @@ detect_isotopes <- function(ms_obj, ppm_tolerance = 5, rt_tolerance = 0.1) {
       ppm_window <- (ppm_tolerance * expected_mz) / 1e6
 
       nearby_peaks <- raw_data %>%
-        dplyr::filter(
-          abs(RT - rt) <= rt_tolerance,
-          abs(MZ - expected_mz) <= ppm_window
-        )
+        dplyr::filter(abs(RT - rt) <= rt_tolerance,
+                      abs(MZ - expected_mz) <= ppm_window)
 
       if (nrow(nearby_peaks) > 0) {
         isotopes[[isotope]] <- nearby_peaks$Compound_ID[1]
@@ -67,8 +70,10 @@ consolidate_isotopes <- function(ms_obj) {
   isotope_groups <- df %>%
     dplyr::rowwise() %>%
     dplyr::mutate(
-      group_id = Compound_ID, # Use parent compound ID as group ID
-      is_parent = length(Isotopes) > 0, # True if compound has isotopes
+      group_id = Compound_ID,
+      # Use parent compound ID as group ID
+      is_parent = length(Isotopes) > 0,
+      # True if compound has isotopes
       isotope_count = length(unlist(Isotopes))
     ) %>%
     dplyr::ungroup()
