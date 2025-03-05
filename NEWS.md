@@ -6,6 +6,11 @@
 * Added linear smoothing for MZ drift
 * Added linear smoothing for RT drift
 * Added `pref` argument to `mass_combine()` to allow for pool reference based alignment
+* Enhanced `get_unique_matches()` with additional metadata columns (MZ, RT, Metabolite)
+* Added Shiny app interface via `run_massSight_app()`
+* Improved Bayesian optimization in mass_combine
+* Added comprehensive test suite for mass_combine functionality
+* Code reformatting across multiple files for better readability and maintainability
 
 # massSight 0.2.2
 

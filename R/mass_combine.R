@@ -1,5 +1,3 @@
-#' @importFrom ParamHelpers makeParamSet makeNumericParam
-#' @importFrom mlrMBO makeMBOControl setMBOControlTermination mbo
 #' @export
 #' @title Mass Combine
 #' @description Combines two `massSight` objects by aligning their features and
@@ -102,6 +100,11 @@ mass_combine <- function(ms1,
   # check if ms1 and ms2 are massSight objects
   if (!is(ms1, "MSObject") || !is(ms2, "MSObject")) {
     stop("ms1 and ms2 must be massSight objects")
+  }
+
+  if (name(ms1) == name(ms2)) {
+    message("ms1 and ms2 have the same name. Appending _2 to the name of ms2.")
+    name(ms2) <- paste0(name(ms2), "_2")
   }
 
   validate_parameters(iso_method, match_method, smooth_method, minimum_intensity)
@@ -650,9 +653,7 @@ smooth_drift <- function(align_ms_obj,
     message("GAM smoothing for RT drift")
     gam_fit <- mgcv::gam(
       delta_RT ~ s(RT_1),
-      data = results,
-      family = mgcv::scat(),
-      method = "REML"
+      data = results
     )
 
     smooth_x_rt <- results$RT_1
@@ -723,9 +724,7 @@ smooth_drift <- function(align_ms_obj,
     message("GAM smoothing for mass error")
     gam_fit_mz <- mgcv::gam(
       mass_error_ppm ~ s(MZ_1),
-      data = results,
-      family = mgcv::scat(),
-      method = "REML"
+      data = results
     )
 
     smooth_x_mz <- results$MZ_1

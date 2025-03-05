@@ -12,7 +12,6 @@ build: no
 
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
-install.packages(c("mlrMBO", "ParamHelpers"))
 ```
 
 
@@ -26,8 +25,9 @@ devtools::install_github("omicsEye/massSight", ref = "dev", force = TRUE)
 ```{r, message = F}
 library(massSight)
 library(stringr)
+library(purrr)
+library(dplyr)
 library(readxl)
-library(massSight)
 library(ggplot2)
 ```
 
@@ -48,8 +48,8 @@ The PRISM data can be downloaded from the following link: https://gwu.box.com/s/
 
 ```{r}
 # URLs to the Box files
-ihmp_url <- "https://gwu.box.com/s/i8fxlre70b0sbrdhp9sjjfautlmlwd6x"
-prism_url <- "https://gwu.box.com/s/033vt0ieh3gucaw5f9as3fuvna7h1b4t"
+ihmp_url <- "https://gwu.app.box.com/shared/static/i8fxlre70b0sbrdhp9sjjfautlmlwd6x"
+prism_url <- "https://gwu.app.box.com/shared/static/033vt0ieh3gucaw5f9as3fuvna7h1b4t"
 
 # Create a temporary directory to store the files
 temp_dir <- tempdir()
@@ -68,18 +68,10 @@ if (!file.exists(prism_file)) {
 ```
 
 ## Load iHMP data
-```{r, cache = T, results = 'True', message=TRUE, warning=TRUE}
-# list of recent annotations published by Broad Institute
-# iHMP_C18n <-
-#  read_xlsx("data/iHMP/C18n_Metabolites_ID_AfterPublication_2021-05-17.xlsx")
-# colnames(iHMP_C18n) <-
-#  c("Method" , "Compound_ID" , "MZ"    , "RT" , "Metabolite")
-# iHMP_C18n$Intensity <- 0
-
-# iHMP published data
+```{r, cache = T, results = 'True', message=FALSE, warning=FALSE}
 loaded_data <-
   massSight::load_data(
-    input = "~/Downloads/HMP2_metabolomics.xlsx", # "data/HMP2_metabolomics.xlsx"
+    input = ihmp_file,
     type = "all",
     sheet = 1,
     id = "Compound_ID"
@@ -95,80 +87,86 @@ feature_metadata2 <- cbind(feature_metadata2, t(loaded_data$data))
 iHMP <-
   feature_metadata2[!is.na(feature_metadata2$MZ) &
     !is.na(feature_metadata2$RT), ]
-# ids <- sapply(str_split(feature_metadata2$Compound_ID, "_"), "[[", 2)
-# feature_metadata3 <- cbind(feature_metadata2, #t(loaded_data))
-# c("Compound_ID", "MZ", "RT", "Intensity", "Metabolite")
 ```
 
 
-## load PRISM clustered data as main output 
+## Load PRISM data 
 
-```{r, results = 'True', message=TRUE, warning=TRUE}
+```{r, results = 'True', message=FALSE, warning=FALSE}
 PRISM <-
   massSight::load_data(
-    input = "~/Downloads/41564_2018_306_MOESM_combined3_4_ESM.xlsx",
+    input = prism_file,
     type = "all",
     sheet = 1,
     id = "Compound_ID"
   )
-PRISM$feature_metadata$Metabolite <- PRISM$feature_metadata$`Exact Match to Standard (* = isomer family)`
-PRISM$feature_metadata$MZ <-
-  as.numeric(PRISM$feature_metadata$MZ)
-PRISM$feature_metadata$RT <-
-  as.numeric(PRISM$feature_metadata$RT)
-feature_metadata2 <-
-  PRISM$feature_metadata[colnames(PRISM$data), ]
-feature_metadata2$Intensity <- colMeans(PRISM$data, na.rm = T)
-feature_metadata <- cbind(feature_metadata2, t(PRISM$data))
-PRISM_input <-
-  feature_metadata2[!is.na(feature_metadata2$MZ) &
-    !is.na(feature_metadata2$RT), ]
-PRISM_Methods <- sapply(str_split(PRISM_input$Compound_ID, "_"), "[[", 1)
-PRISM_input$Method <- PRISM_Methods
-```
-# Approach 1: iHMP vs. PRISM method by method
+# Add metabolite names from standards matching
+PRISM$feature_metadata$Metabolite <- 
+  PRISM$feature_metadata$`Exact Match to Standard (* = isomer family)`
 
+# Convert MZ and RT columns to numeric
+PRISM$feature_metadata <- PRISM$feature_metadata %>%
+  mutate(
+    MZ = as.numeric(MZ),
+    RT = as.numeric(RT)
+  )
+
+# Create feature metadata with intensities
+feature_metadata2 <- PRISM$feature_metadata[colnames(PRISM$data), ] %>%
+  mutate(Intensity = colMeans(PRISM$data, na.rm = TRUE))
+
+# Add sample data
+feature_metadata <- cbind(feature_metadata2, t(PRISM$data))
+
+# Filter out rows with missing MZ or RT
+PRISM_input <- feature_metadata2 %>%
+  filter(!is.na(MZ), !is.na(RT))
+
+# Extract method from compound ID and add as column
+PRISM_input <- PRISM_input %>%
+  mutate(Method = sapply(str_split(Compound_ID, "_"), "[[", 1))
+```
 
 ## Create an object for iHMP data as reference for alignment and combining 
 
-```{r, results = 'hide', message=TRUE, warning=TRUE}
-aligned_df <- vector(mode = "list", length = 4)
+```{r, results = 'hide', message=TRUE, warning=FALSE}
 profiling_methods <- c("HILIC-neg", "HILIC-pos", "C18-neg", "C8-pos")
-names(aligned_df) <- profiling_methods
-ref <- query <- final_smooth <- aligned_df
-for (profiling_method in profiling_methods) {
-  ref[[profiling_method]] <-
-    create_ms_obj(
-      df = iHMP[iHMP$Method == profiling_method, ],
-      name = "iHMP",
-      id_name = "Compound_ID",
-      rt_name = "RT",
-      mz_name = "MZ",
-      int_name = "Intensity"
-    )
 
-  query[[profiling_method]] <-
-    create_ms_obj(
-      df = PRISM_input[PRISM_input$Method == profiling_method, ],
-      name = "PRISM",
-      id_name = "Compound_ID",
-      rt_name = "RT",
-      mz_name = "MZ",
-      int_name = "Intensity"
-    )
+ref <- profiling_methods %>%
+  setNames(., .) %>%
+  map(~ create_ms_obj(
+    df = iHMP[iHMP$Method == .x, ],
+    name = paste0("iHMP_", .x),
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity",
+    metab_name = "Metabolite"
+  ))
 
-  # create and save distribution of MZ and RT of features
-  #ms1_distr <- massSight::distribution_plot(query[[profiling_method]])
-  #ms2_distr <- massSight::distribution_plot(ref[[profiling_method]])
-  #print(ms1_distr)
-  #print(ms2_distr)
-}
+query <- profiling_methods %>%
+  setNames(., .) %>%
+  map(~ create_ms_obj(
+    df = PRISM_input[PRISM_input$Method == .x, ],
+    name = paste0("PRISM_", .x),
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity",
+    metab_name = "Metabolite"
+  ))
+
+final_smooth <- setNames(vector("list", length(profiling_methods)), profiling_methods)
 ```
 
-# simple test: combine a datastes to itself
+## Simple test: combine a datastes to itself
 ```{r, results = 'hide', message=TRUE, warning=TRUE}
- test_combine <-
-    mass_combine(query[["C8-pos"]], query[["C8-pos"]], optimize = F, smooth_method = "gam", log = NULL)
+test_combine <- mass_combine(query[["C8-pos"]],
+  query[["C8-pos"]],
+  optimize = TRUE,
+  smooth_method = "gam",
+  log = NULL
+)
 ```
 
 
