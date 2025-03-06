@@ -37,6 +37,7 @@ Imports:
     ParamHelpers,
     progress,
     purrr,
+    randomForest,
     Rcpp,
     readxl,
     rlang,

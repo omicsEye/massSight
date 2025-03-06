@@ -93,10 +93,10 @@ correcting for systematic differences in retention time and mass-to-charge ratio
 combined <- mass_combine(ms1_data, ms2_data)
 
 # Use optimization with known metabolites
-combined <- mass_combine(ms1_data, ms2_data, 
+combined <- mass_combine(ms1_data, ms2_data,
                         optimize = TRUE,
                         n_iter = 50)
-                        
+
 # Custom parameters for stricter matching
 combined <- mass_combine(ms1_data, ms2_data,
                         rt_delta = 0.3,

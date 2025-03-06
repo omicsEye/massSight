@@ -2,38 +2,55 @@
 % Please edit documentation in R/ml_match.R
 \name{ml_match}
 \alias{ml_match}
-\title{ML Match}
+\title{Advanced ML Match}
 \usage{
-ml_match(ms1, ms2, mz_thresh = 15, rt_thresh = 1, prob_thresh = 0.5, seed = 72)
+ml_match(
+  ms1,
+  ms2,
+  mz_thresh = 15,
+  rt_thresh = 1,
+  prob_thresh = 0.5,
+  use_unlabeled = TRUE,
+  confidence_threshold = 0.8,
+  max_iterations = 3,
+  seed = 72
+)
 }
 \arguments{
-\item{ms1}{A \code{massSight} object representing the results of a preprocessed
-LC-MS experiment}
+\item{ms1}{A \code{massSight} object representing the first LC-MS dataset (reference)}
 
-\item{ms2}{A \code{massSight} object representing the results of a second
-preprcoessed LC-MS experiment}
+\item{ms2}{A \code{massSight} object representing the second LC-MS dataset (query)}
 
-\item{mz_thresh}{\code{numeric} Mass to Charge threshold. Used to limit potential matches
-between metabolites.}
+\item{mz_thresh}{\code{numeric} Mass-to-charge threshold in ppm used to limit potential matches}
 
-\item{rt_thresh}{\code{numeric} Retention Time threshold. Used to limit potential matches
-between metabolites}
+\item{rt_thresh}{\code{numeric} Retention time threshold in minutes used to limit potential matches}
 
-\item{seed}{Seed value for reproducibility}
+\item{prob_thresh}{\code{numeric} Probability threshold for considering a match (default: 0.5)}
+
+\item{use_unlabeled}{\code{logical} Whether to use unlabeled data for semi-supervised learning (default: TRUE)}
+
+\item{confidence_threshold}{\code{numeric} Confidence threshold for adding predictions to training set (default: 0.8)}
+
+\item{max_iterations}{\code{numeric} Maximum iterations for semi-supervised learning (default: 3)}
+
+\item{seed}{\code{numeric} Random seed for reproducibility}
 }
 \value{
-A dataframe consisting of predicted metabolite pairs
+A list containing:
+\itemize{
+\item matched_data: Data frame of predicted matches
+\item model: The trained model
+\item training_data: The training data used
+\item features: List containing extracted features from both datasets
+}
 }
 \description{
-Trains, fits, and uses a machine learning model on known
-metabolite data to predict unknown metabolite pair matches.
-}
-\note{
-This function requires semi-annotated data (some metabolites must be
-named)
+Trains and applies a semi-supervised machine learning model for matching
+metabolites across LC-MS studies, leveraging both labeled and unlabeled data.
 }
 \examples{
 \dontrun{
-ml_match(ms1, ms2, mz_thresh = 15, rt_thresh = .5, seed = 2)
+result <- ml_match(ms1, ms2, mz_thresh = 15, rt_thresh = 0.5, seed = 123)
+head(result$matched_data)
 }
 }
