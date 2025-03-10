@@ -11,6 +11,10 @@
 * Improved Bayesian optimization in mass_combine
 * Added comprehensive test suite for mass_combine functionality
 * Code reformatting across multiple files for better readability and maintainability
+* Enhanced `ml_match()` with advanced machine learning-based metabolite matching features
+* Added improved feature engineering for more accurate metabolite matching
+* Added semi-supervised learning capabilities to `ml_match()` for better performance with limited labeled data
+* Added configurable options for intensity-based feature usage in matching algorithms
 
 # massSight 0.2.2
 

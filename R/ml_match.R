@@ -11,6 +11,9 @@
 #' @param use_unlabeled `logical` Whether to use unlabeled data for semi-supervised learning (default: TRUE)
 #' @param confidence_threshold `numeric` Confidence threshold for adding predictions to training set (default: 0.8)
 #' @param max_iterations `numeric` Maximum iterations for semi-supervised learning (default: 3)
+#' @param neg_examples_per_pos Number of negative examples to generate per positive example (default: 3)
+#' @param use_semisupervised Whether to use semi-supervised learning (default: TRUE)
+#' @param use_intensity Whether to use intensity-based features (default: TRUE)
 #' @param seed `numeric` Random seed for reproducibility
 #'
 #' @return A list containing:
@@ -35,6 +38,9 @@ ml_match <- function(ms1,
                      use_unlabeled = TRUE,
                      confidence_threshold = 0.8,
                      max_iterations = 3,
+                     neg_examples_per_pos = 3,
+                     use_semisupervised = TRUE,
+                     use_intensity = TRUE,
                      seed = 72) {
   
   # Start by setting the random seed
@@ -85,7 +91,9 @@ ml_match <- function(ms1,
     features_ms1, 
     features_ms2, 
     mz_thresh, 
-    rt_thresh
+    rt_thresh,
+    neg_examples_per_pos,
+    use_intensity
   )
   
   # Only proceed if we have enough training data
@@ -94,24 +102,24 @@ ml_match <- function(ms1,
     return(NULL)
   }
   
-  # Check for required dependencies
-  if (!requireNamespace("caret", quietly = TRUE) || 
-      !requireNamespace("randomForest", quietly = TRUE)) {
-    warning("Required packages 'caret' and 'randomForest' must be installed")
-    return(NULL)
-  }
-  
   # Train initial model with error handling
-  message("Training initial Random Forest model")
+  message("Training initial GLMNet model with 5-fold cross-validation")
   tryCatch({
-    model <- train_rf_model(training_data, seed)
+    model_results <- train_logistic_model(training_data, seed)
+    model <- model_results$model
+    cv_metrics <- model_results$cv_metrics
+    message(sprintf(
+      "Cross-validation AUC: %.3f (SE: %.3f)",
+      cv_metrics$cv_auc,
+      cv_metrics$cv_auc_se
+    ))
   }, error = function(e) {
     warning(paste("Error training model:", e$message))
     return(NULL)
   })
   
   if (is.null(model)) {
-    warning("Failed to train Random Forest model")
+    warning("Failed to train GLMNet model")
     return(NULL)
   }
   
@@ -125,7 +133,7 @@ ml_match <- function(ms1,
   }
   
   # Apply semi-supervised learning if enabled
-  if (use_unlabeled && max_iterations > 0) {
+  if (use_unlabeled && use_semisupervised && max_iterations > 0) {
     message("Applying semi-supervised learning")
     tryCatch({
       model_results <- apply_semisupervised_learning(
@@ -148,7 +156,14 @@ ml_match <- function(ms1,
   
   # Make final predictions with constraints
   message("Making final predictions with one-to-one constraints")
-  predictions <- predict_with_constraints(model, all_pairs, prob_thresh)
+  predictions <- predict_with_constraints(
+    model, 
+    all_pairs, 
+    prob_thresh, 
+    rt_thresh = rt_thresh,
+    mz_thresh = mz_thresh,
+    use_intensity = use_intensity
+  )
   
   # Generate quality metrics
   message("Computing match quality metrics")
@@ -165,7 +180,10 @@ ml_match <- function(ms1,
     "model" = model,
     "training_data" = training_data,
     "features" = list(ms1 = features_ms1, ms2 = features_ms2),
-    "metrics" = match_metrics
+    "metrics" = list(
+      cv = cv_metrics,  # Add CV metrics
+      final = match_metrics  # Keep final metrics on full dataset
+    )
   ))
 }
 
@@ -173,9 +191,6 @@ ml_match <- function(ms1,
 #'
 #' @param ms_obj A massSight object
 #' @return A data frame with compound IDs and extracted features
-#'
-#' @importFrom dplyr mutate arrange row_number n select rename bind_cols group_by summarise
-#' @importFrom stats sd median quantile cor
 extract_advanced_features <- function(ms_obj) {
   # Get raw data
   ms_df <- raw_df(ms_obj)
@@ -299,8 +314,12 @@ calculate_local_sd <- function(x, y, window) {
 #' @param features_ms2 Features from second dataset
 #' @param mz_thresh MZ threshold for negative examples
 #' @param rt_thresh RT threshold for negative examples
+#' @param neg_examples_per_pos Number of negative examples to generate per positive example
+#' @param use_intensity Whether to use intensity-based features
 #' @return Enhanced training dataset
-create_enhanced_training_data <- function(labeled_data, features_ms1, features_ms2, mz_thresh, rt_thresh) {
+create_enhanced_training_data <- function(labeled_data, features_ms1, features_ms2, 
+                                        mz_thresh, rt_thresh, neg_examples_per_pos = 3,
+                                        use_intensity = TRUE) {
   # Get known matches
   known_matches <- labeled_data$known
   
@@ -331,24 +350,7 @@ create_enhanced_training_data <- function(labeled_data, features_ms1, features_m
     stringsAsFactors = FALSE
   )
   
-  # Join with enhanced features
-  positive_examples <- positive_examples %>%
-    dplyr::left_join(
-      features_ms1 %>% 
-        dplyr::select(-Metabolite, -MZ, -RT) %>%
-        dplyr::rename_with(~ paste0(.x, "_1"), -Compound_ID) %>%
-        dplyr::rename(Compound_ID_1 = Compound_ID),
-      by = "Compound_ID_1"
-    ) %>%
-    dplyr::left_join(
-      features_ms2 %>% 
-        dplyr::select(-Metabolite, -MZ, -RT) %>%
-        dplyr::rename_with(~ paste0(.x, "_2"), -Compound_ID) %>%
-        dplyr::rename(Compound_ID_2 = Compound_ID),
-      by = "Compound_ID_2"
-    )
-  
-  # Create negative examples: for each metabolite in ms1, find nearest non-matching metabolite in ms2
+  # Create negative examples: for each metabolite in ms1, find multiple nearest non-matching metabolites in ms2
   negative_examples <- data.frame()
   
   # For each known metabolite in ms1
@@ -374,45 +376,30 @@ create_enhanced_training_data <- function(labeled_data, features_ms1, features_m
       ((ms2_candidates$RT - ms1_metabolite$RT) / rt_thresh)^2
     )
     
-    # Get the closest candidate
-    closest_candidate <- ms2_candidates[which.min(ms2_candidates$distance), ]
+    # Get the closest N candidates
+    closest_candidates <- ms2_candidates %>%
+      dplyr::arrange(distance) %>%
+      head(neg_examples_per_pos)
     
-    # Create negative example
-    negative_example <- data.frame(
-      Compound_ID_1 = ms1_metabolite$Compound_ID,
-      Compound_ID_2 = closest_candidate$Compound_ID,
-      MZ_1 = ms1_metabolite$MZ,
-      MZ_2 = closest_candidate$MZ,
-      RT_1 = ms1_metabolite$RT,
-      RT_2 = closest_candidate$RT,
-      Metabolite_1 = ms1_metabolite$Metabolite,
-      Metabolite_2 = closest_candidate$Metabolite,
-      Class = "unmatched"
-    )
-    
-    negative_examples <- rbind(negative_examples, negative_example)
+    # Create negative examples
+    for (j in 1:nrow(closest_candidates)) {
+      candidate <- closest_candidates[j, ]
+      negative_example <- data.frame(
+        Compound_ID_1 = ms1_metabolite$Compound_ID,
+        Compound_ID_2 = candidate$Compound_ID,
+        MZ_1 = ms1_metabolite$MZ,
+        MZ_2 = candidate$MZ,
+        RT_1 = ms1_metabolite$RT,
+        RT_2 = candidate$RT,
+        Metabolite_1 = ms1_metabolite$Metabolite,
+        Metabolite_2 = candidate$Metabolite,
+        Class = "unmatched"
+      )
+      negative_examples <- rbind(negative_examples, negative_example)
+    }
   }
   
   # Join negative examples with enhanced features
-  if (nrow(negative_examples) > 0) {
-    negative_examples <- negative_examples %>%
-      dplyr::left_join(
-        features_ms1 %>% 
-          dplyr::select(-Metabolite, -MZ, -RT) %>%
-          dplyr::rename_with(~ paste0(.x, "_1"), -Compound_ID) %>%
-          dplyr::rename(Compound_ID_1 = Compound_ID),
-        by = "Compound_ID_1"
-      ) %>%
-      dplyr::left_join(
-        features_ms2 %>% 
-          dplyr::select(-Metabolite, -MZ, -RT) %>%
-          dplyr::rename_with(~ paste0(.x, "_2"), -Compound_ID) %>%
-          dplyr::rename(Compound_ID_2 = Compound_ID),
-        by = "Compound_ID_2"
-      )
-  }
-  
-  # Combine positive and negative examples
   if (nrow(negative_examples) > 0) {
     training_data <- rbind(positive_examples, negative_examples)
   } else {
@@ -422,43 +409,139 @@ create_enhanced_training_data <- function(labeled_data, features_ms1, features_m
   # Add derived features
   training_data <- training_data %>%
     dplyr::mutate(
-      # Differences
+      # Basic differences
       delta_RT = RT_1 - RT_2,
-      delta_MZ = (MZ_1 - MZ_2) / MZ_1 * 1e6  # in ppm
+      delta_MZ = (MZ_1 - MZ_2) / MZ_1 * 1e6,  # in ppm
+      
+      # Normalized differences
+      rel_delta_RT = delta_RT / rt_thresh,
+      rel_delta_MZ = delta_MZ / mz_thresh,
+      
+      # Combined distance metrics
+      euclidean_dist = sqrt(rel_delta_RT^2 + rel_delta_MZ^2),
+      manhattan_dist = abs(rel_delta_RT) + abs(rel_delta_MZ),
+      
+      # Squared differences (for non-linear relationships)
+      delta_RT_squared = delta_RT^2,
+      delta_MZ_squared = delta_MZ^2,
+      
+      # Log-transformed MZ ratios
+      log_MZ_ratio = log(MZ_1 / MZ_2),
+      
+      # RT position features
+      RT_sum = RT_1 + RT_2,
+      RT_product = RT_1 * RT_2,
+      RT_min = pmin(RT_1, RT_2),
+      RT_max = pmax(RT_1, RT_2),
+      RT_range = RT_max - RT_min,
+      
+      # MZ position features
+      MZ_sum = MZ_1 + MZ_2,
+      MZ_product = MZ_1 * MZ_2,
+      MZ_min = pmin(MZ_1, MZ_2),
+      MZ_max = pmax(MZ_1, MZ_2),
+      MZ_range = MZ_max - MZ_min
     )
   
-  # Add rank-based features if they exist
-  if ("RT_rank_1" %in% colnames(training_data) && "RT_rank_2" %in% colnames(training_data)) {
+  # Add rank-based features if they exist in the features data
+  if ("RT_rank" %in% colnames(features_ms1) && "RT_rank" %in% colnames(features_ms2)) {
     training_data <- training_data %>%
+      dplyr::left_join(
+        features_ms1 %>% 
+          dplyr::select(Compound_ID, RT_rank, RT_decile) %>%
+          dplyr::rename(
+            Compound_ID_1 = Compound_ID,
+            RT_rank_1 = RT_rank,
+            RT_decile_1 = RT_decile
+          ),
+        by = "Compound_ID_1"
+      ) %>%
+      dplyr::left_join(
+        features_ms2 %>% 
+          dplyr::select(Compound_ID, RT_rank, RT_decile) %>%
+          dplyr::rename(
+            Compound_ID_2 = Compound_ID,
+            RT_rank_2 = RT_rank,
+            RT_decile_2 = RT_decile
+          ),
+        by = "Compound_ID_2"
+      ) %>%
       dplyr::mutate(
         delta_RT_rank = abs(RT_rank_1 - RT_rank_2),
-        same_RT_decile = RT_decile_1 == RT_decile_2
+        same_RT_decileTRUE = as.numeric(RT_decile_1 == RT_decile_2)
       )
   }
   
-  if ("MZ_rank_1" %in% colnames(training_data) && "MZ_rank_2" %in% colnames(training_data)) {
+  # Add MZ rank features
+  if ("MZ_rank" %in% colnames(features_ms1) && "MZ_rank" %in% colnames(features_ms2)) {
     training_data <- training_data %>%
+      dplyr::left_join(
+        features_ms1 %>% 
+          dplyr::select(Compound_ID, MZ_rank, MZ_decile) %>%
+          dplyr::rename(
+            Compound_ID_1 = Compound_ID,
+            MZ_rank_1 = MZ_rank,
+            MZ_decile_1 = MZ_decile
+          ),
+        by = "Compound_ID_1"
+      ) %>%
+      dplyr::left_join(
+        features_ms2 %>% 
+          dplyr::select(Compound_ID, MZ_rank, MZ_decile) %>%
+          dplyr::rename(
+            Compound_ID_2 = Compound_ID,
+            MZ_rank_2 = MZ_rank,
+            MZ_decile_2 = MZ_decile
+          ),
+        by = "Compound_ID_2"
+      ) %>%
       dplyr::mutate(
         delta_MZ_rank = abs(MZ_rank_1 - MZ_rank_2),
-        same_MZ_decile = MZ_decile_1 == MZ_decile_2
+        same_MZ_decileTRUE = as.numeric(MZ_decile_1 == MZ_decile_2)
       )
   }
   
-  # Add intensity-based features if available
-  if ("log_intensity_1" %in% colnames(training_data) && "log_intensity_2" %in% colnames(training_data)) {
+  # Add intensity-based features if available and enabled
+  if (use_intensity && 
+      all(c("log_intensity", "intensity_rank") %in% colnames(features_ms1)) &&
+      all(c("log_intensity", "intensity_rank") %in% colnames(features_ms2))) {
     training_data <- training_data %>%
+      dplyr::left_join(
+        features_ms1 %>% 
+          dplyr::select(Compound_ID, log_intensity, intensity_rank, intensity_decile,
+                       local_intensity_mean, local_intensity_sd, rel_intensity) %>%
+          dplyr::rename_with(~ paste0(.x, "_1"), -Compound_ID) %>%
+          dplyr::rename(Compound_ID_1 = Compound_ID),
+        by = "Compound_ID_1"
+      ) %>%
+      dplyr::left_join(
+        features_ms2 %>% 
+          dplyr::select(Compound_ID, log_intensity, intensity_rank, intensity_decile,
+                       local_intensity_mean, local_intensity_sd, rel_intensity) %>%
+          dplyr::rename_with(~ paste0(.x, "_2"), -Compound_ID) %>%
+          dplyr::rename(Compound_ID_2 = Compound_ID),
+        by = "Compound_ID_2"
+      ) %>%
       dplyr::mutate(
-        delta_log_intensity = log_intensity_1 - log_intensity_2
+        # Basic intensity differences
+        delta_log_intensity = log_intensity_1 - log_intensity_2,
+        delta_intensity_rank = abs(intensity_rank_1 - intensity_rank_2),
+        same_intensity_decileTRUE = as.numeric(intensity_decile_1 == intensity_decile_2),
+        
+        # Advanced intensity features
+        intensity_ratio = 10^(log_intensity_1 - log_intensity_2),
+        log_intensity_product = log_intensity_1 * log_intensity_2,
+        intensity_rank_product = intensity_rank_1 * intensity_rank_2,
+        
+        # Local intensity context features
+        delta_local_intensity_mean = local_intensity_mean_1 - local_intensity_mean_2,
+        delta_local_intensity_sd = local_intensity_sd_1 - local_intensity_sd_2,
+        delta_rel_intensity = rel_intensity_1 - rel_intensity_2,
+        
+        # Combined intensity and position features
+        intensity_RT_correlation = delta_log_intensity * delta_RT,
+        intensity_MZ_correlation = delta_log_intensity * delta_MZ
       )
-    
-    if ("intensity_rank_1" %in% colnames(training_data) && "intensity_rank_2" %in% colnames(training_data)) {
-      training_data <- training_data %>%
-        dplyr::mutate(
-          delta_intensity_rank = abs(intensity_rank_1 - intensity_rank_2),
-          same_intensity_decile = intensity_decile_1 == intensity_decile_2,
-          intensity_ratio = 10^(log_intensity_1 - log_intensity_2)
-        )
-    }
   }
   
   # Convert class to factor
@@ -561,88 +644,75 @@ get_shared_metabolites <- function(ms1, ms2) {
   ))
 }
 
-#' Train Random Forest Model
+#' Train Logistic Model
 #'
-#' @param training_data Enhanced training dataset
-#' @param seed Random seed for reproducibility
-#' @return Trained Random Forest model
-#' @importFrom caret train trainControl
-#' @importFrom randomForest randomForest
-train_rf_model <- function(training_data, seed) {
+#' @param training_data Training dataset
+#' @param seed Random seed
+#' @return Trained model and CV metrics
+train_logistic_model <- function(training_data, seed = 42) {
   set.seed(seed)
   
-  # Remove ID and name columns for training
-  feature_cols <- setdiff(
-    colnames(training_data),
-    c("Compound_ID_1", "Compound_ID_2", "Metabolite_1", "Metabolite_2")
+  # Remove non-feature columns
+  feature_data <- training_data %>%
+    dplyr::select(-Compound_ID_1, -Compound_ID_2, -Metabolite_1, -Metabolite_2)
+  
+  # Convert response to numeric (0/1)
+  y <- as.numeric(feature_data$Class) - 1
+  x <- as.matrix(feature_data %>% dplyr::select(-Class))
+  
+  # Debug: Look at training data
+  message("Training data summary:")
+  print(summary(x))
+  
+  # Calculate and store scaling parameters
+  scale_params <- list(
+    center = apply(x, 2, mean),
+    scale = apply(x, 2, sd)
   )
   
-  # Filter to only necessary columns
-  training_data_filtered <- training_data %>%
-    dplyr::select(dplyr::all_of(c("Class", intersect(feature_cols, colnames(training_data)))))
+  # Debug: Look at scaling parameters
+  message("Scaling parameters:")
+  print(data.frame(
+    feature = names(scale_params$center),
+    mean = scale_params$center,
+    sd = scale_params$scale
+  ))
   
-  # For test purposes, start with a minimal set of features if we have NA issues
-  if (any(is.na(training_data_filtered))) {
-    # Use only the basic features that are guaranteed to be non-NA
-    minimal_features <- c("Class", "delta_RT", "delta_MZ", "RT_1", "RT_2", "MZ_1", "MZ_2")
-    available_features <- intersect(minimal_features, colnames(training_data_filtered))
-    
-    training_data_filtered <- training_data_filtered %>%
-      dplyr::select(dplyr::all_of(available_features)) %>%
-      tidyr::drop_na()
-    
-    # If still have NA issues, use just the bare minimum
-    if (any(is.na(training_data_filtered)) || nrow(training_data_filtered) == 0) {
-      training_data_filtered <- training_data %>%
-        dplyr::select(Class, delta_RT, delta_MZ) %>%
-        tidyr::drop_na()
-    }
-  }
+  # Standardize features
+  x <- scale(x, center = scale_params$center, scale = scale_params$scale)
   
-  # Define training control - simplified for tests
-  train_control <- caret::trainControl(
-    method = "cv",
-    number = 3,  # Reduced for testing
-    classProbs = TRUE,
-    savePredictions = "final",
-    verboseIter = FALSE
+  # Debug: Look at scaled training data
+  message("Scaled training data summary:")
+  print(summary(x))
+  
+  # Fit model with cross-validation
+  cv_fit <- glmnet::cv.glmnet(
+    x = x,
+    y = y,
+    family = "binomial",
+    alpha = 0.5,  # Elastic net mixing parameter
+    nfolds = 5,
+    type.measure = "auc"  # Use AUC for CV metric
   )
   
-  # Define simple grid for tuning
-  tune_grid <- expand.grid(
-    mtry = c(2)  # Minimal tuning for testing
+  # Debug: Look at coefficients
+  message("Model coefficients at lambda.min:")
+  print(coef(cv_fit, s = "lambda.min"))
+  
+  # Add scaling parameters to model object
+  cv_fit$scale_params <- scale_params
+  
+  # Calculate CV metrics
+  cv_metrics <- list(
+    cv_auc = max(cv_fit$cvm),  # Best CV AUC
+    cv_auc_se = cv_fit$cvsd[which.max(cv_fit$cvm)],  # SE of best CV AUC
+    lambda_best = cv_fit$lambda.min  # Best lambda value
   )
   
-  # Train model with error handling
-  tryCatch({
-    model <- caret::train(
-      Class ~ .,
-      data = training_data_filtered,
-      method = "rf",
-      trControl = train_control,
-      tuneGrid = tune_grid,
-      importance = TRUE,
-      ntree = 50  # Reduced for testing
-    )
-    return(model)
-  }, error = function(e) {
-    warning(paste("Error training model:", e$message))
-    
-    # Create a minimal dummy model for testing purposes
-    # This is only for test compatibility - not for production
-    dummy_model <- list(
-      finalModel = randomForest::randomForest(
-        x = training_data_filtered[, -1, drop = FALSE],
-        y = training_data_filtered$Class,
-        ntree = 10
-      ),
-      xNames = colnames(training_data_filtered)[-1],
-      method = "rf"
-    )
-    class(dummy_model) <- "train"
-    
-    return(dummy_model)
-  })
+  return(list(
+    model = cv_fit,
+    cv_metrics = cv_metrics
+  ))
 }
 
 #' Generate Potential Pairs
@@ -659,7 +729,6 @@ generate_potential_pairs <- function(ms1, ms2, mz_thresh, rt_thresh) {
   
   # Create search ranges for each compound in ms1
   ms1_df <- ms1_features %>%
-    dplyr::select(Compound_ID, MZ, RT) %>%
     dplyr::mutate(
       MZ_lower = MZ - (MZ * mz_thresh / 1e6),
       MZ_upper = MZ + (MZ * mz_thresh / 1e6),
@@ -669,7 +738,7 @@ generate_potential_pairs <- function(ms1, ms2, mz_thresh, rt_thresh) {
   
   # Generate pairs using SQL-style joins for efficiency
   pairs <- dplyr::inner_join(
-    ms1_df,
+    ms1_df %>% dplyr::select(Compound_ID, MZ, RT, MZ_lower, MZ_upper, RT_lower, RT_upper),
     ms2_features %>% dplyr::select(Compound_ID, MZ, RT),
     by = character(),
     suffix = c("_1", "_2")
@@ -683,24 +752,83 @@ generate_potential_pairs <- function(ms1, ms2, mz_thresh, rt_thresh) {
     ) %>%
     dplyr::select(-MZ_lower, -MZ_upper, -RT_lower, -RT_upper)
   
+  # Join all features from ms1 and ms2 using the Compound_IDs
+  pairs <- pairs %>%
+    dplyr::left_join(
+      ms1_features %>%
+        dplyr::rename_with(~ paste0(.x, "_1"), -Compound_ID) %>%
+        dplyr::rename(Compound_ID_1 = Compound_ID),
+      by = c("Compound_ID_1", "MZ_1", "RT_1")
+    ) %>%
+    dplyr::left_join(
+      ms2_features %>%
+        dplyr::rename_with(~ paste0(.x, "_2"), -Compound_ID) %>%
+        dplyr::rename(Compound_ID_2 = Compound_ID),
+      by = c("Compound_ID_2", "MZ_2", "RT_2")
+    )
+  
+  # Calculate derived features
+  pairs <- pairs %>%
+    dplyr::mutate(
+      # Basic differences
+      delta_RT = RT_1 - RT_2,
+      delta_MZ = (MZ_1 - MZ_2) / MZ_1 * 1e6,  # in ppm
+      
+      # Normalized differences
+      rel_delta_RT = delta_RT / rt_thresh,
+      rel_delta_MZ = delta_MZ / mz_thresh,
+      
+      # Combined distance metrics
+      euclidean_dist = sqrt(rel_delta_RT^2 + rel_delta_MZ^2),
+      manhattan_dist = abs(rel_delta_RT) + abs(rel_delta_MZ),
+      
+      # Squared differences
+      delta_RT_squared = delta_RT^2,
+      delta_MZ_squared = delta_MZ^2,
+      
+      # Log-transformed MZ ratios
+      log_MZ_ratio = log(MZ_1 / MZ_2),
+      
+      # RT position features
+      RT_sum = RT_1 + RT_2,
+      RT_product = RT_1 * RT_2,
+      RT_min = pmin(RT_1, RT_2),
+      RT_max = pmax(RT_1, RT_2),
+      RT_range = RT_max - RT_min,
+      
+      # MZ position features
+      MZ_sum = MZ_1 + MZ_2,
+      MZ_product = MZ_1 * MZ_2,
+      MZ_min = pmin(MZ_1, MZ_2),
+      MZ_max = pmax(MZ_1, MZ_2),
+      MZ_range = MZ_max - MZ_min
+    )
+  
+  # Add rank-based feature calculations if they exist
+  if (all(c("RT_rank", "RT_decile") %in% colnames(ms1_features)) &&
+      all(c("RT_rank", "RT_decile") %in% colnames(ms2_features))) {
+    pairs <- pairs %>%
+      dplyr::mutate(
+        delta_RT_rank = abs(RT_rank_1 - RT_rank_2),
+        same_RT_decileTRUE = as.numeric(RT_decile_1 == RT_decile_2)
+      )
+  }
+  
+  # Add MZ rank-based feature calculations if they exist
+  if (all(c("MZ_rank", "MZ_decile") %in% colnames(ms1_features)) &&
+      all(c("MZ_rank", "MZ_decile") %in% colnames(ms2_features))) {
+    pairs <- pairs %>%
+      dplyr::mutate(
+        delta_MZ_rank = abs(MZ_rank_1 - MZ_rank_2),
+        same_MZ_decileTRUE = as.numeric(MZ_decile_1 == MZ_decile_2)
+      )
+  }
+  
   # If we have too many pairs, filter out the obvious non-matches
   if (nrow(pairs) > 100000) {
     pairs <- pairs %>%
-      dplyr::mutate(
-        delta_MZ_ppm = abs((MZ_1 - MZ_2) / MZ_1 * 1e6),
-        delta_RT = abs(RT_1 - RT_2),
-        match_score = delta_MZ_ppm / mz_thresh + delta_RT / rt_thresh
-      ) %>%
-      dplyr::filter(match_score <= 1.5) %>%
-      dplyr::select(-delta_MZ_ppm, -delta_RT, -match_score)
+      dplyr::filter(euclidean_dist <= 1.5)
   }
-  
-  # Rename compound IDs for consistency
-  pairs <- pairs %>%
-    dplyr::rename(
-      Compound_ID_1 = Compound_ID_1,
-      Compound_ID_2 = Compound_ID_2
-    )
   
   return(pairs)
 }
@@ -726,15 +854,12 @@ apply_semisupervised_learning <- function(
   max_iterations,
   seed
 ) {
+  
   current_model <- initial_model
   current_training_data <- training_data
   
-  # Track already used compounds to avoid duplicates
-  used_compounds_1 <- unique(training_data$Compound_ID_1)
-  used_compounds_2 <- unique(training_data$Compound_ID_2)
-  
-  # Seeds for each iteration
-  seeds <- seed + seq_len(max_iterations)
+  # Get the feature names from the initial model
+  model_features <- colnames(current_model$glmnet.fit$beta)
   
   # For each iteration
   for (iter in 1:max_iterations) {
@@ -744,14 +869,10 @@ apply_semisupervised_learning <- function(
     prediction_data <- all_pairs %>%
       # Remove already used compounds
       dplyr::filter(
-        !Compound_ID_1 %in% used_compounds_1,
-        !Compound_ID_2 %in% used_compounds_2
+        !Compound_ID_1 %in% current_training_data$Compound_ID_1,
+        !Compound_ID_2 %in% current_training_data$Compound_ID_2
       )
     
-    if (nrow(prediction_data) == 0) {
-      message("No more candidate pairs available")
-      break
-    }
     
     # Join with features
     prediction_data <- prediction_data %>%
@@ -770,43 +891,24 @@ apply_semisupervised_learning <- function(
         by = "Compound_ID_2"
       )
     
-    # Add derived features
-    prediction_data <- prediction_data %>%
-      dplyr::mutate(
-        # Differences
-        delta_RT = RT_1 - RT_2,
-        delta_MZ = (MZ_1 - MZ_2) / MZ_1 * 1e6,  # in ppm
-        delta_RT_rank = abs(RT_rank_1 - RT_rank_2),
-        delta_MZ_rank = abs(MZ_rank_1 - MZ_rank_2),
-        
-        # Same decile features
-        same_RT_decile = RT_decile_1 == RT_decile_2,
-        same_MZ_decile = MZ_decile_1 == MZ_decile_2
-      )
-    
-    # Add intensity-based features if available
-    if ("log_intensity_1" %in% colnames(prediction_data)) {
-      prediction_data <- prediction_data %>%
-        dplyr::mutate(
-          delta_log_intensity = log_intensity_1 - log_intensity_2,
-          delta_intensity_rank = abs(intensity_rank_1 - intensity_rank_2),
-          same_intensity_decile = intensity_decile_1 == intensity_decile_2,
-          intensity_ratio = 10^(log_intensity_1 - log_intensity_2)
-        )
-    }
+    # Prepare prediction data with all necessary features
+    prediction_data <- prepare_prediction_data(prediction_data, model_features)
     
     # Make predictions
-    predictions <- stats::predict(current_model, prediction_data, type = "prob")
-    prediction_data$prob_matched <- predictions$matched
+    x_pred <- as.matrix(prediction_data)
+    predictions <- predict(current_model, newx = x_pred, type = "response", s = "lambda.min")
+    prediction_data$prob_matched <- as.vector(predictions)
     
     # Select high-confidence predictions
     high_confidence <- prediction_data %>%
       dplyr::filter(
         prob_matched >= confidence_threshold | 
-        prob_matched <= (1 - confidence_threshold)
+          prob_matched <= (1 - confidence_threshold)
       ) %>%
       dplyr::mutate(
-        Class = ifelse(prob_matched >= confidence_threshold, "matched", "unmatched")
+        Class = factor(ifelse(prob_matched >= confidence_threshold, 
+                            "matched", "unmatched"),
+                      levels = levels(current_training_data$Class))
       )
     
     if (nrow(high_confidence) == 0) {
@@ -814,19 +916,19 @@ apply_semisupervised_learning <- function(
       break
     }
     
-    # Balance classes by taking equal numbers of positives and negatives
+    # Balance classes
     pos_count <- sum(high_confidence$Class == "matched")
     neg_count <- sum(high_confidence$Class == "unmatched")
-    target_count <- min(pos_count, neg_count, 100)  # Limit to 100 per class per iteration
+    target_count <- min(pos_count, neg_count, 100)
     
-    set.seed(seeds[iter])
+    set.seed(seed + iter)
     
     if (pos_count > 0) {
       positive_samples <- high_confidence %>%
         dplyr::filter(Class == "matched") %>%
         dplyr::slice_sample(n = min(pos_count, target_count))
     } else {
-      positive_samples <- data.frame()
+      positive_samples <- NULL
     }
     
     if (neg_count > 0) {
@@ -834,29 +936,28 @@ apply_semisupervised_learning <- function(
         dplyr::filter(Class == "unmatched") %>%
         dplyr::slice_sample(n = min(neg_count, target_count))
     } else {
-      negative_samples <- data.frame()
+      negative_samples <- NULL
     }
     
-    # Combine and add to training data
-    new_training <- rbind(positive_samples, negative_samples) %>%
-      dplyr::select(names(current_training_data))
+    # Combine samples
+    new_training <- dplyr::bind_rows(positive_samples, negative_samples)
     
-    # Update the training data
-    updated_training <- rbind(current_training_data, new_training)
-    
-    # Update list of used compounds
-    used_compounds_1 <- c(used_compounds_1, new_training$Compound_ID_1)
-    used_compounds_2 <- c(used_compounds_2, new_training$Compound_ID_2)
-    
-    # Re-train the model with updated training data
-    current_model <- train_rf_model(updated_training, seeds[iter])
-    current_training_data <- updated_training
-    
-    message(sprintf(
-      "Added %d new training examples (total: %d)",
-      nrow(new_training),
-      nrow(current_training_data)
-    ))
+    if (nrow(new_training) > 0) {
+      # Update training data
+      current_training_data <- dplyr::bind_rows(current_training_data, new_training)
+      
+      # Re-train model
+      current_model <- train_logistic_model(current_training_data, seed + iter)
+      
+      message(sprintf(
+        "Added %d new training examples (total: %d)",
+        nrow(new_training),
+        nrow(current_training_data)
+      ))
+    } else {
+      message("No new training examples added")
+      break
+    }
   }
   
   return(list(
@@ -870,129 +971,116 @@ apply_semisupervised_learning <- function(
 #' @param model Trained model
 #' @param all_pairs All potential pairs
 #' @param prob_thresh Probability threshold for matches
+#' @param rt_thresh RT threshold (unused, kept for backward compatibility)
+#' @param mz_thresh MZ threshold (unused, kept for backward compatibility)
+#' @param use_intensity Whether to use intensity features (unused, kept for backward compatibility)
 #' @return Data frame of predicted matches with constraints applied
-predict_with_constraints <- function(model, all_pairs, prob_thresh = 0.5) {
-  # Prepare data for prediction
-  # Get feature names from model
-  model_features <- model$finalModel$xNames
+predict_with_constraints <- function(model, all_pairs, prob_thresh = 0.5, 
+                                   rt_thresh = NULL, mz_thresh = NULL, use_intensity = TRUE) {
   
-  # Convert all_pairs to have necessary features
-  prediction_data <- prepare_prediction_data(all_pairs, model_features)
+  # Store ID columns before feature preparation
+  id_cols <- all_pairs %>%
+    dplyr::select(Compound_ID_1, Compound_ID_2, MZ_1, MZ_2, RT_1, RT_2)
+  
+  # Get the exact feature names from the model
+  model_features <- rownames(model$glmnet.fit$beta)
+  
+  # Debug: Show model features
+  message("Model features:")
+  print(model_features)
+  
+  # Prepare prediction data with the exact features needed by the model
+  prediction_data <- prepare_prediction_data(
+    all_pairs, 
+    model_features = model_features
+  )
+  
+  # Debug: Look at prediction data before scaling
+  message("Prediction data summary before scaling:")
+  print(summary(prediction_data))
+  
+  if (nrow(prediction_data) == 0) {
+    warning("No pairs to predict")
+    return(tibble::tibble())
+  }
+  
+  # Scale prediction data using the same parameters as training
+  x_pred <- as.matrix(prediction_data)
+  x_pred <- scale(x_pred, 
+                 center = model$scale_params$center,
+                 scale = model$scale_params$scale)
+  
+  # Debug: Look at scaled prediction data
+  message("Scaled prediction data summary:")
+  print(summary(x_pred))
   
   # Make predictions
-  predictions <- stats::predict(model, prediction_data, type = "prob")
-  prediction_data$prob_matched <- predictions$matched
+  linear_predictions <- predict(model, newx = x_pred, s = "lambda.min")
   
-  # Filter by probability threshold
-  candidates <- prediction_data %>%
+  # Debug: Look at predictions
+  message("Linear prediction summary:")
+  print(summary(linear_predictions))
+  
+  probabilities <- 1 / (1 + exp(-linear_predictions))
+  
+  message("Probability summary:")
+  print(summary(probabilities))
+  
+  # Combine predictions with ID columns
+  prediction_data_with_ids <- id_cols %>%
+    dplyr::mutate(prob_matched = as.vector(probabilities))
+  
+  # Process candidates
+  candidates <- prediction_data_with_ids %>%
     dplyr::filter(prob_matched >= prob_thresh) %>%
-    dplyr::arrange(desc(prob_matched))
+    dplyr::arrange(dplyr::desc(prob_matched))
   
-  # Apply one-to-one matching constraint using greedy algorithm
-  matches <- data.frame()
-  used_ids_1 <- character(0)
-  used_ids_2 <- character(0)
+  # Apply greedy matching algorithm
+  matches <- tibble::tibble()
+  used_ids <- tibble::tibble(
+    Compound_ID_1 = character(0),
+    Compound_ID_2 = character(0)
+  )
   
-  # While we have candidates and haven't used all compounds
   while (nrow(candidates) > 0) {
-    # Get the highest probability match
-    best_match <- candidates[1, ]
+    # Get best match
+    best_match <- candidates %>%
+      dplyr::slice(1)
     
     # Add to matches
-    matches <- rbind(matches, best_match)
+    matches <- dplyr::bind_rows(matches, best_match)
     
     # Update used IDs
-    used_ids_1 <- c(used_ids_1, best_match$Compound_ID_1)
-    used_ids_2 <- c(used_ids_2, best_match$Compound_ID_2)
+    used_ids <- dplyr::bind_rows(
+      used_ids,
+      tibble::tibble(
+        Compound_ID_1 = best_match$Compound_ID_1,
+        Compound_ID_2 = best_match$Compound_ID_2
+      )
+    )
     
-    # Filter out candidates using the same compounds
+    # Filter remaining candidates
     candidates <- candidates %>%
       dplyr::filter(
-        !Compound_ID_1 %in% used_ids_1,
-        !Compound_ID_2 %in% used_ids_2
+        !Compound_ID_1 %in% used_ids$Compound_ID_1,
+        !Compound_ID_2 %in% used_ids$Compound_ID_2
       )
   }
   
-  # Format final output
-  final_matches <- matches %>%
-    dplyr::mutate(matched = TRUE) %>%
-    dplyr::select(
-      Compound_ID_1, Compound_ID_2, 
-      MZ_1, MZ_2, RT_1, RT_2,
-      prob_matched, matched
-    )
-  
-  # Sort by probability
-  final_matches <- final_matches %>%
-    dplyr::arrange(desc(prob_matched))
-  
-  return(final_matches)
+  # Return matches sorted by probability
+  matches %>%
+    dplyr::arrange(dplyr::desc(prob_matched))
 }
 
 #' Prepare Prediction Data
 #'
-#' @param all_pairs All potential pairs
+#' @param all_pairs All potential pairs with pre-calculated features
 #' @param model_features Feature names from model
 #' @return Data frame ready for prediction
 prepare_prediction_data <- function(all_pairs, model_features) {
-  # Calculate basic features that might be missing
+  # Select only the features needed by the model
   prediction_data <- all_pairs %>%
-    dplyr::mutate(
-      delta_RT = RT_1 - RT_2,
-      delta_MZ = (MZ_1 - MZ_2) / MZ_1 * 1e6  # in ppm
-    )
-  
-  # Add derived features if they're in the model but missing from the data
-  # Rank features
-  if ("delta_RT_rank" %in% model_features && !"delta_RT_rank" %in% names(prediction_data)) {
-    if (all(c("RT_rank_1", "RT_rank_2") %in% names(prediction_data))) {
-      prediction_data$delta_RT_rank <- abs(prediction_data$RT_rank_1 - prediction_data$RT_rank_2)
-    } else {
-      prediction_data$delta_RT_rank <- 0.5  # Default value
-    }
-  }
-  
-  if ("delta_MZ_rank" %in% model_features && !"delta_MZ_rank" %in% names(prediction_data)) {
-    if (all(c("MZ_rank_1", "MZ_rank_2") %in% names(prediction_data))) {
-      prediction_data$delta_MZ_rank <- abs(prediction_data$MZ_rank_1 - prediction_data$MZ_rank_2)
-    } else {
-      prediction_data$delta_MZ_rank <- 0.5  # Default value
-    }
-  }
-  
-  # Decile features
-  if ("same_RT_decile" %in% model_features && !"same_RT_decile" %in% names(prediction_data)) {
-    if (all(c("RT_decile_1", "RT_decile_2") %in% names(prediction_data))) {
-      prediction_data$same_RT_decile <- prediction_data$RT_decile_1 == prediction_data$RT_decile_2
-    } else {
-      prediction_data$same_RT_decile <- TRUE  # Default value
-    }
-  }
-  
-  if ("same_MZ_decile" %in% model_features && !"same_MZ_decile" %in% names(prediction_data)) {
-    if (all(c("MZ_decile_1", "MZ_decile_2") %in% names(prediction_data))) {
-      prediction_data$same_MZ_decile <- prediction_data$MZ_decile_1 == prediction_data$MZ_decile_2
-    } else {
-      prediction_data$same_MZ_decile <- TRUE  # Default value
-    }
-  }
-  
-  # Intensity features
-  if ("delta_log_intensity" %in% model_features && !"delta_log_intensity" %in% names(prediction_data)) {
-    if (all(c("log_intensity_1", "log_intensity_2") %in% names(prediction_data))) {
-      prediction_data$delta_log_intensity <- prediction_data$log_intensity_1 - prediction_data$log_intensity_2
-    } else {
-      prediction_data$delta_log_intensity <- 0  # Default value
-    }
-  }
-  
-  # Add any remaining missing features as NA
-  missing_features <- setdiff(model_features, names(prediction_data))
-  if (length(missing_features) > 0) {
-    for (feature in missing_features) {
-      prediction_data[[feature]] <- NA_real_
-    }
-  }
+    dplyr::select(dplyr::all_of(model_features))
   
   return(prediction_data)
 }
@@ -1016,7 +1104,7 @@ compute_match_metrics <- function(predictions, true_matches) {
   pred_matches <- paste(predictions$Compound_ID_1, predictions$Compound_ID_2, sep = "_")
   
   # Prepare true match set
-  true_matches_set <- paste(true_matches$Compound_ID.x, true_matches$Compound_ID.y, sep = "_")
+  true_matches_set <- paste(true_matches$Compound_ID, true_matches$Compound_ID.y, sep = "_")
   
   # Calculate metrics
   true_positives <- sum(pred_matches %in% true_matches_set)
@@ -1130,4 +1218,84 @@ plot_decision_boundary <- function(ml_match_result) {
     )
   
   return(p)
+}
+
+#' ML Match without Semi-supervised Learning
+#'
+#' @param ms1 First MSObject
+#' @param ms2 Second MSObject
+#' @param mz_thresh MZ threshold in ppm
+#' @param rt_thresh RT threshold in minutes
+#' @param prob_thresh Probability threshold for matches
+#' @param neg_examples_per_pos Number of negative examples per positive
+#' @param use_intensity Whether to use intensity features
+#' @param n_folds Number of CV folds
+#' @param seed Random seed
+#' @return List containing model and predictions
+ml_match_simple <- function(ms1, 
+                           ms2, 
+                           mz_thresh = 15, 
+                           rt_thresh = 1,
+                           prob_thresh = 0.5,
+                           neg_examples_per_pos = 3,
+                           use_intensity = TRUE,
+                           n_folds = 3,
+                           seed = 72) {
+  
+  # Get shared metabolites for training
+  message("Getting shared metabolites")
+  labeled_data <- get_shared_metabolites(ms1, ms2)
+  
+  # Extract features
+  message("Extracting features")
+  features_ms1 <- extract_advanced_features(ms1)
+  features_ms2 <- extract_advanced_features(ms2)
+  
+  # Create training data
+  message("Creating training data")
+  training_data <- create_enhanced_training_data(
+    labeled_data, 
+    features_ms1, 
+    features_ms2, 
+    mz_thresh, 
+    rt_thresh,
+    neg_examples_per_pos,
+    use_intensity
+  )
+  
+  # Train model with cross-validation
+  message("Training model with cross-validation")
+  model <- train_logistic_model(training_data, seed)
+  
+  # Generate all potential pairs for prediction
+  message("Generating potential pairs")
+  all_pairs <- generate_potential_pairs(ms1, ms2, mz_thresh, rt_thresh)
+  
+  # Make predictions with constraints
+  message("Making final predictions")
+  predictions <- predict_with_constraints(
+    model, 
+    all_pairs, 
+    prob_thresh, 
+    rt_thresh = rt_thresh,
+    mz_thresh = mz_thresh,
+    use_intensity = use_intensity
+  )
+  
+  # Calculate metrics if we have known matches
+  metrics <- compute_match_metrics(predictions, labeled_data$known)
+  
+  # Print results
+  message(sprintf(
+    "Found %d matches with %.1f%% of known matches correctly identified",
+    nrow(predictions),
+    metrics$recall * 100
+  ))
+  
+  return(list(
+    model = model,
+    predictions = predictions,
+    metrics = metrics,
+    training_data = training_data
+  ))
 }
