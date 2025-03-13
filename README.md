@@ -1,19 +1,16 @@
 # massSight
 
 
-- [Examples](#examples)
-- [Description](#description)
 - [Installation](#installation)
-- [Data Preparation](#data-preparation)
-  - [The `massSight` Object](#the-masssight-object)
-- [Alignment](#alignment)
-  - [`mass_combine()`](#mass_combine)
-- [Results](#results)
-  - [Plotting results from alignment](#plotting-results-from-alignment)
-  - [Using `massSight` to annotate unknown
-    metabolites](#using-masssight-to-annotate-unknown-metabolites)
-- [Dev Instructions](#dev-instructions)
-  - [Installation](#installation-1)
+- [Input Data Format](#input-data-format)
+- [Usage](#usage)
+  - [1. Create massSight Objects](#1-create-masssight-objects)
+  - [2. Align Datasets](#2-align-datasets)
+  - [3. Access Results](#3-access-results)
+  - [4. Visualize Results](#4-visualize-results)
+- [Key Parameters](#key-parameters)
+- [Output Format](#output-format)
+- [Examples and Documentation](#examples-and-documentation)
 
 <!-- README.md is generated from README.qmd. Please edit that file -->
 
@@ -22,23 +19,18 @@
 [![](https://zenodo.org/badge/608216683.svg)](https://zenodo.org/badge/latestdoi/608216683)
 
 `massSight` is an R package for combining and scaling LC-MS metabolomics
-data.
+data. It enables alignment and integration of metabolomics data from
+multiple experiments by correcting systematic differences in retention
+time and mass-to-charge ratios.
 
 - Citation: if you use `massSight`, please cite our manuscript: Chiraag
   Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis
   through multi-study data scaling, integration, and harmonization.
   <https://github.com/omicsEye/massSight>
 
-## Examples
-
-Examples and extensive documentation can be found
-[here](omicseye.github.io/massSight/)
-
-## Description
-
 ## Installation
 
-First, if you don’t have it installed, install `devtools` using:
+First install `devtools` using:
 
 ``` r
 install.packages("devtools")
@@ -56,16 +48,18 @@ You can then load the library using:
 library(massSight)
 ```
 
-## Data Preparation
+## Input Data Format
 
-`massSight` works with the output of LC-MS experiments, which should
-contain columns corresponding to:
+`massSight` works with LC-MS data frames that must contain the following
+required columns:
 
-1.  Compound ID
-2.  Retention Time
-3.  Mass to Charge Ratio
-4.  (Optional) Average Intensity across all samples
-5.  (Optional) Metabolite Name
+1.  **Compound ID** - Unique identifier for each feature
+2.  **Retention Time (RT)** - The retention time in minutes
+3.  **Mass to Charge Ratio (MZ)** - The mass-to-charge ratio
+4.  **Intensity** (Optional) - Average intensity across samples
+5.  **Metabolite Name** (Optional) - Known metabolite annotations
+
+Example input data format:
 
 | Compound_ID      |       MZ |   RT | Intensity | Metabolite             |
 |:-----------------|---------:|-----:|----------:|:-----------------------|
@@ -76,81 +70,78 @@ contain columns corresponding to:
 | 5.12_298.1143m/z | 298.1143 | 5.12 |  41602.96 | 1-methylguanosine      |
 | 9.58_126.1028m/z | 126.1028 | 9.58 |   3004.32 | 1-methylhistamine      |
 
-### The `massSight` Object
+## Usage
 
-`massSight` creates and uses the `MSObject` class to store data and
-results pertaining to individual LC-MS experiments. Prior to alignment,
-LC-MS data frames or tibbles should be converted into an `MSObject`
-using `create_ms_obj`:
+### 1. Create massSight Objects
+
+First, convert your LC-MS data frames into `MSObject`s using
+`create_ms_obj`:
 
 ``` r
-ms1 <-
-  create_ms_obj(
+ms1 <- create_ms_obj(
     df = hp1,
     name = "hp1",
-    id_name = "Compound_ID",
-    rt_name = "RT",
-    mz_name = "MZ",
-    int_name = "Intensity",
-    metab_name = "Metabolite"
-  )
+    id_name = "Compound_ID",  # Column name for compound IDs
+    rt_name = "RT",           # Column name for retention time
+    mz_name = "MZ",           # Column name for mass-to-charge ratio
+    int_name = "Intensity",   # Column name for intensity (optional)
+    metab_name = "Metabolite" # Column name for metabolite names (optional)
+)
 
-ms2 <-
-  create_ms_obj(
+ms2 <- create_ms_obj(
     df = hp2,
     name = "hp2",
     id_name = "Compound_ID",
-    rt_name = "RT",
+    rt_name = "RT", 
     mz_name = "MZ",
     int_name = "Intensity",
     metab_name = "Metabolite"
-  )
+)
 ```
 
-An `MSObject` provides the following functions:
+### 2. Align Datasets
 
-- `raw_df()` to access the experiment’s raw LC-MS data
-- `isolated()` to access the experiment’s isolated metabolites, which is
-  important for downstream alignment tasks
-- `scaled_df()` to access the experiment’s scaled LC-MS data
-- `consolidated()` to access the experiment’s consolidated data
-- `metadata()` to access the experiment’s metadata
+Use `mass_combine()` to align the datasets. The function offers two main
+approaches:
 
-``` r
-ms2 |>
-  raw_df() |>
-  head() |>
-  knitr::kable(format = "simple")
-```
-
-| Compound_ID | Metabolite      |       RT |       MZ | Intensity |
-|:------------|:----------------|---------:|---------:|----------:|
-| cmp.3837    | C10 carnitine   | 7.261300 | 316.2479 | 638168.92 |
-| cmp.3903    | C10:2 carnitine | 7.395033 | 312.2165 |  50418.96 |
-| cmp.3749    | C12 carnitine   | 7.074067 | 344.2792 | 203210.69 |
-| cmp.3756    | C12:1 carnitine | 7.105283 | 342.2635 | 363021.48 |
-| cmp.3682    | C14 carnitine   | 6.926967 | 372.3107 |  93491.07 |
-| cmp.3705    | C14:2 carnitine | 6.993833 | 368.2792 | 235545.00 |
-
-## Alignment
-
-### `mass_combine()`
-
-Alignment is performed using `mass_combine()`. This function uses a
-random search to optimize the alignment parameters.
+#### A. Automatic Parameter Optimization (Recommended)
 
 ``` r
 aligned <- mass_combine(
-  ms1,
-  ms2,
-  optimize = TRUE,
-  smooth_method = "gam",
-  log = NULL
+    ms1,                    # Reference dataset
+    ms2,                    # Dataset to align
+    optimize = TRUE,        # Enable automatic parameter optimization
+    smooth_method = "gam",  # Method for drift correction
+    n_iter = 50            # Number of optimization iterations
 )
-#> Optimizing parameters using known metabolites...
+#> Optimizing parameters using Bayesian optimization...
+#> Initializing optimization...
 #> 
-#> Perfect score achieved. Stopping early.
+#> Target score achieved! Stopping optimization.
 #> Optimization complete. Final score: 1.000
+#> 
+#> Optimal parameters:
+#>   RT delta: 0.427
+#>   MZ delta: 18.677
+#>   RT isolation threshold: 0.037
+#>   MZ isolation threshold: 2.915
+#>   Alpha rank: -0.104
+#>   Alpha RT: 1.096
+#>   Alpha MZ: 0.691
+```
+
+#### B. Manual Parameter Setting
+
+``` r
+aligned <- mass_combine(
+    ms1,
+    ms2,
+    optimize = FALSE,
+    rt_delta = 0.5,        # RT window (±minutes)
+    mz_delta = 15,         # MZ window (±ppm)
+    minimum_intensity = 10, # Minimum intensity threshold
+    smooth_method = "gam"  # Drift correction method
+)
 #> GAM smoothing for RT drift
 #> Starting mass error correction
 #> GAM smoothing for mass error
@@ -158,110 +149,49 @@ aligned <- mass_combine(
 #> Calculating match scores
 ```
 
-More information on the `mass_combine()` function can be found in the
-[package
-documentation](https://omicseye.github.io/massSight/reference/mass_combine.html)
+### 3. Access Results
 
-## Results
-
-Results from an alignment function are stored as a `MergedMSObject`.
-This object contains the following slots:
-
-- `all_matched()`: All of the final matched metabolites between the two
-  datasets. This is the main result of the various matching functions.
+The alignment results can be accessed in several ways:
 
 ``` r
-all_matched(aligned) |>
-  head() |>
-  knitr::kable()
+# Get all matched features
+matches <- all_matched(aligned)
+# Get unique 1:1 matches
+unique_matches <- get_unique_matches(aligned)
 ```
 
-| rep_Compound_ID | rep_RT | rep_MZ | rep_Intensity | rep_Metabolite | matched | Compound_ID_hp1 | Metabolite_hp1 | RT_hp1 | MZ_hp1 | Intensity_hp1 | RT_rank_1 | Compound_ID_hp2 | Metabolite_hp2 | RT_hp2 | MZ_hp2 | Intensity_hp2 | RT_adj_hp2 | MZ_adj_hp2 | RT_rank_2 | rank_diff | rt_diff | mz_diff | rank_score | rt_score | mz_score | score | delta_RT | delta_MZ |
-|:---|---:|---:|---:|:---|:---|:---|:---|---:|---:|---:|---:|:---|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0.04_82.0533m/z | 0.04 | 82.0533 | 2.97 | NA | FALSE | 0.04_82.0533m/z | NA | 0.04 | 82.0533 | 2.97 | 0.0000000 | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA |
-| 0.33_81.0706m/z | 0.33 | 81.0706 | 28.64 | NA | FALSE | 0.33_81.0706m/z | NA | 0.33 | 81.0706 | 28.64 | 0.0000712 | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA |
-| 0.33_85.0290m/z | 0.33 | 85.0290 | 12.46 | NA | FALSE | 0.33_85.0290m/z | NA | 0.33 | 85.0290 | 12.46 | 0.0001425 | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA |
-| 0.33_87.0322m/z | 0.33 | 87.0322 | 6.13 | NA | FALSE | 0.33_87.0322m/z | NA | 0.33 | 87.0322 | 6.13 | 0.0002137 | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA |
-| 0.33_120.0808m/z | 0.33 | 120.0808 | 14.03 | NA | FALSE | 0.33_120.0808m/z | NA | 0.33 | 120.0808 | 14.03 | 0.0002850 | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA |
-| 0.33_122.0477m/z | 0.33 | 122.0477 | 32.13 | NA | FALSE | 0.33_122.0477m/z | NA | 0.33 | 122.0477 | 32.13 | 0.0003562 | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA |
+### 4. Visualize Results
 
-- `iso_matched()`: The matched isolated metabolites between the two
-  datasets.
+Generate diagnostic plots to assess alignment quality:
 
 ``` r
-iso_matched(aligned) |>
-  head() |>
-  knitr::kable()
+final_plots(aligned)
 ```
 
-| Compound_ID_1 | Metabolite_1 | RT_1 | MZ_1 | Intensity_1 | Compound_ID_2 | Metabolite_2 | RT_2 | MZ_2 | Intensity_2 | delta_RT | smooth_rt | srt | mass_error_ppm | smooth_mz | smz | sintensity |
-|:---|:---|---:|---:|---:|:---|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0.36_75.1007m/z | NA | 0.36 | 75.1007 | 65327.30 | cmp.20 | NA | 1.012467 | 75.10054 | 256170.62 | 0.6524667 | 0.08155412 | 0.2784459 | -2.0729501 | -0.2793056 | 75.10072 | 64072.281 |
-| 0.97_281.1164m/z | NA | 0.97 | 281.1164 | 3256.52 | cmp.17 | NA | 1.008017 | 281.11630 | 11176.91 | 0.0380167 | 0.08910656 | 0.8819832 | -0.3436299 | 0.2909359 | 281.11632 | 3961.192 |
-| 0.99_321.1837m/z | NA | 0.99 | 321.1837 | 5565.60 | cmp.51 | NA | 1.061500 | 321.18400 | 43145.90 | 0.0715000 | 0.08949017 | 0.9017386 | 0.9443194 | 0.4784982 | 321.18355 | 13157.253 |
-| 1.00_498.1935m/z | NA | 1.00 | 498.1935 | 3001.08 | cmp.50 | NA | 1.061500 | 498.19364 | 170522.74 | 0.0615000 | 0.08968693 | 0.9116163 | 0.2763986 | 0.2908606 | 498.19336 | 44626.364 |
-| 1.00_512.2093m/z | NA | 1.00 | 512.2093 | 23446.89 | cmp.53 | NA | 1.070417 | 512.20940 | 975388.85 | 0.0704167 | 0.08968693 | 0.9116163 | 0.2042134 | 0.2957181 | 512.20915 | 210234.656 |
-| 1.01_265.1215m/z | NA | 1.01 | 265.1215 | 8272.59 | cmp.49 | NA | 1.061500 | 265.12139 | 128848.54 | 0.0515000 | 0.08988708 | 0.9214940 | -0.4307459 | 0.2047958 | 265.12145 | 34788.183 |
+![](README-unnamed-chunk-10-1.png)
 
-### Plotting results from alignment
+## Key Parameters
 
-The `final_plots()` function returns plots containing information on RT
-and MZ drift for pre isolation, isolation, and final matching results.
-These plots can be used for diagnostic purposes.
+- `optimize`: When `TRUE`, uses Bayesian optimization to find optimal
+  alignment parameters
+- `rt_delta`: Retention time window for matching (in minutes)
+- `mz_delta`: Mass-to-charge ratio window for matching (in ppm)
+- `smooth_method`: Method for drift correction (“gam”, “bayesian_gam”,
+  “gp”, or “lm”)
+- `match_method`: Strategy for initial matching (“unsupervised” or
+  “supervised”)
+- `minimum_intensity`: Minimum intensity threshold for features
 
-``` r
-plots <- final_plots(aligned)
-plots
-```
+## Output Format
 
-![](README-unnamed-chunk-11-1.png)
+The aligned results contain:
 
-This plot can be saved locally using `ggsave()` from the `ggplot2`
-package:
+1.  **Matched Features**: All corresponding features between datasets
+2.  **Drift Corrections**: Systematic differences in RT and MZ
+3.  **Quality Metrics**: Alignment evaluation scores
+4.  **Diagnostic Plots**: Visualization of RT and MZ drift
 
-``` r
-ggplot2::ggsave(
-  filename = "plot.png",
-  plot = plots
-)
-```
+## Examples and Documentation
 
-### Using `massSight` to annotate unknown metabolites
-
-``` r
-merged_df <- all_matched(aligned)
-hp2_annotated <- merged_df |>
-  dplyr::select(Compound_ID_hp2, rep_Metabolite) |>
-  dplyr::inner_join(hp2, by = c("Compound_ID_hp2" = "Compound_ID"))
-
-hp2_annotated |>
-  dplyr::filter(rep_Metabolite != "") |>
-  dplyr::arrange(rep_Metabolite) |>
-  head(10) |>
-  knitr::kable()
-```
-
-| Compound_ID_hp2 | rep_Metabolite | Metabolite | RT | MZ | Intensity |
-|:---|:---|:---|---:|---:|---:|
-| cmp.2157 | 1,7-dimethyluric acid | NA | 3.817950 | 197.0669 | 140175.903 |
-| cmp.4168 | 1-methyladenosine | NA | 7.864050 | 282.1194 | 43167.055 |
-| cmp.2810 | 1-methylguanine | NA | 5.361300 | 166.0723 | 25898.347 |
-| cmp.3160 | 1-methylguanine | NA | 5.919483 | 166.0723 | 111855.470 |
-| cmp.2782 | 1-methylguanosine | NA | 5.267700 | 298.1145 | 70138.717 |
-| cmp.785 | 1.2.4-trimethylbenzene | NA | 1.805967 | 121.1014 | 13453.946 |
-| cmp.2782 | 2-methylguanosine | NA | 5.267700 | 298.1145 | 70138.717 |
-| cmp.2750 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen | NA | 5.124100 | 313.0850 | 38069.497 |
-| cmp.2795 | 3-(N-acetyl-L-cystein-S-yl) acetaminophen | NA | 5.316733 | 313.0850 | 7025.546 |
-| cmp.4740 | 3-methylhistidine | NA | 10.289133 | 170.0923 | 490315.337 |
-
-Here, `rep_Metabolite` is the metabolite name from the reference
-dataset.
-
-## Dev Instructions
-
-### Installation
-
-1.  Clone/pull `massSight`
-2.  Open the R project `massSight.Rproj`
-3.  Build package using `devtools::build()`
-4.  Install package using `devtools::install()`
+For more detailed examples and extensive documentation, visit our
+[documentation site](omicseye.github.io/massSight/).
