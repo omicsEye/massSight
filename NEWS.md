@@ -1,3 +1,5 @@
+# massSight (development version)
+
 # massSight 0.3.0
 
 * Changed `auto_combine()` to `mass_combine()`
