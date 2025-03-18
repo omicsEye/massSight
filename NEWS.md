@@ -1,4 +1,4 @@
-# massSight (development version)
+# massSight 0.3.0
 
 * Changed `auto_combine()` to `mass_combine()`
 * Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no labeled metabolites

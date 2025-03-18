@@ -1,6 +1,6 @@
 Package: massSight
 Title: Batch Alignment and Scaling for LC-MS Data
-Version: 0.2.2.9000
+Version: 0.3.0
 Authors@R: c(
     person("Chiraag", "Gohel", , "chiraaggohel@gwu.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-4446-9380")),
