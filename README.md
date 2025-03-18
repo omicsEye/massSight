@@ -30,16 +30,8 @@ time and mass-to-charge ratios.
 
 ## Installation
 
-First install `devtools` using:
-
 ``` r
-install.packages("devtools")
-```
-
-Then, in an `R` console, run:
-
-``` r
-devtools::install_github("omicsEye/massSight")
+pak::pak("omicsEye/massSight")
 ```
 
 You can then load the library using:
@@ -121,13 +113,13 @@ aligned <- mass_combine(
 #> Optimization complete. Final score: 1.000
 #> 
 #> Optimal parameters:
-#>   RT delta: 0.427
-#>   MZ delta: 18.677
-#>   RT isolation threshold: 0.037
-#>   MZ isolation threshold: 2.915
-#>   Alpha rank: -0.104
-#>   Alpha RT: 1.096
-#>   Alpha MZ: 0.691
+#>   RT delta: 0.962
+#>   MZ delta: 15.508
+#>   RT isolation threshold: 0.077
+#>   MZ isolation threshold: 4.572
+#>   Alpha rank: 0.076
+#>   Alpha RT: -0.422
+#>   Alpha MZ: -1.504
 ```
 
 #### B. Manual Parameter Setting
@@ -168,7 +160,7 @@ Generate diagnostic plots to assess alignment quality:
 final_plots(aligned)
 ```
 
-![](README-unnamed-chunk-10-1.png)
+![](README-unnamed-chunk-9-1.png)
 
 ## Key Parameters
 

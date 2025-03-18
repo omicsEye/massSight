@@ -27,16 +27,8 @@ options(cli.hyperlink = FALSE)
 
 ## Installation
 
-First install `devtools` using:
-
-```{r, eval = F}
-install.packages("devtools")
-```
-
-Then, in an `R` console, run: 
-
 ```{r, eval = F}         
-devtools::install_github("omicsEye/massSight")
+pak::pak("omicsEye/massSight")
 ```
 
 You can then load the library using:
