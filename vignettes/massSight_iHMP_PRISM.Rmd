@@ -14,9 +14,10 @@ build: no
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
 ```{r, eval = F, message = F}
 install.packages("devtools")
-devtools::install_github("omicsEye/massSight")
+devtools::install_github("omicsEye/massSight", ref = "dev", force = TRUE)
 ```
 
 
@@ -24,8 +25,9 @@ devtools::install_github("omicsEye/massSight")
 ```{r, message = F}
 library(massSight)
 library(stringr)
+library(purrr)
+library(dplyr)
 library(readxl)
-library(massSight)
 library(ggplot2)
 ```
 
@@ -42,13 +44,34 @@ We have consolidated the data from the two sources and created a single excel fi
 
 The PRISM data can be downloaded from the following link: https://gwu.box.com/s/033vt0ieh3gucaw5f9as3fuvna7h1b4t
 
+## Download data
 
+```{r}
+# URLs to the Box files
+ihmp_url <- "https://gwu.app.box.com/shared/static/i8fxlre70b0sbrdhp9sjjfautlmlwd6x"
+prism_url <- "https://gwu.app.box.com/shared/static/033vt0ieh3gucaw5f9as3fuvna7h1b4t"
+
+# Create a temporary directory to store the files
+temp_dir <- tempdir()
+ihmp_file <- file.path(temp_dir, "HMP2_metabolomics.xlsx")
+prism_file <- file.path(temp_dir, "41564_2018_306_MOESM_combined3_4_ESM.xlsx")
+
+# Download the iHMP data if it's not already present
+if (!file.exists(ihmp_file)) {
+  download.file(ihmp_url, destfile = ihmp_file, mode = "wb")
+}
+
+# Download the PRISM data if it's not already present
+if (!file.exists(prism_file)) {
+  download.file(prism_url, destfile = prism_file, mode = "wb")
+}
+```
 
 ## Load iHMP data
-```{r, cache = T, warning=TRUE, echo = F, message = FALSE, warning = FALSE}
+```{r, cache = T, results = 'True', message=FALSE, warning=FALSE}
 loaded_data <-
   massSight::load_data(
-    input = "data/HMP2_metabolomics.xlsx",
+    input = ihmp_file,
     type = "all",
     sheet = 1,
     id = "Compound_ID"
@@ -60,156 +83,133 @@ loaded_data$feature_metadata$RT <-
 feature_metadata2 <-
   loaded_data$feature_metadata[colnames(loaded_data$data), ]
 feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm = T)
-feature_metadata <- cbind(feature_metadata2, t(loaded_data$data))
-ref_input <-
+feature_metadata2 <- cbind(feature_metadata2, t(loaded_data$data))
+iHMP <-
   feature_metadata2[!is.na(feature_metadata2$MZ) &
     !is.na(feature_metadata2$RT), ]
 ```
 
 
-```{r, eval = F, echo = T}
-loaded_data <-
-  massSight::load_data(
-    input = "path/to/your/iHMP_data.xlsx",
-    type = "all",
-    sheet = 1,
-    id = "Compound_ID"
-  )
-loaded_data$feature_metadata$MZ <-
-  as.numeric(loaded_data$feature_metadata$MZ)
-loaded_data$feature_metadata$RT <-
-  as.numeric(loaded_data$feature_metadata$RT)
-feature_metadata2 <-
-  loaded_data$feature_metadata[colnames(loaded_data$data), ]
-feature_metadata2$Intensity <- colMeans(loaded_data$data, na.rm = T)
-feature_metadata <- cbind(feature_metadata2, t(loaded_data$data))
-ref_input <-
-  feature_metadata2[!is.na(feature_metadata2$MZ) &
-    !is.na(feature_metadata2$RT), ]
-```
+## Load PRISM data 
 
-
-## load PRISM clustered data as main output 
-
-```{r, echo = T, eval = F}
+```{r, results = 'True', message=FALSE, warning=FALSE}
 PRISM <-
   massSight::load_data(
-    input = "path/to/your/PRISM_data.xlsx",
+    input = prism_file,
     type = "all",
     sheet = 1,
     id = "Compound_ID"
   )
-PRISM$feature_metadata$MZ <-
-  as.numeric(PRISM$feature_metadata$MZ)
-PRISM$feature_metadata$RT <-
-  as.numeric(PRISM$feature_metadata$RT)
-feature_metadata2 <-
-  PRISM$feature_metadata[colnames(PRISM$data), ]
-feature_metadata2$Intensity <- colMeans(PRISM$data, na.rm = T)
-feature_metadata <- cbind(feature_metadata2, t(PRISM$data))
-PRISM_input <-
-  feature_metadata2[!is.na(feature_metadata2$MZ) &
-    !is.na(feature_metadata2$RT), ]
-PRISM_Methods <- sapply(str_split(PRISM_input$Compound_ID, "_"), "[[", 1)
-PRISM_input$Method <- PRISM_Methods
-```
+# Add metabolite names from standards matching
+PRISM$feature_metadata$Metabolite <- 
+  PRISM$feature_metadata$`Exact Match to Standard (* = isomer family)`
 
-```{r, echo = F, message = F, warning = F}
-PRISM <-
-  massSight::load_data(
-    input = "data/41564_2018_306_MOESM_combined3_4_ESM.xlsx",
-    type = "all",
-    sheet = 1,
-    id = "Compound_ID"
+# Convert MZ and RT columns to numeric
+PRISM$feature_metadata <- PRISM$feature_metadata %>%
+  mutate(
+    MZ = as.numeric(MZ),
+    RT = as.numeric(RT)
   )
-PRISM$feature_metadata$MZ <-
-  as.numeric(PRISM$feature_metadata$MZ)
-PRISM$feature_metadata$RT <-
-  as.numeric(PRISM$feature_metadata$RT)
-feature_metadata2 <-
-  PRISM$feature_metadata[colnames(PRISM$data), ]
-feature_metadata2$Intensity <- colMeans(PRISM$data, na.rm = T)
-feature_metadata <- cbind(feature_metadata2, t(PRISM$data))
-PRISM_input <-
-  feature_metadata2[!is.na(feature_metadata2$MZ) &
-    !is.na(feature_metadata2$RT), ]
-PRISM_Methods <- sapply(str_split(PRISM_input$Compound_ID, "_"), "[[", 1)
-PRISM_input$Method <- PRISM_Methods
-```
 
-# Approach 1: iHMP vs. PRISM method by method
+# Create feature metadata with intensities
+feature_metadata2 <- PRISM$feature_metadata[colnames(PRISM$data), ] %>%
+  mutate(Intensity = colMeans(PRISM$data, na.rm = TRUE))
+
+# Add sample data
+feature_metadata <- cbind(feature_metadata2, t(PRISM$data))
+
+# Filter out rows with missing MZ or RT
+PRISM_input <- feature_metadata2 %>%
+  filter(!is.na(MZ), !is.na(RT))
+
+# Extract method from compound ID and add as column
+PRISM_input <- PRISM_input %>%
+  mutate(Method = sapply(str_split(Compound_ID, "_"), "[[", 1))
+```
 
 ## Create an object for iHMP data as reference for alignment and combining 
 
-```{r, results = 'hide', message=TRUE, warning=TRUE}
-aligned_df <- vector(mode = "list", length = 4)
+```{r, results = 'hide', message=TRUE, warning=FALSE}
 profiling_methods <- c("HILIC-neg", "HILIC-pos", "C18-neg", "C8-pos")
-names(aligned_df) <- profiling_methods
-ref <- query <- final_smooth <- aligned_df
-for (profiling_method in profiling_methods) {
-  ref[[profiling_method]] <-
-    create_ms_obj(
-      df = ref_input[ref_input$Method == profiling_method, ],
-      name = "iHMP",
-      id_name = "Compound_ID",
-      rt_name = "RT",
-      mz_name = "MZ",
-      int_name = "Intensity"
-    )
 
-  query[[profiling_method]] <-
-    create_ms_obj(
-      df = PRISM_input[PRISM_input$Method == profiling_method, ],
-      name = "PRISM",
-      id_name = "Compound_ID",
-      rt_name = "RT",
-      mz_name = "MZ",
-      int_name = "Intensity"
-    )
+ref <- profiling_methods %>%
+  setNames(., .) %>%
+  map(~ create_ms_obj(
+    df = iHMP[iHMP$Method == .x, ],
+    name = paste0("iHMP_", .x),
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity",
+    metab_name = "Metabolite"
+  ))
 
-  # create and save distribution of MZ and RT of features
-  ms1_distr <- massSight::distribution_plot(query[[profiling_method]])
-  ms2_distr <- massSight::distribution_plot(ref[[profiling_method]])
-  print(ms1_distr)
-  print(ms2_distr)
-}
+query <- profiling_methods %>%
+  setNames(., .) %>%
+  map(~ create_ms_obj(
+    df = PRISM_input[PRISM_input$Method == .x, ],
+    name = paste0("PRISM_", .x),
+    id_name = "Compound_ID",
+    rt_name = "RT",
+    mz_name = "MZ",
+    int_name = "Intensity",
+    metab_name = "Metabolite"
+  ))
+
+final_smooth <- setNames(vector("list", length(profiling_methods)), profiling_methods)
 ```
+
+## Simple test: combine a datastes to itself
+```{r, results = 'hide', message=TRUE, warning=TRUE}
+test_combine <- mass_combine(query[["C8-pos"]],
+  query[["C8-pos"]],
+  optimize = TRUE,
+  smooth_method = "gam",
+  log = NULL
+)
+```
+
 
 These plots can be saved locally as well.
 
 ```{r, eval = F}
-  ggsave(
-    filename = paste0("analysis/iHMP_PRISM/PRISM_", profiling_method, "_query_distr_plot.png"),
-    plot = ms1_distr,
-    width = 5,
-    height = 5,
-    units = "in",
-    dpi = 300,
-    create.dir = TRUE
-  )
-  ggsave(
-    filename = paste0("analysis/iHMP_PRISM/iHMP_", profiling_method, "_ref_distr_plot.png"),
-    plot = ms2_distr,
-    width = 5,
-    height = 5,
-    units = "in",
-    dpi = 300,
-    create.dir = TRUE
-  )
+ggsave(
+  filename = paste0("analysis/iHMP_PRISM/PRISM_", profiling_method, "_query_distr_plot.png"),
+  plot = ms1_distr,
+  width = 5,
+  height = 5,
+  units = "in",
+  dpi = 300,
+  create.dir = TRUE
+)
+ggsave(
+  filename = paste0("analysis/iHMP_PRISM/iHMP_", profiling_method, "_ref_distr_plot.png"),
+  plot = ms2_distr,
+  width = 5,
+  height = 5,
+  units = "in",
+  dpi = 300,
+  create.dir = TRUE
+)
 ```
 
 ```{r, results = 'hide', message=TRUE, warning=TRUE}
 for (profiling_method in profiling_methods) {
   print(profiling_method)
   aligned_df[[profiling_method]] <-
-    auto_combine(ref[[profiling_method]], query[[profiling_method]], smooth_method = "gam", log = NULL)
+    mass_combine(ref[[profiling_method]], query[[profiling_method]], optimize = F, smooth_method = "gam", log = NULL)
 }
 ```
 
 # View and write
 ```{r, eval = F}
 for (profiling_method in profiling_methods) {
-  write.table(aligned_df[[profiling_method]]@all_matched, file = paste0("analysis/iHMP_PRISM/iHMP_PRISM_", profiling_method, "_excel.tsv"), quote = FALSE, sep = "\t", row.names = FALSE)
+  write.table(aligned_df[[profiling_method]]@all_matched,
+    file = paste0("analysis/iHMP_PRISM/iHMP_PRISM_", profiling_method, "_excel.tsv"),
+    quote = FALSE,
+    sep = "\t",
+    row.names = FALSE
+  )
 }
 ```
 
@@ -220,7 +220,11 @@ for (profiling_method in profiling_methods) {
   final_smooth[[profiling_method]] <- final_plots(aligned_df[[profiling_method]])
   print(final_smooth[[profiling_method]])
   ggsave(
-    filename = paste0("analysis/iHMP_PRISM/iHMP_vs_all_PRISM_excel_", profiling_method, "_massSight_plots.png"),
+    filename = paste0(
+      "analysis/iHMP_PRISM/iHMP_vs_all_PRISM_excel_",
+      profiling_method,
+      "_massSight_plots.png"
+    ),
     plot = final_smooth[[profiling_method]],
     width = 5,
     height = 5,

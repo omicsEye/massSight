@@ -1,13 +1,14 @@
 #' @title Distribution Plot
+
 #' @description Plot distributions of retention times and mass to charge ratios
-#' of individual MS experiments
+#'   of individual MS experiments
 #'
 #' @param ms_obj Either a `MSObject`, or `MergedMSObject`
 #' @param subset Whether to plot all metabolites or only isolated metabolites.
-#' Can either be "all" or "isolated"
+#'   Can either be "all" or "isolated"
 #'
 #' @return a scatter plot of the retention times vs mass to charge ratios with
-#' marginal histograms
+#'   marginal histograms
 #' @export
 
 distribution_plot <- function(ms_obj, subset = "all") {
@@ -22,13 +23,44 @@ distribution_plot <- function(ms_obj, subset = "all") {
         stop("subset must be one of 'all' or 'isolated'")
       }
     }
-    p <- ms_df |>
+    p_center <- ms_df |>
       ggplot2::ggplot(ggplot2::aes(.data$RT, .data$MZ)) +
       ggplot2::geom_point(alpha = .4) +
-      ggplot2::theme_classic(base_size = 1.54) +
-      theme_omicsEye()
+      ggplot2::theme_classic(base_size = 1.54)
 
-    return(ggExtra::ggMarginal(p, type = "histogram", ))
+    # Create top histogram (x density)
+    p_top <- ms_df |>
+      ggplot2::ggplot(ggplot2::aes(x = .data$RT)) +
+      ggplot2::geom_histogram(fill = "grey70") +
+      ggplot2::theme_classic(base_size = 1.54) +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_blank(),
+        axis.title.x = ggplot2::element_blank()
+      )
+
+    # Create right histogram (y density)
+    p_right <- ms_df |>
+      ggplot2::ggplot(ggplot2::aes(x = .data$MZ)) +
+      ggplot2::geom_histogram(fill = "grey70") +
+      ggplot2::coord_flip() +
+      ggplot2::theme_classic(base_size = 1.54) +
+      ggplot2::theme(
+        axis.text.y = ggplot2::element_blank(),
+        axis.title.y = ggplot2::element_blank()
+      )
+
+    design <- "
+AAAAAAAAAAAAAAAAAA####
+BBBBBBBBBBBBBBBBBBCCCC
+BBBBBBBBBBBBBBBBBBCCCC
+BBBBBBBBBBBBBBBBBBCCCC
+BBBBBBBBBBBBBBBBBBCCCC
+"
+
+    p_combined <- p_top + p_center + p_right +
+      patchwork::plot_layout(design = design)
+
+    return(p_combined)
   } else if (methods::is(ms_obj, "MergedMSObject")) {
     if (subset == "all") {
       ms_df1 <- raw_df(ms1(ms_obj))

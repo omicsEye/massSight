@@ -16,7 +16,7 @@ for each compound based on retention time and mass to charge ratio.}
 \code{NULL} (default), a csv file will not be written.}
 }
 \value{
-A dataframe that can then be used by \code{massSight}'s \code{auto_combine()}
+A dataframe that can then be used by \code{massSight}'s \code{mass_combine()}
 or \code{auto_scale()}
 }
 \description{

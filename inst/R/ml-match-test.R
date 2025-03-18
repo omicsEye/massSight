@@ -63,7 +63,7 @@ ms2 <-
   )
 
 out <-
-  auto_combine(
+  mass_combine(
     ms1,
     ms2,
     rt_lower = -.5,
@@ -101,7 +101,7 @@ ms2 <-
   )
 
 out <-
-  auto_combine(
+  mass_combine(
     ms1,
     ms2,
     rt_lower = -.5,

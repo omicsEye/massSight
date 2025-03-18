@@ -2,20 +2,36 @@
 % Please edit documentation in R/final_plots.R
 \name{final_plots}
 \alias{final_plots}
-\title{Final Plots}
+\title{Create publication-ready visualization of mass spectrometry alignment results}
 \usage{
-final_plots(merged_ms_obj, rt_lim = c(-0.5, 0.5), mz_lim = c(-15, 15))
+final_plots(
+  merged_ms_obj,
+  rt_lim = c(-0.5, 0.5),
+  mz_lim = c(-15, 15),
+  point_params = list(alpha = 0.25, size = 1.5, stroke = 0.05),
+  smooth_color = "#AA9868",
+  point_color = "#033C5A",
+  label_size = 8
+)
 }
 \arguments{
-\item{merged_ms_obj}{A Merged MS Object, typically the result of \code{auto_combine}}
+\item{merged_ms_obj}{A Merged MS Object from \code{mass_combine}}
 
-\item{rt_lim}{RT bounds}
+\item{rt_lim}{RT bounds for plotting, default c(-.5, .5)}
 
-\item{mz_lim}{MZ bounds}
+\item{mz_lim}{MZ bounds for plotting, default c(-15, 15)}
+
+\item{point_params}{List of visual parameters for points (alpha, size, etc.)}
+
+\item{smooth_color}{Color for smoothing lines, default "#AA9868"}
+
+\item{point_color}{Color for points, default "#033C5A"}
+
+\item{label_size}{Text size for annotations, default 8}
 }
 \value{
-\code{cowplot} grid of plots
+A \code{cowplot} grid of alignment visualization plots
 }
 \description{
-Final Plots
+Create publication-ready visualization of mass spectrometry alignment results
 }

@@ -1,4 +1,6 @@
-mz_adjust <- function(ms_object, parallel = TRUE, n_cores = NULL) {
+mz_adjust <- function(ms_object,
+                      parallel = TRUE,
+                      n_cores = NULL) {
   metabolites <- raw_df(ms_object) |>
     dplyr::filter(!is.na(.data$Metabolite)) |>
     dplyr::pull(.data$Metabolite) |>
@@ -13,7 +15,9 @@ mz_adjust <- function(ms_object, parallel = TRUE, n_cores = NULL) {
 
 
 
-get_molecular_weights <- function(metabolites, parallel = TRUE, n_cores = NULL) {
+get_molecular_weights <- function(metabolites,
+                                  parallel = TRUE,
+                                  n_cores = NULL) {
   if (is.null(n_cores)) {
     n_cores <- parallel::detectCores() - 1 # Use one less than the total number of cores to avoid overloading the system
   }
@@ -32,7 +36,8 @@ query_chem <- function(name) {
     cid <- as.numeric(compound_info$cid[1])
     compound_details <- webchem::pc_prop(cid, properties = c("MolecularWeight"))
 
-    if (is.list(compound_details) && "MolecularWeight" %in% names(compound_details)) {
+    if (is.list(compound_details) &&
+        "MolecularWeight" %in% names(compound_details)) {
       return(compound_details$MolecularWeight)
     } else {
       return(NA)

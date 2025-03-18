@@ -37,3 +37,10 @@ srt
 tibbles
 trimethylbenzene
 yl
+magrittr
+brms
+mgcv
+mlrMBO
+Rcpp
+shiny
+testthat

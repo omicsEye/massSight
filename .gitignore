@@ -16,3 +16,6 @@ log/
 data/
 inst/doc
 massSight-benchmarking/
+CLAUDE.md
+
+/.quarto/

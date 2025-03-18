@@ -19,7 +19,7 @@ test_that("self-alignment ID's match", {
       metab_name = "Metabolite"
     )
 
-  aligned <- auto_combine(
+  aligned <- mass_combine(
     ms1,
     ms2,
     log = NULL
@@ -49,8 +49,8 @@ test_that("all compound IDs from ms1 and ms2 are in the final merged object", {
     metab_name = "Metabolite"
   )
 
-  # Perform auto_combine
-  aligned <- auto_combine(ms1, ms2, log = NULL)
+  # Perform mass_combine
+  aligned <- mass_combine(ms1, ms2, log = NULL)
 
   # Extract compound IDs from ms1, ms2, and the aligned object
   ms1_ids <- ms1@df$Compound_ID

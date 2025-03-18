@@ -1,5 +1,20 @@
-# massSight 0.2.3
+# massSight 0.3.0
 
+* Changed `auto_combine()` to `mass_combine()`
+* Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no labeled metabolites
+* Fixed bug in `auto_combine()` that prevented combining `MSObjects` with no intensity column
+* Added linear smoothing for MZ drift
+* Added linear smoothing for RT drift
+* Added `pref` argument to `mass_combine()` to allow for pool reference based alignment
+* Enhanced `get_unique_matches()` with additional metadata columns (MZ, RT, Metabolite)
+* Added Shiny app interface via `run_massSight_app()`
+* Improved Bayesian optimization in mass_combine
+* Added comprehensive test suite for mass_combine functionality
+* Code reformatting across multiple files for better readability and maintainability
+* Enhanced `ml_match()` with advanced machine learning-based metabolite matching features
+* Added improved feature engineering for more accurate metabolite matching
+* Added semi-supervised learning capabilities to `ml_match()` for better performance with limited labeled data
+* Added configurable options for intensity-based feature usage in matching algorithms
 * Added vignettes
 
 # massSight 0.2.2

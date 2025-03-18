@@ -2,5 +2,5 @@
 *.R
 data/
 iHMP_software_comp_cache/
-*cache/
+*_cache/
 analysis/
