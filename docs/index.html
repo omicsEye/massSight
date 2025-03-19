@@ -8,8 +8,8 @@
 <title>Batch Alignment and Scaling for LC-MS Data • massSight</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
-<link href="deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Batch Alignment and Scaling for LC-MS Data">
 <meta name="description" content="an `R` package for the alignment, scaling, and downstream analysis of LC-MS metabolomics data.">
 <meta property="og:description" content="an `R` package for the alignment, scaling, and downstream analysis of LC-MS metabolomics data.">
@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">massSight</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.2.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,8 +35,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/iHMP_software_comp.html">Alignment Tutorial using iHMP Data</a></li>
-    <li><a class="dropdown-item" href="articles/massSight_iHMP_PRISM.html">massSight combine iHMP and PRISM metabolites (IBD studies)</a></li>
+<li><a class="dropdown-item" href="articles/bt-474_analysis.html">BT-474 Breast Cancer Cell Line Analysis</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -57,76 +56,54 @@
 <div class="page-header"><h1 id="masssight">massSight<a class="anchor" aria-label="anchor" href="#masssight"></a>
 </h1></div>
 <ul>
-<li><a href="#examples">Examples</a></li>
-<li><a href="#description">Description</a></li>
 <li><a href="#installation">Installation</a></li>
+<li><a href="#input-data-format">Input Data Format</a></li>
 <li>
-<a href="#data-preparation">Data Preparation</a>
+<a href="#usage">Usage</a>
 <ul>
-<li><a href="#the-masssight-object">The <code>massSight</code> Object</a></li>
+<li><a href="#id_1-create-masssight-objects">1. Create massSight Objects</a></li>
+<li><a href="#id_2-align-datasets">2. Align Datasets</a></li>
+<li><a href="#id_3-access-results">3. Access Results</a></li>
+<li><a href="#id_4-visualize-results">4. Visualize Results</a></li>
 </ul>
 </li>
-<li>
-<a href="#alignment">Alignment</a>
-<ul>
-<li><a href="#auto_combine"><code>auto_combine()</code></a></li>
-<li><a href="#ml_match"><code>ml_match()</code></a></li>
-</ul>
-</li>
-<li>
-<a href="#results">Results</a>
-<ul>
-<li><a href="#plotting-results-from-alignment">Plotting results from alignment</a></li>
-<li><a href="#using-masssight-to-annotate-unknown-metabolites">Using <code>massSight</code> to annotate unknown metabolites</a></li>
-</ul>
-</li>
-<li>
-<a href="#dev-instructions">Dev Instructions</a>
-<ul>
-<li><a href="#installation-1">Installation</a></li>
-</ul>
-</li>
+<li><a href="#key-parameters">Key Parameters</a></li>
+<li><a href="#output-format">Output Format</a></li>
+<li><a href="#examples-and-documentation">Examples and Documentation</a></li>
 </ul>
 <!-- README.md is generated from README.qmd. Please edit that file --><p><img src="reference/figures/massSight.png" align="right" width="30%"></p>
 <p><a href="https://zenodo.org/badge/latestdoi/608216683" class="external-link"><img src="https://zenodo.org/badge/608216683.svg"></a></p>
-<p><code>massSight</code> is an R package for combining and scaling LC-MS metabolomics data.</p>
+<p><code>massSight</code> is an R package for combining and scaling LC-MS metabolomics data. It enables alignment and integration of metabolomics data from multiple experiments by correcting systematic differences in retention time and mass-to-charge ratios.</p>
 <ul>
 <li>Citation: if you use <code>massSight</code>, please cite our manuscript: Chiraag Gohel and Ali Rahnavard. (2023). massSight: Metabolomics meta-analysis through multi-study data scaling, integration, and harmonization. <a href="https://github.com/omicsEye/massSight" class="external-link uri">https://github.com/omicsEye/massSight</a>
 </li>
 </ul>
 <div class="section level2">
-<h2 id="examples">Examples<a class="anchor" aria-label="anchor" href="#examples"></a>
-</h2>
-<p>Examples and extensive documentation can be found <a href="omicseye.github.io/massSight/">here</a></p>
-</div>
-<div class="section level2">
-<h2 id="description">Description<a class="anchor" aria-label="anchor" href="#description"></a>
-</h2>
-</div>
-<div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>First, if you don’t have it installed, install <code>devtools</code> using:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"devtools"</span><span class="op">)</span></span></code></pre></div>
-<p>Then, in an <code>R</code> console, run:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"omicsEye/massSight"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"omicsEye/massSight"</span><span class="op">)</span></span></code></pre></div>
 <p>You can then load the library using:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/omicsEye/massSight" class="external-link">massSight</a></span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="data-preparation">Data Preparation<a class="anchor" aria-label="anchor" href="#data-preparation"></a>
+<h2 id="input-data-format">Input Data Format<a class="anchor" aria-label="anchor" href="#input-data-format"></a>
 </h2>
-<p><code>massSight</code> works with the output of LC-MS experiments, which should contain columns corresponding to:</p>
+<p><code>massSight</code> works with LC-MS data frames that must contain the following required columns:</p>
 <ol style="list-style-type: decimal">
-<li>Compound ID</li>
-<li>Retention Time</li>
-<li>Mass to Charge Ratio</li>
-<li>(Optional) Average Intensity across all samples</li>
-<li>(Optional) Metabolite Name</li>
+<li>
+<strong>Compound ID</strong> - Unique identifier for each feature</li>
+<li>
+<strong>Retention Time (RT)</strong> - The retention time in minutes</li>
+<li>
+<strong>Mass to Charge Ratio (MZ)</strong> - The mass-to-charge ratio</li>
+<li>
+<strong>Intensity</strong> (Optional) - Average intensity across samples</li>
+<li>
+<strong>Metabolite Name</strong> (Optional) - Known metabolite annotations</li>
 </ol>
+<p>Example input data format:</p>
 <table class="table">
 <colgroup>
 <col width="26%">
@@ -187,595 +164,141 @@
 </tr>
 </tbody>
 </table>
+</div>
+<div class="section level2">
+<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
+</h2>
 <div class="section level3">
-<h3 id="the-masssight-object">The <code>massSight</code> Object<a class="anchor" aria-label="anchor" href="#the-masssight-object"></a>
+<h3 id="id_1-create-masssight-objects">1. Create massSight Objects<a class="anchor" aria-label="anchor" href="#id_1-create-masssight-objects"></a>
 </h3>
-<p><code>massSight</code> creates and uses the <code>MSObject</code> class to store data and results pertaining to individual LC-MS experiments. Prior to alignment, LC-MS data frames or tibbles should be converted into an <code>MSObject</code> using <code>create_ms_obj</code>:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">hp1</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">hp2</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ms1</span> <span class="op">&lt;-</span></span>
-<span>  <span class="fu"><a href="reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
+<p>First, convert your LC-MS data frames into <code>MSObject</code>s using <code>create_ms_obj</code>:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ms1</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
 <span>    df <span class="op">=</span> <span class="va">hp1</span>,</span>
 <span>    name <span class="op">=</span> <span class="st">"hp1"</span>,</span>
-<span>    id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>,</span>
-<span>    rt_name <span class="op">=</span> <span class="st">"RT"</span>,</span>
-<span>    mz_name <span class="op">=</span> <span class="st">"MZ"</span>,</span>
-<span>    int_name <span class="op">=</span> <span class="st">"Intensity"</span></span>
-<span>  <span class="op">)</span></span>
+<span>    id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>,  <span class="co"># Column name for compound IDs</span></span>
+<span>    rt_name <span class="op">=</span> <span class="st">"RT"</span>,           <span class="co"># Column name for retention time</span></span>
+<span>    mz_name <span class="op">=</span> <span class="st">"MZ"</span>,           <span class="co"># Column name for mass-to-charge ratio</span></span>
+<span>    int_name <span class="op">=</span> <span class="st">"Intensity"</span>,   <span class="co"># Column name for intensity (optional)</span></span>
+<span>    metab_name <span class="op">=</span> <span class="st">"Metabolite"</span> <span class="co"># Column name for metabolite names (optional)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">ms2</span> <span class="op">&lt;-</span></span>
-<span>  <span class="fu"><a href="reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
+<span><span class="va">ms2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_ms_obj.html">create_ms_obj</a></span><span class="op">(</span></span>
 <span>    df <span class="op">=</span> <span class="va">hp2</span>,</span>
 <span>    name <span class="op">=</span> <span class="st">"hp2"</span>,</span>
 <span>    id_name <span class="op">=</span> <span class="st">"Compound_ID"</span>,</span>
-<span>    rt_name <span class="op">=</span> <span class="st">"RT"</span>,</span>
+<span>    rt_name <span class="op">=</span> <span class="st">"RT"</span>, </span>
 <span>    mz_name <span class="op">=</span> <span class="st">"MZ"</span>,</span>
-<span>    int_name <span class="op">=</span> <span class="st">"Intensity"</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
-<p>An <code>MSObject</code> provides the following functions:</p>
-<ul>
-<li>
-<code>raw_df()</code> to access the experiment’s raw LC-MS data</li>
-<li>
-<code>isolated()</code> to access the experiment’s isolated metabolites, which is important for downstream alignment tasks</li>
-<li>
-<code>scaled_df()</code> to access the experiment’s scaled LC-MS data</li>
-<li>
-<code>consolidated()</code> to access the experiment’s consolidated data</li>
-<li>
-<code>metadata()</code> to access the experiment’s metadata</li>
-</ul>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ms2</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">raw_df</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span>format <span class="op">=</span> <span class="st">"simple"</span><span class="op">)</span></span></code></pre></div>
-<table class="table">
-<thead><tr>
-<th align="left">Compound_ID</th>
-<th align="left">Metabolite</th>
-<th align="right">RT</th>
-<th align="right">MZ</th>
-<th align="right">Intensity</th>
-</tr></thead>
-<tbody>
-<tr>
-<td align="left">cmp.3837</td>
-<td align="left">C10 carnitine</td>
-<td align="right">7.261300</td>
-<td align="right">316.2479</td>
-<td align="right">638168.92</td>
-</tr>
-<tr>
-<td align="left">cmp.3903</td>
-<td align="left">C10:2 carnitine</td>
-<td align="right">7.395033</td>
-<td align="right">312.2165</td>
-<td align="right">50418.96</td>
-</tr>
-<tr>
-<td align="left">cmp.3749</td>
-<td align="left">C12 carnitine</td>
-<td align="right">7.074067</td>
-<td align="right">344.2792</td>
-<td align="right">203210.69</td>
-</tr>
-<tr>
-<td align="left">cmp.3756</td>
-<td align="left">C12:1 carnitine</td>
-<td align="right">7.105283</td>
-<td align="right">342.2635</td>
-<td align="right">363021.48</td>
-</tr>
-<tr>
-<td align="left">cmp.3682</td>
-<td align="left">C14 carnitine</td>
-<td align="right">6.926967</td>
-<td align="right">372.3107</td>
-<td align="right">93491.07</td>
-</tr>
-<tr>
-<td align="left">cmp.3705</td>
-<td align="left">C14:2 carnitine</td>
-<td align="right">6.993833</td>
-<td align="right">368.2792</td>
-<td align="right">235545.00</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<div class="section level2">
-<h2 id="alignment">Alignment<a class="anchor" aria-label="anchor" href="#alignment"></a>
-</h2>
-<div class="section level3">
-<h3 id="auto_combine">
-<code>auto_combine()</code><a class="anchor" aria-label="anchor" href="#auto_combine"></a>
-</h3>
-<p>Alignment is performed using <code><a href="reference/auto_combine.html">auto_combine()</a></code></p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/auto_combine.html">auto_combine</a></span><span class="op">(</span></span>
-<span>  <span class="va">ms1</span>,</span>
-<span>  <span class="va">ms2</span>,</span>
-<span>  rt_lower <span class="op">=</span> <span class="op">-</span><span class="fl">.5</span>,</span>
-<span>  rt_upper <span class="op">=</span> <span class="fl">.5</span>,</span>
-<span>  mz_lower <span class="op">=</span> <span class="op">-</span><span class="fl">15</span>,</span>
-<span>  mz_upper <span class="op">=</span> <span class="fl">15</span>,</span>
-<span>  smooth_method <span class="op">=</span> <span class="st">"gam"</span>,</span>
-<span>  log <span class="op">=</span> <span class="cn">NULL</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>More information on the <code><a href="reference/auto_combine.html">auto_combine()</a></code> function can be found in the <a href="https://omicseye.github.io/massSight/reference/auto_combine.html">package documentation</a></p>
-</div>
-<div class="section level3">
-<h3 id="ml_match">
-<code>ml_match()</code><a class="anchor" aria-label="anchor" href="#ml_match"></a>
-</h3>
-<p>The <code><a href="reference/ml_match.html">ml_match()</a></code> function is an alternative method for merging LC-MS experiments with semi-annotated data sets.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ml_match_aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ml_match.html">ml_match</a></span><span class="op">(</span></span>
-<span>  <span class="va">ms1</span>,</span>
-<span>  <span class="va">ms2</span>,</span>
-<span>  mz_thresh <span class="op">=</span> <span class="fl">15</span>,</span>
-<span>  rt_thresh <span class="op">=</span> <span class="fl">0.5</span>,</span>
-<span>  prob_thresh <span class="op">=</span> <span class="fl">.5</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">72</span></span>
+<span>    int_name <span class="op">=</span> <span class="st">"Intensity"</span>,</span>
+<span>    metab_name <span class="op">=</span> <span class="st">"Metabolite"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</div>
-<div class="section level2">
-<h2 id="results">Results<a class="anchor" aria-label="anchor" href="#results"></a>
-</h2>
-<p>Results from an alignment function are stored as a <code>MergedMSObject</code>. This object contains the following slots:</p>
-<ul>
-<li>
-<code>all_matched()</code>: All of the final matched metabolites between the two datasets. This is the main result of the various matching functions.</li>
-</ul>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">all_matched</span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<table style="width:100%;" class="table">
-<colgroup>
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-</colgroup>
-<thead><tr>
-<th align="left">rep_Compound_ID</th>
-<th align="right">rep_RT</th>
-<th align="right">rep_MZ</th>
-<th align="right">rep_Intensity</th>
-<th align="left">rep_Metabolite</th>
-<th align="left">Compound_ID_hp1</th>
-<th align="left">Compound_ID_hp2</th>
-<th align="left">Metabolite_hp1</th>
-<th align="left">Metabolite_hp2</th>
-<th align="right">RT_hp1</th>
-<th align="right">RT_hp2</th>
-<th align="right">MZ_hp1</th>
-<th align="right">MZ_hp2</th>
-<th align="right">Intensity_hp1</th>
-<th align="right">Intensity_hp2</th>
-</tr></thead>
-<tbody>
-<tr>
-<td align="left">0.63_74.0995m/z</td>
-<td align="right">0.630000</td>
-<td align="right">74.0995</td>
-<td align="right">0.40</td>
-<td align="left"></td>
-<td align="left">0.63_74.0995m/z</td>
-<td align="left">cmp.1</td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="right">0.63</td>
-<td align="right">1.003550</td>
-<td align="right">74.0995</td>
-<td align="right">74.09722</td>
-<td align="right">0.40</td>
-<td align="right">5683858.19</td>
-</tr>
-<tr>
-<td align="left">cmp.10</td>
-<td align="right">1.003550</td>
-<td align="right">429.4048</td>
-<td align="right">14695.70</td>
-<td align="left"></td>
-<td align="left">NA</td>
-<td align="left">cmp.10</td>
-<td align="left">NA</td>
-<td align="left"></td>
-<td align="right">NA</td>
-<td align="right">1.003550</td>
-<td align="right">NA</td>
-<td align="right">429.40477</td>
-<td align="right">NA</td>
-<td align="right">14695.70</td>
-</tr>
-<tr>
-<td align="left">1.14_262.0378m/z</td>
-<td align="right">1.140000</td>
-<td align="right">262.0378</td>
-<td align="right">17383.20</td>
-<td align="left"></td>
-<td align="left">1.14_262.0378m/z</td>
-<td align="left">cmp.100</td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="right">1.14</td>
-<td align="right">1.199700</td>
-<td align="right">262.0378</td>
-<td align="right">262.03783</td>
-<td align="right">17383.20</td>
-<td align="right">20343.60</td>
-</tr>
-<tr>
-<td align="left">cmp.1000</td>
-<td align="right">1.918017</td>
-<td align="right">540.5345</td>
-<td align="right">38459.42</td>
-<td align="left"></td>
-<td align="left">NA</td>
-<td align="left">cmp.1000</td>
-<td align="left">NA</td>
-<td align="left"></td>
-<td align="right">NA</td>
-<td align="right">1.918017</td>
-<td align="right">NA</td>
-<td align="right">540.53450</td>
-<td align="right">NA</td>
-<td align="right">38459.42</td>
-</tr>
-<tr>
-<td align="left">1.74_348.0645m/z</td>
-<td align="right">1.740000</td>
-<td align="right">348.0645</td>
-<td align="right">59393.19</td>
-<td align="left"></td>
-<td align="left">1.74_348.0645m/z</td>
-<td align="left">cmp.1001</td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="right">1.74</td>
-<td align="right">1.918017</td>
-<td align="right">348.0645</td>
-<td align="right">348.06456</td>
-<td align="right">59393.19</td>
-<td align="right">41235.47</td>
-</tr>
-<tr>
-<td align="left">1.86_478.1970m/z</td>
-<td align="right">1.860000</td>
-<td align="right">478.1970</td>
-<td align="right">132193.24</td>
-<td align="left"></td>
-<td align="left">1.86_478.1970m/z</td>
-<td align="left">cmp.1002</td>
-<td align="left"></td>
-<td align="left"></td>
-<td align="right">1.86</td>
-<td align="right">1.918017</td>
-<td align="right">478.1970</td>
-<td align="right">478.19718</td>
-<td align="right">132193.24</td>
-<td align="right">35052.10</td>
-</tr>
-</tbody>
-</table>
-<ul>
-<li>
-<code>iso_matched()</code>: The matched isolated metabolites between the two datasets.</li>
-</ul>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">iso_matched</span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<table style="width:100%;" class="table">
-<colgroup>
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
-</colgroup>
-<thead><tr>
-<th align="left">df1</th>
-<th align="right">RT</th>
-<th align="right">MZ</th>
-<th align="right">Intensity</th>
-<th align="left">df2</th>
-<th align="right">RT_2</th>
-<th align="right">MZ_2</th>
-<th align="right">Intensity_2</th>
-<th align="right">delta_RT</th>
-<th align="right">smooth_rt</th>
-<th align="right">srt</th>
-<th align="right">delta_MZ</th>
-<th align="right">smooth_mz</th>
-<th align="right">smz</th>
-<th align="right">sintensity</th>
-</tr></thead>
-<tbody>
-<tr>
-<td align="left">7.98_76.0402m/z</td>
-<td align="right">7.98</td>
-<td align="right">76.0402</td>
-<td align="right">13067.16</td>
-<td align="left">cmp.4356</td>
-<td align="right">8.193933</td>
-<td align="right">76.04010</td>
-<td align="right">27158.674</td>
-<td align="right">0.2139333</td>
-<td align="right">0.1462600</td>
-<td align="right">7.848138</td>
-<td align="right">-0.0001027</td>
-<td align="right">-9.2e-06</td>
-<td align="right">76.04021</td>
-<td align="right">7832.970</td>
-</tr>
-<tr>
-<td align="left">8.14_77.0799m/z</td>
-<td align="right">8.14</td>
-<td align="right">77.0799</td>
-<td align="right">9291.18</td>
-<td align="left">cmp.4388</td>
-<td align="right">8.283100</td>
-<td align="right">77.07982</td>
-<td align="right">11295.184</td>
-<td align="right">0.1431000</td>
-<td align="right">0.1617242</td>
-<td align="right">7.992453</td>
-<td align="right">-0.0000786</td>
-<td align="right">-8.9e-06</td>
-<td align="right">77.07991</td>
-<td align="right">3625.042</td>
-</tr>
-<tr>
-<td align="left">4.79_79.0220m/z</td>
-<td align="right">4.79</td>
-<td align="right">79.0220</td>
-<td align="right">2356.37</td>
-<td align="left">cmp.2649</td>
-<td align="right">4.910117</td>
-<td align="right">79.02198</td>
-<td align="right">6818.932</td>
-<td align="right">0.1201167</td>
-<td align="right">0.1440289</td>
-<td align="right">4.627987</td>
-<td align="right">-0.0000210</td>
-<td align="right">-8.1e-06</td>
-<td align="right">79.02201</td>
-<td align="right">2327.172</td>
-</tr>
-<tr>
-<td align="left">7.50_80.1318m/z</td>
-<td align="right">7.50</td>
-<td align="right">80.1318</td>
-<td align="right">84942.05</td>
-<td align="left">cmp.4025</td>
-<td align="right">7.635767</td>
-<td align="right">80.13173</td>
-<td align="right">11765.610</td>
-<td align="right">0.1357667</td>
-<td align="right">0.0897390</td>
-<td align="right">7.419991</td>
-<td align="right">-0.0000662</td>
-<td align="right">-7.7e-06</td>
-<td align="right">80.13181</td>
-<td align="right">3757.301</td>
-</tr>
-<tr>
-<td align="left">7.86_84.9120m/z</td>
-<td align="right">7.86</td>
-<td align="right">84.9120</td>
-<td align="right">10189.64</td>
-<td align="left">cmp.4247</td>
-<td align="right">8.015617</td>
-<td align="right">84.91193</td>
-<td align="right">9442.532</td>
-<td align="right">0.1556167</td>
-<td align="right">0.1332109</td>
-<td align="right">7.740726</td>
-<td align="right">-0.0000657</td>
-<td align="right">-6.0e-06</td>
-<td align="right">84.91201</td>
-<td align="right">3097.303</td>
-</tr>
-<tr>
-<td align="left">8.75_84.9605m/z</td>
-<td align="right">8.75</td>
-<td align="right">84.9605</td>
-<td align="right">240071.83</td>
-<td align="left">cmp.4584</td>
-<td align="right">8.978550</td>
-<td align="right">84.96037</td>
-<td align="right">287055.188</td>
-<td align="right">0.2285500</td>
-<td align="right">0.1999628</td>
-<td align="right">8.559125</td>
-<td align="right">-0.0001285</td>
-<td align="right">-5.9e-06</td>
-<td align="right">84.96051</td>
-<td align="right">62125.356</td>
-</tr>
-</tbody>
-</table>
 <div class="section level3">
-<h3 id="plotting-results-from-alignment">Plotting results from alignment<a class="anchor" aria-label="anchor" href="#plotting-results-from-alignment"></a>
+<h3 id="id_2-align-datasets">2. Align Datasets<a class="anchor" aria-label="anchor" href="#id_2-align-datasets"></a>
 </h3>
-<p>The <code><a href="reference/final_plots.html">final_plots()</a></code> function returns plots containing information on RT and MZ drift for pre isolation, isolation, and final matching results. These plots can be used for diagnostic purposes.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span>,</span>
-<span>  rt_lim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">.5</span>, <span class="fl">.5</span><span class="op">)</span>,</span>
-<span>  mz_lim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">15</span>, <span class="fl">15</span><span class="op">)</span></span>
+<p>Use <code><a href="reference/mass_combine.html">mass_combine()</a></code> to align the datasets. The function offers two main approaches:</p>
+<div class="section level4">
+<h4 id="a-automatic-parameter-optimization-recommended">A. Automatic Parameter Optimization (Recommended)<a class="anchor" aria-label="anchor" href="#a-automatic-parameter-optimization-recommended"></a>
+</h4>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mass_combine.html">mass_combine</a></span><span class="op">(</span></span>
+<span>    <span class="va">ms1</span>,                    <span class="co"># Reference dataset</span></span>
+<span>    <span class="va">ms2</span>,                    <span class="co"># Dataset to align</span></span>
+<span>    optimize <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># Enable automatic parameter optimization</span></span>
+<span>    smooth_method <span class="op">=</span> <span class="st">"gam"</span>,  <span class="co"># Method for drift correction</span></span>
+<span>    n_iter <span class="op">=</span> <span class="fl">50</span>            <span class="co"># Number of optimization iterations</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">plots</span></span></code></pre></div>
-<p><img src="reference/figures/final_plot_out.png"></p>
-<p>This plot can be saved locally using <code>ggsave()</code> from the <code>ggplot2</code> package:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave</a></span><span class="op">(</span></span>
-<span>  filename <span class="op">=</span> <span class="st">"plot.png"</span>,</span>
-<span>  plot <span class="op">=</span> <span class="va">plots</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="co">#&gt; Optimizing parameters using Bayesian optimization...</span></span>
+<span><span class="co">#&gt; Initializing optimization...</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Target score achieved! Stopping optimization.</span></span>
+<span><span class="co">#&gt; Optimization complete. Final score: 1.000</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Optimal parameters:</span></span>
+<span><span class="co">#&gt;   RT delta: 0.962</span></span>
+<span><span class="co">#&gt;   MZ delta: 15.508</span></span>
+<span><span class="co">#&gt;   RT isolation threshold: 0.077</span></span>
+<span><span class="co">#&gt;   MZ isolation threshold: 4.572</span></span>
+<span><span class="co">#&gt;   Alpha rank: 0.076</span></span>
+<span><span class="co">#&gt;   Alpha RT: -0.422</span></span>
+<span><span class="co">#&gt;   Alpha MZ: -1.504</span></span></code></pre></div>
+</div>
+<div class="section level4">
+<h4 id="b-manual-parameter-setting">B. Manual Parameter Setting<a class="anchor" aria-label="anchor" href="#b-manual-parameter-setting"></a>
+</h4>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mass_combine.html">mass_combine</a></span><span class="op">(</span></span>
+<span>    <span class="va">ms1</span>,</span>
+<span>    <span class="va">ms2</span>,</span>
+<span>    optimize <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    rt_delta <span class="op">=</span> <span class="fl">0.5</span>,        <span class="co"># RT window (±minutes)</span></span>
+<span>    mz_delta <span class="op">=</span> <span class="fl">15</span>,         <span class="co"># MZ window (±ppm)</span></span>
+<span>    minimum_intensity <span class="op">=</span> <span class="fl">10</span>, <span class="co"># Minimum intensity threshold</span></span>
+<span>    smooth_method <span class="op">=</span> <span class="st">"gam"</span>  <span class="co"># Drift correction method</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; GAM smoothing for RT drift</span></span>
+<span><span class="co">#&gt; Starting mass error correction</span></span>
+<span><span class="co">#&gt; GAM smoothing for mass error</span></span>
+<span><span class="co">#&gt; Creating potential final matches</span></span>
+<span><span class="co">#&gt; Calculating match scores</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level3">
-<h3 id="using-masssight-to-annotate-unknown-metabolites">Using <code>massSight</code> to annotate unknown metabolites<a class="anchor" aria-label="anchor" href="#using-masssight-to-annotate-unknown-metabolites"></a>
+<h3 id="id_3-access-results">3. Access Results<a class="anchor" aria-label="anchor" href="#id_3-access-results"></a>
 </h3>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">merged_df</span> <span class="op">&lt;-</span> <span class="fu">all_matched</span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span>
-<span><span class="va">hp2_annotated</span> <span class="op">&lt;-</span> <span class="va">merged_df</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">Compound_ID_hp2</span>, <span class="va">rep_Metabolite</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">inner_join</a></span><span class="op">(</span><span class="va">hp2</span>, by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Compound_ID_hp2"</span> <span class="op">=</span> <span class="st">"Compound_ID"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">hp2_annotated</span> <span class="op">|&gt;</span> </span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">rep_Metabolite</span> <span class="op">!=</span> <span class="st">""</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">rep_Metabolite</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">10</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<table style="width:100%;" class="table">
-<colgroup>
-<col width="16%">
-<col width="16%">
-<col width="16%">
-<col width="16%">
-<col width="16%">
-<col width="16%">
-</colgroup>
-<thead><tr>
-<th align="left">Compound_ID_hp2</th>
-<th align="left">rep_Metabolite</th>
-<th align="left">Metabolite</th>
-<th align="right">RT</th>
-<th align="right">MZ</th>
-<th align="right">Intensity</th>
-</tr></thead>
-<tbody>
-<tr>
-<td align="left">cmp.2157</td>
-<td align="left">1,7-dimethyluric acid</td>
-<td align="left"></td>
-<td align="right">3.817950</td>
-<td align="right">197.0669</td>
-<td align="right">140175.90</td>
-</tr>
-<tr>
-<td align="left">cmp.4168</td>
-<td align="left">1-methyladenosine</td>
-<td align="left"></td>
-<td align="right">7.864050</td>
-<td align="right">282.1194</td>
-<td align="right">43167.05</td>
-</tr>
-<tr>
-<td align="left">cmp.2810</td>
-<td align="left">1-methylguanine</td>
-<td align="left"></td>
-<td align="right">5.361300</td>
-<td align="right">166.0723</td>
-<td align="right">25898.35</td>
-</tr>
-<tr>
-<td align="left">cmp.2782</td>
-<td align="left">1-methylguanosine</td>
-<td align="left"></td>
-<td align="right">5.267700</td>
-<td align="right">298.1145</td>
-<td align="right">70138.72</td>
-</tr>
-<tr>
-<td align="left">cmp.785</td>
-<td align="left">1.2.4-trimethylbenzene</td>
-<td align="left"></td>
-<td align="right">1.805967</td>
-<td align="right">121.1014</td>
-<td align="right">13453.95</td>
-</tr>
-<tr>
-<td align="left">cmp.2750</td>
-<td align="left">3-(N-acetyl-L-cystein-S-yl) acetaminophen</td>
-<td align="left"></td>
-<td align="right">5.124100</td>
-<td align="right">313.0850</td>
-<td align="right">38069.50</td>
-</tr>
-<tr>
-<td align="left">cmp.4740</td>
-<td align="left">3-methylhistidine</td>
-<td align="left"></td>
-<td align="right">10.289133</td>
-<td align="right">170.0923</td>
-<td align="right">490315.34</td>
-</tr>
-<tr>
-<td align="left">cmp.2091</td>
-<td align="left">4-acetamidobutanoate</td>
-<td align="left"></td>
-<td align="right">3.595050</td>
-<td align="right">146.0811</td>
-<td align="right">78624.40</td>
-</tr>
-<tr>
-<td align="left">cmp.2828</td>
-<td align="left">5-acetylamino-6-amino-3-methyluracil</td>
-<td align="left"></td>
-<td align="right">5.424667</td>
-<td align="right">199.0824</td>
-<td align="right">29391.98</td>
-</tr>
-<tr>
-<td align="left">cmp.2446</td>
-<td align="left">6.8-dihydroxypurine</td>
-<td align="left"></td>
-<td align="right">4.544583</td>
-<td align="right">153.0407</td>
-<td align="right">10692.24</td>
-</tr>
-</tbody>
-</table>
-<p>Here, <code>rep_Metabolite</code> is the metabolite name from the reference dataset.</p>
+<p>The alignment results can be accessed in several ways:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Get all matched features</span></span>
+<span><span class="va">matches</span> <span class="op">&lt;-</span> <span class="fu">all_matched</span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span>
+<span><span class="co"># Get unique 1:1 matches</span></span>
+<span><span class="va">unique_matches</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_unique_matches.html">get_unique_matches</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="id_4-visualize-results">4. Visualize Results<a class="anchor" aria-label="anchor" href="#id_4-visualize-results"></a>
+</h3>
+<p>Generate diagnostic plots to assess alignment quality:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/final_plots.html">final_plots</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">)</span></span></code></pre></div>
+<p><img src="README-unnamed-chunk-9-1.png"></p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="dev-instructions">Dev Instructions<a class="anchor" aria-label="anchor" href="#dev-instructions"></a>
+<h2 id="key-parameters">Key Parameters<a class="anchor" aria-label="anchor" href="#key-parameters"></a>
 </h2>
-<div class="section level3">
-<h3 id="installation-1">Installation<a class="anchor" aria-label="anchor" href="#installation-1"></a>
-</h3>
+<ul>
+<li>
+<code>optimize</code>: When <code>TRUE</code>, uses Bayesian optimization to find optimal alignment parameters</li>
+<li>
+<code>rt_delta</code>: Retention time window for matching (in minutes)</li>
+<li>
+<code>mz_delta</code>: Mass-to-charge ratio window for matching (in ppm)</li>
+<li>
+<code>smooth_method</code>: Method for drift correction (“gam”, “bayesian_gam”, “gp”, or “lm”)</li>
+<li>
+<code>match_method</code>: Strategy for initial matching (“unsupervised” or “supervised”)</li>
+<li>
+<code>minimum_intensity</code>: Minimum intensity threshold for features</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="output-format">Output Format<a class="anchor" aria-label="anchor" href="#output-format"></a>
+</h2>
+<p>The aligned results contain:</p>
 <ol style="list-style-type: decimal">
-<li>Clone/pull <code>massSight</code>
-</li>
-<li>Open the R project <code>massSight.Rproj</code>
-</li>
-<li>Build package using <code><a href="https://devtools.r-lib.org/reference/build.html" class="external-link">devtools::build()</a></code>
-</li>
-<li>Install package using <code><a href="https://devtools.r-lib.org/reference/install.html" class="external-link">devtools::install()</a></code>
-</li>
+<li>
+<strong>Matched Features</strong>: All corresponding features between datasets</li>
+<li>
+<strong>Drift Corrections</strong>: Systematic differences in RT and MZ</li>
+<li>
+<strong>Quality Metrics</strong>: Alignment evaluation scores</li>
+<li>
+<strong>Diagnostic Plots</strong>: Visualization of RT and MZ drift</li>
 </ol>
 </div>
+<div class="section level2">
+<h2 id="examples-and-documentation">Examples and Documentation<a class="anchor" aria-label="anchor" href="#examples-and-documentation"></a>
+</h2>
+<p>For more detailed examples and extensive documentation, visit our <a href="omicseye.github.io/massSight/">documentation site</a>.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -828,7 +351,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer>
