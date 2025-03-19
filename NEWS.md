@@ -1,3 +1,10 @@
+# massSight 0.4.0
+
+* Updated vignettes with improved documentation and examples
+* Refactored ml_match function for better performance
+* Removed deprecated functions
+* Updated installation instructions in README
+
 # massSight 0.3.0
 
 * Changed `auto_combine()` to `mass_combine()`
