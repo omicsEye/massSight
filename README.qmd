@@ -133,6 +133,12 @@ Generate diagnostic plots to assess alignment quality:
 final_plots(aligned)
 ```
 
+Images can be saved using `ggplot2::ggsave()`.
+
+```{r, eval = F}
+ggplot2::ggsave("alignment_diagnostics.png", plot = final_plots(aligned), width = 10, height = 10)
+```
+
 ## Key Parameters
 
 - `optimize`: When `TRUE`, uses Bayesian optimization to find optimal alignment parameters

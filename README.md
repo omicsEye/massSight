@@ -113,13 +113,13 @@ aligned <- mass_combine(
 #> Optimization complete. Final score: 1.000
 #> 
 #> Optimal parameters:
-#>   RT delta: 0.962
-#>   MZ delta: 15.508
-#>   RT isolation threshold: 0.077
-#>   MZ isolation threshold: 4.572
-#>   Alpha rank: 0.076
-#>   Alpha RT: -0.422
-#>   Alpha MZ: -1.504
+#>   RT delta: 0.690
+#>   MZ delta: 7.781
+#>   RT isolation threshold: 0.066
+#>   MZ isolation threshold: 4.336
+#>   Alpha rank: -1.173
+#>   Alpha RT: -0.568
+#>   Alpha MZ: -1.835
 ```
 
 #### B. Manual Parameter Setting
@@ -161,6 +161,12 @@ final_plots(aligned)
 ```
 
 ![](README-unnamed-chunk-9-1.png)
+
+Images can be saved using `ggplot2::ggsave()`.
+
+``` r
+ggplot2::ggsave("alignment_diagnostics.png", plot = final_plots(aligned), width = 10, height = 10)
+```
 
 ## Key Parameters
 
