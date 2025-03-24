@@ -3,7 +3,7 @@ title: "BT-474 Breast Cancer Cell Line Analysis"
 author: "Chiraag Gohel"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{bt-474_analysis}
+  %\VignetteIndexEntry{BT-474 Breast Cancer Cell Line Analysis}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
