@@ -37,6 +37,7 @@ Imports:
     purrr,
     Rcpp,
     readxl,
+    rgenoud,
     rlang,
     shiny,
     stats,

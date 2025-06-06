@@ -926,7 +926,7 @@ optimize_parameters <- function(ms1,
           opt_state$best_score <- score
           opt_state$best_params <- x
           # Check if we've found a perfect score
-          if (score >= .99 && !opt_state$target_achieved)
+          if (score >= 1 && !opt_state$target_achieved)
           {
             opt_state$target_achieved <- TRUE
             message("\nTarget score achieved! Stopping optimization.")
@@ -952,7 +952,7 @@ optimize_parameters <- function(ms1,
 
   # Configure MBO control
   control <- mlrMBO::makeMBOControl() %>%
-    mlrMBO::setMBOControlTermination(iters = n_iter, target.fun.value = .99)
+    mlrMBO::setMBOControlTermination(iters = n_iter, target.fun.value = 1)
 
   # Run optimization
   suppressWarnings({
