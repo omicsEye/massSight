@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mass-combine-python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.3",
+    "pandas>=2.3.0",
+    "polars[all]>=1.30.0",
+    "scikit-learn>=1.7.0",
+    "scipy>=1.15.3",
+    "seaborn>=0.13.2",
+    "statsmodels>=0.14.4",
+    "typer>=0.16.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+mass-combine = "mass_combine_python.main:app"
