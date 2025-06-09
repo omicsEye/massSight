@@ -23,4 +23,4 @@ dependencies = [
 where = ["src"]
 
 [project.scripts]
-mass-combine = "mass_combine_python.main:app"
+masscombine = "mass_combine_python.main:app"

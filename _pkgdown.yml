@@ -1,8 +1,0 @@
-url: https://omicseye.github.io/massSight/
-template:
-  bootstrap: 5
-  bootswatch: flatly
-  bslib:
-    font-size: 1em
-    pkgdown-nav-height: 100px
-
