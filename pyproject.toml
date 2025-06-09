@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mass-combine-python"
+name = "mass-sight"
 version = "0.1.0"
-description = "Add your description here"
+description = "Python implementation of massSight for mass spectrometry data analysis"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -23,4 +23,4 @@ dependencies = [
 where = ["src"]
 
 [project.scripts]
-masscombine = "mass_combine_python.main:app"
+masscombine = "mass_sight.main:app"
