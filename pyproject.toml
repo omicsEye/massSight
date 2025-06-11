@@ -9,6 +9,7 @@ description = "Python implementation of massSight for mass spectrometry data ana
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "khipu-metabolomics>=2.0.2",
     "matplotlib>=3.10.3",
     "pandas>=2.3.0",
     "polars[all]>=1.30.0",
@@ -24,6 +25,7 @@ where = ["src"]
 
 [dependency-groups]
 dev = [
+    "jupyter>=1.1.1",
     "mypy>=1.16.0",
     "pandas-stubs>=2.2.3.250527",
     "pytest>=8.4.0",
