@@ -3,356 +3,154 @@
 import numpy as np
 import pandas as pd
 import polars as pl
+from sklearn.linear_model import HuberRegressor
 from scipy.interpolate import interp1d
 from sklearn.cluster import DBSCAN
 from statsmodels.gam.api import GLMGam
+from .khipu import khipu, format_khipu_output
 
+def ppm_diff(mz1: float, mz2: float) -> float:
+    return abs(mz1 - mz2) / mz1 * 1e6
 
-def mad_based_outlier(points: int, thresh: float = 5.0) -> np.ndarray:
-    """
-    Identifies outliers based on the Median Absolute Deviation (MAD).
-    """
-    if len(points) == 0:
-        return np.array([], dtype=bool)
-    points = points[~np.isnan(points)]
-    median = np.median(points)
-    diff = np.sqrt((points - median) ** 2)
-    med_abs_deviation = np.median(diff)
-    if med_abs_deviation == 0:
-        modified_z_score = np.zeros_like(diff)
-    else:
-        modified_z_score = 0.6745 * diff / med_abs_deviation
-    return modified_z_score > thresh
+def find_initial_matches(ds1_mz_khipus_pd: pd.DataFrame, ds2_mz_khipus_pd: pd.DataFrame, ppm_tolerance: float = 5) -> pd.DataFrame:
+    matches = []
 
+    for _, row1 in ds1_mz_khipus_pd.iterrows():
+        mz1 = row1['mz_group']
+        
+        # Find matches in ds2 within 5 ppm
+        matches_mask = ds2_mz_khipus_pd['mz_group'].apply(lambda x: ppm_diff(mz1, x) <= ppm_tolerance)
+        matching_rows = ds2_mz_khipus_pd[matches_mask]
+        
+        # Add matches to list
+        for _, row2 in matching_rows.iterrows():
+            matches.append({
+                'id1': row1['id'],
+                'id2': row2['id'], 
+                'mz1': row1['mz_group'],
+                'mz2': row2['mz_group'],
+                'ppm_diff': ppm_diff(row1['mz_group'], row2['mz_group'])
+            })
 
-def get_vectors(df: pd.DataFrame, rt_sim: float = 0.01, mz_sim: float = 2) -> pd.Series:
-    """
-    This is a conceptual translation of the getVectors logic.
-    A more direct translation might require a specific graph-based implementation.
-    This version finds high-density regions by sorting and checking neighbors.
-    """
-    df = df.sort_values(by=["MZ", "RT"]).reset_index(drop=True)
+    # Convert matches to DataFrame
+    matches_df = pd.DataFrame(matches)
 
-    # Calculate differences with the next feature
-    df["mz_diff"] = df["MZ"].diff().abs()
-    df["rt_diff"] = df["RT"].diff().abs()
+    return matches_df
 
-    # Identify features that are "close" to their next neighbor
-    # and part of a potential cluster
-    is_close = (df["mz_diff"] < mz_sim) & (df["rt_diff"] < rt_sim)
-
-    # A simple heuristic: keep points that are part of a close pair
-    # This captures the start of each "cluster"
-    # To get all members, we'd need to propagate the inclusion
-    close_indices = df.index[is_close].tolist()
-
-    # Include the point after the close pair as well
-    for i in df.index[is_close]:
-        if i + 1 < len(df):
-            close_indices.append(i + 1)
-
-    return df.loc[list(set(close_indices)), "Compound_ID"]
-
-
-def iso_dbscan(df: pd.DataFrame, eps: float = 0.1, min_samples: int = 2) -> pd.DataFrame:
-    """
-    Performs DBSCAN clustering to isolate features.
-    """
-    features = df[["RT", "MZ"]].values
-    db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
-    # Return features that are not noise
-    return df[db.labels_ != -1]
-
-
-def align_isolated_compounds(ms1_iso: pd.DataFrame, ms2_iso: pd.DataFrame, rt_delta: float = 0.5, mz_delta: float = 15) -> pd.DataFrame:
-    """
-    Aligns isolated compounds from two datasets based on RT and MZ windows.
-    """
-    ms1_iso = ms1_iso.copy()
-    ms2_iso = ms2_iso.copy()
-
-    ms1_iso["rt_lower"] = ms1_iso["RT"] - rt_delta
-    ms1_iso["rt_upper"] = ms1_iso["RT"] + rt_delta
-    ms1_iso["mz_lower"] = ms1_iso["MZ"] - (ms1_iso["MZ"] * mz_delta / 1e6)
-    ms1_iso["mz_upper"] = ms1_iso["MZ"] + (ms1_iso["MZ"] * mz_delta / 1e6)
-
-    # Perform a cross join and then filter
-    ms1_iso["key"] = 1
-    ms2_iso["key"] = 1
-
-    merged = pd.merge(ms1_iso, ms2_iso, on="key", suffixes=("_1", "_2")).drop(
-        "key", axis=1
+def get_high_confidence_matches(matches_df: pd.DataFrame, 
+                                ds1: pd.DataFrame, 
+                                ds2: pd.DataFrame, 
+                                rt_tolerance: float = 0.5) -> pd.DataFrame:
+    high_confidence_matches = matches_df.merge(
+    ds1, left_on='id1', right_on='id', how='left'
+    ).merge(
+        ds2, left_on='id2', right_on='id', how='left'
+    ).query('abs(RT_x - RT_y) < 0.5'
+    ).query('(isotope_x == isotope_y)'
+    ).query('(modification_x == modification_y)'
+    ).assign(delta_MZ = lambda x: x.MZ_y - x.MZ_x
+    ).assign(delta_RT = lambda x: x.RT_y - x.RT_x
     )
 
-    aligned = merged[
-        (merged["RT_2"] >= merged["rt_lower"])
-        & (merged["RT_2"] <= merged["rt_upper"])
-        & (merged["MZ_2"] >= merged["mz_lower"])
-        & (merged["MZ_2"] <= merged["mz_upper"])
-    ]
+    return high_confidence_matches
 
-    return aligned.drop(["rt_lower", "rt_upper", "mz_lower", "mz_upper"], axis=1)
+def get_huber_model(high_confidence_matches: pd.DataFrame) -> tuple[HuberRegressor, HuberRegressor]:
+    # get huber model for mz and rt
+    mz_huber = HuberRegressor().fit(high_confidence_matches[['MZ_x']], high_confidence_matches['delta_MZ'])
+    rt_huber = HuberRegressor().fit(high_confidence_matches[['RT_x']], high_confidence_matches['delta_RT'])
 
-
-def scale_smooth(query_values: np.ndarray, smooth_x: np.ndarray, smooth_y: np.ndarray) -> np.ndarray:
-    """
-    Apply smoothing correction.
-    """
-    interp_func = interp1d(smooth_x, smooth_y, kind="linear", fill_value="extrapolate")
-    corrections = interp_func(query_values)
-    return query_values - corrections
+    return mz_huber, rt_huber
 
 
-def smooth_drift(iso_matched_df: pd.DataFrame, df2_raw: pd.DataFrame, smooth_method: str = "gam") -> tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Models and corrects for systematic drift in RT and MZ.
-    """
-    results = iso_matched_df.sort_values(by="RT_1").copy()
-    results["delta_RT"] = results["RT_2"] - results["RT_1"]
+def correct_ds2(ds2: pd.DataFrame, mz_huber: HuberRegressor, rt_huber: HuberRegressor) -> pd.DataFrame:
+    mz_huber_coef = mz_huber.coef_[0]
+    rt_huber_coef = rt_huber.coef_[0]
+    mz_huber_intercept = mz_huber.intercept_
+    rt_huber_intercept = rt_huber.intercept_
+    ds2["RT_corrected"] = (ds2["RT"] - rt_huber_intercept)/(rt_huber_coef + 1)
+    ds2["MZ_corrected"] = (ds2["MZ"] - mz_huber_intercept)/(mz_huber_coef + 1)
+    return ds2
 
-    # Smooth RT
-    if smooth_method == "gam":
-        gam_rt = GLMGam.from_formula("delta_RT ~ bs(RT_1, df=10)", data=results).fit()
-        smooth_x_rt = results["RT_1"]
-        smooth_y_rt = gam_rt.predict(pd.DataFrame({"RT_1": smooth_x_rt}))
-    else:
-        raise NotImplementedError(
-            f"Smoothing method '{smooth_method}' not implemented."
-        )
+def get_duplicate_matches(final_matches: pd.DataFrame) -> pd.DataFrame:
+    duplicate_matches = final_matches.groupby('id1').size().reset_index(name='count')
+    duplicate_matches = duplicate_matches[duplicate_matches['count'] > 1]
 
-    scaled_rts = scale_smooth(df2_raw["RT"], smooth_x_rt + smooth_y_rt, smooth_y_rt)
-
-    # Smooth MZ
-    results["mass_error_ppm"] = (
-        (results["MZ_2"] - results["MZ_1"]) / results["MZ_1"] * 1e6
-    )
-    if smooth_method == "gam":
-        gam_mz = GLMGam.from_formula(
-            "mass_error_ppm ~ bs(MZ_1, df=10)", data=results
-        ).fit()
-        smooth_x_mz = results["MZ_1"]
-        smooth_y_mz = gam_mz.predict(pd.DataFrame({"MZ_1": smooth_x_mz}))
-    else:
-        raise NotImplementedError(
-            f"Smoothing method '{smooth_method}' not implemented."
-        )
-
-    # Apply MZ corrections
-    interp_func_mz = interp1d(
-        smooth_x_mz, smooth_y_mz, kind="linear", fill_value="extrapolate"
-    )
-    mz_corrections = interp_func_mz(df2_raw["MZ"])
-    scaled_mzs = df2_raw["MZ"] / (1 + mz_corrections / 1e6)
-
-    # Create scaled_values dataframe
-    scaled_values = pd.DataFrame(
-        {
-            "Compound_ID": df2_raw["Compound_ID"],
-            "RT": scaled_rts,
-            "MZ": scaled_mzs,
-            "Intensity": df2_raw["Intensity"],
-            "Metabolite": df2_raw.get(
-                "Annotation_ID", pd.Series(index=df2_raw.index, dtype="object")
-            ),
-        }
-    )
-
-    return scaled_values, smooth_x_rt, smooth_y_rt, smooth_x_mz, smooth_y_mz
+    return duplicate_matches
 
 
-def find_all_matches(
-    ref: pd.DataFrame, 
-    query: pd.DataFrame, 
-    rt_threshold: float, 
-    mz_threshold: float, 
-    alpha_rank: float = 0.5, 
-    alpha_rt: float = 0.5, 
-    alpha_mz: float = 0.5,
-) -> pd.DataFrame:
-    """
-    Find all potential matches within thresholds and score them.
-    """
-    # Weight calculation
-    denom = np.exp(alpha_rank) + np.exp(alpha_rt) + np.exp(alpha_mz)
-    rank_weight, rt_weight, mz_weight = (
-        np.exp(alpha_rank) / denom,
-        np.exp(alpha_rt) / denom,
-        np.exp(alpha_mz) / denom,
-    )
+def get_final_matches(final_matches: pd.DataFrame, duplicate_matches: pd.DataFrame) -> pd.DataFrame:
+    # Initialize list to store best matches
+    best_matches = []
 
-    ref = ref.sort_values("RT").assign(RT_rank_1=(np.arange(len(ref))) / (len(ref) - 1))
-    query = query.sort_values("RT_adj").assign(
-        RT_rank_2=(np.arange(len(query))) / (len(query) - 1)
-    )
+    # For each compound with multiple matches
+    for compound_id in duplicate_matches['id1']:
+        # Get all matches for this compound
+        compound_matches = final_matches[final_matches['id1'] == compound_id].copy()
 
-    ref["key"] = 1
-    query["key"] = 1
+        # Calculate RT and MZ differences using corrected values
+        compound_matches['rt_diff'] = abs(compound_matches['RT_x'] - compound_matches['RT_corrected'])
+        compound_matches['mz_diff'] = abs(compound_matches['MZ_x'] - compound_matches['MZ_corrected'])
+        
+        # Score each match based on RT and MZ differences
+        # Lower score is better
+        compound_matches['match_score'] = compound_matches['rt_diff'] + compound_matches['mz_diff']
+        
+        # Get the match with the lowest score
+        best_match = compound_matches.loc[compound_matches['match_score'].idxmin()]
+        
+        # Add to best matches list
+        best_matches.append({
+            'id1': best_match['id1'],
+            'id2': best_match['id2']
+        })
 
-    potential_matches = pd.merge(ref, query, on="key", suffixes=("_1", "_2")).drop(
-        "key", axis=1
-    )
+    # Create DataFrame of best matches
+    best_matches_df = pd.DataFrame(best_matches)
 
-    potential_matches = potential_matches[
-        (potential_matches["RT_adj_2"] >= potential_matches["RT_1"] - rt_threshold)
-        & (potential_matches["RT_adj_2"] <= potential_matches["RT_1"] + rt_threshold)
-        & (
-            potential_matches["MZ_adj_2"]
-            >= potential_matches["MZ_1"]
-            - (potential_matches["MZ_1"] * mz_threshold / 1e6)
-        )
-        & (
-            potential_matches["MZ_adj_2"]
-            <= potential_matches["MZ_1"]
-            + (potential_matches["MZ_1"] * mz_threshold / 1e6)
-        )
-    ].copy()
+    # Combine best matches with non-duplicate matches
+    final_matches = pd.concat([
+        final_matches[~final_matches['id1'].isin(duplicate_matches['id1'])],
+        best_matches_df
+    ])
 
-    # Score calculation
-    rank_diff = abs(potential_matches["RT_rank_2"] - potential_matches["RT_rank_1"])
-    rt_diff = abs(potential_matches["RT_adj_2"] - potential_matches["RT_1"])
-    mz_diff = abs(
-        (potential_matches["MZ_adj_2"] - potential_matches["MZ_1"])
-        / potential_matches["MZ_1"]
-        * 1e6
-    )
+    return final_matches
 
-    def min_max_scale(s):
-        return (s - s.min()) / (s.max() - s.min())
+def mass_combine(ds1_file: str, 
+                 ds2_file: str,
+                 id_col: int,
+                 rt_col: int,
+                 mz_col: int,
+                 int_cols: tuple[int, int],
+                 delimiter: str = "\t",
+                 mode: str = "pos",
+                 ppm_tolerance: float = 5,
+                 rt_tolerance: float = 0.5):
 
-    potential_matches["score"] = (
-        rank_weight * min_max_scale(rank_diff)
-        + rt_weight * min_max_scale(rt_diff)
-        + mz_weight * min_max_scale(mz_diff)
-    )
-    return potential_matches
+    ds1 = khipu(ds1_file, id_col=id_col, rt_col=rt_col, mz_col=mz_col, int_cols=int_cols, delimiter=delimiter, mode=mode, mz_tolerance_ppm=ppm_tolerance, rt_tolerance=rt_tolerance)
+    ds2 = khipu(ds2_file, id_col=id_col, rt_col=rt_col, mz_col=mz_col, int_cols=int_cols, delimiter=delimiter, mode=mode, mz_tolerance_ppm=ppm_tolerance, rt_tolerance=rt_tolerance)
 
+    ds1_mz_khipus_pd = format_khipu_output(ds1)
+    ds2_mz_khipus_pd = format_khipu_output(ds2)
 
-def mass_combine(
-    ms1_df: pd.DataFrame | pl.DataFrame,
-    ms2_df: pd.DataFrame | pl.DataFrame,
-    optimize: bool = False,
-    rt_delta: float = 0.5,
-    mz_delta: float = 15,
-    minimum_intensity: float = 10,
-    iso_method: str = "manual",
-    eps: float = 0.1,
-    rt_iso_threshold: float = 0.01,
-    mz_iso_threshold: float = 2,
-    match_method: str = "unsupervised",
-    smooth_method: str = "gam",
-    alpha_rank: float = 0.5,
-    alpha_rt: float = 0.5,
-    alpha_mz: float = 0.5,
-    id_name: str = "Compound_ID",
-    rt_name: str = "RT",
-    mz_name: str = "MZ",
-    int_name: str = "Intensity",
-    metab_name: str = "Annotation_ID",
-) -> pd.DataFrame:
-    """
-    Python implementation of the R mass_combine function.
-    
-    Args:
-        ms1_df: First mass spectrometry dataset (pandas or polars DataFrame)
-        ms2_df: Second mass spectrometry dataset (pandas or polars DataFrame)
-        ... (other parameters as documented)
-    
-    Returns:
-        Combined DataFrame with matched features (always pandas DataFrame)
-    """
-    # Convert polars to pandas if needed
-    if isinstance(ms1_df, pl.DataFrame):
-        ms1_df = ms1_df.to_pandas()
-    if isinstance(ms2_df, pl.DataFrame):
-        ms2_df = ms2_df.to_pandas()
-    
-    # Standardize column names
-    ms1 = ms1_df.rename(
-        columns={
-            id_name: "Compound_ID",
-            rt_name: "RT",
-            mz_name: "MZ",
-            int_name: "Intensity",
-            metab_name: "Annotation_ID",
-        }
-    )
-    ms2 = ms2_df.rename(
-        columns={
-            id_name: "Compound_ID",
-            rt_name: "RT",
-            mz_name: "MZ",
-            int_name: "Intensity",
-            metab_name: "Annotation_ID",
-        }
-    )
+    initial_matches = find_initial_matches(ds1_mz_khipus_pd, ds2_mz_khipus_pd, ppm_tolerance=ppm_tolerance)
+    high_confidence_matches = get_high_confidence_matches(initial_matches, ds1, ds2, rt_tolerance=rt_tolerance)
 
-    if optimize:
-        raise NotImplementedError("Optimization path is not yet implemented.")
+    mz_huber, rt_huber = get_huber_model(high_confidence_matches)
+    ds2 = correct_ds2(ds2, mz_huber, rt_huber)
 
-    # 1. Isolate compounds
-    if match_method == "unsupervised":
-        if iso_method == "manual":
-            ref_iso_ids = get_vectors(
-                ms1, rt_sim=rt_iso_threshold, mz_sim=mz_iso_threshold
+    matches = initial_matches.merge(
+        ds1, left_on='id1', right_on='id', how='left'
+        ).merge(
+            ds2, left_on='id2', right_on='id', how='left'
+            ).query(f'abs(RT_x - RT_corrected) < {rt_tolerance}'
+            ).query(f'abs((MZ_corrected - MZ_x)/MZ_x * 1e6) < {ppm_tolerance}'
+            ).query('(isotope_x == isotope_y) or (isotope_x.isna()) or (isotope_y.isna())'
+            ).query('(modification_x == modification_y) or (modification_x.isna()) or (modification_y.isna())'
+            ).assign(delta_MZ = lambda x: x.MZ_corrected - x.MZ_x
+            ).assign(delta_RT = lambda x: x.RT_corrected - x.RT_x
             )
-            query_iso_ids = get_vectors(
-                ms2, rt_sim=rt_iso_threshold, mz_sim=mz_iso_threshold
-            )
-            ms1_iso = ms1[ms1["Compound_ID"].isin(ref_iso_ids)]
-            ms2_iso = ms2[ms2["Compound_ID"].isin(query_iso_ids)]
-        elif iso_method == "dbscan":
-            ms1_iso = iso_dbscan(ms1, eps=eps)
-            ms2_iso = iso_dbscan(ms2, eps=eps)
-    else:  # supervised
-        ms1_iso = ms1[ms1["Annotation_ID"].notna() & (ms1["Annotation_ID"] != "")]
-        ms2_iso = ms2[ms2["Annotation_ID"].notna() & (ms2["Annotation_ID"] != "")]
 
-    # 2. Align isolated compounds
-    iso_matched = align_isolated_compounds(
-        ms1_iso, ms2_iso, rt_delta=rt_delta, mz_delta=mz_delta
-    )
+    duplicate_matches = get_duplicate_matches(matches)
+    final_matches = get_final_matches(matches, duplicate_matches)
 
-    # 3. Smooth drift
-    scaled_values, _, _, _, _ = smooth_drift(
-        iso_matched, ms2, smooth_method=smooth_method
-    )
-    ms2_adj = ms2.copy()
-    ms2_adj["RT_adj"] = scaled_values["RT"]
-    ms2_adj["MZ_adj"] = scaled_values["MZ"]
-
-    # 4. Final results
-    # Use adjusted values for final matching
-    potential_matches = find_all_matches(
-        ms1,
-        ms2_adj,
-        rt_threshold=rt_delta,
-        mz_threshold=mz_delta,
-        alpha_rank=alpha_rank,
-        alpha_rt=alpha_rt,
-        alpha_mz=alpha_mz,
-    )
-
-    # Resolve to 1-to-1 matches by taking the best score
-    best_matches = (
-        potential_matches.sort_values("score")
-        .drop_duplicates("Compound_ID_1")
-        .drop_duplicates("Compound_ID_2")
-    )
-
-    # Rename columns for final output
-    best_matches = best_matches.rename(
-        columns={
-            "Compound_ID_1": "Compound_ID_DS1",
-            "RT_1": "RT_DS1",
-            "MZ_1": "MZ_DS1",
-            "Intensity_1": "Intensity_DS1",
-            "Annotation_ID_1": "Metabolite_DS1",
-            "Compound_ID_2": "Compound_ID_DS2",
-            "RT_2": "RT_DS2",
-            "MZ_2": "MZ_DS2",
-            "Intensity_2": "Intensity_DS2",
-            "Annotation_ID_2": "Metabolite_DS2",
-        }
-    )
-
-    return best_matches
+    return final_matches
