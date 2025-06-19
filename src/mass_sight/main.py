@@ -8,7 +8,6 @@ import polars as pl
 import typer
 
 from . import core
-from . import khipu
 
 app = typer.Typer()
 
@@ -39,10 +38,10 @@ def combine(
     ],
     output_path: Annotated[
         Path, typer.Option(help="Path to save the combined file.")
-    ] = "combined.csv",
+    ] = Path("combined.csv"),
     mode: Annotated[str, typer.Option(help="Mode to run khipu in.")] = "pos",
-    mz_tolerance_ppm: Annotated[float, typer.Option(help="M/Z tolerance in ppm.")] = 5,
-    rt_tolerance: Annotated[float, typer.Option(help="RT tolerance in seconds.")] = 2,
+    mz_tolerance_ppm: Annotated[int, typer.Option(help="M/Z tolerance in ppm.")] = 5,
+    rt_tolerance: Annotated[int, typer.Option(help="RT tolerance in seconds.")] = 2,
     id_col: Annotated[int, typer.Option(help="Column index for the id column.")] = 0,
     rt_col: Annotated[int, typer.Option(help="Column index for the rt column.")] = 1,
     mz_col: Annotated[int, typer.Option(help="Column index for the mz column.")] = 2,
@@ -54,34 +53,19 @@ def combine(
     """
     Combines two mass spec files using the mass_combine logic.
     """
-    print(f"Loading files: {ms1_path} and {ms2_path}")
-    print("Running khipu...")
 
-    ms1_df = khipu.khipu(
-        ms1_path,
-        id_col,
-        rt_col,
-        mz_col,
-        int_cols,
-        delimiter,
-        mode,
-        mz_tolerance_ppm,
-        rt_tolerance,
+    combined_df = core.mass_combine(
+        ds1_file=str(ms1_path),
+        ds2_file=str(ms2_path),
+        mz_tolerance=mz_tolerance_ppm,
+        rt_tolerance=rt_tolerance,
+        id_col=id_col,
+        rt_col=rt_col,
+        mz_col=mz_col,
+        int_cols=int_cols,
+        delimiter=delimiter,
+        mode=mode,
     )
-    ms2_df = khipu.khipu(
-        ms2_path,
-        id_col,
-        rt_col,
-        mz_col,
-        int_cols,
-        delimiter,
-        mode,
-        mz_tolerance_ppm,
-        rt_tolerance,
-    )
-
-    print("Combining files...")
-    combined_df = core.mass_combine(ms1_df, ms2_df)
 
     print(f"Saving combined file to: {output_path}")
     if isinstance(combined_df, pl.DataFrame):
