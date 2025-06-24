@@ -138,3 +138,5 @@ cython_debug/
 mass_combine_python.egg-info/
 
 massSight-benchmarking/
+.claude
+manuscript-mass_sight/

@@ -1,208 +1,230 @@
-# core.py
+"""
+Core matching algorithm for massSight - inter-lab metabolomics feature alignment.
 
+This module provides the main KernelDensityMatcher class for aligning LC-MS features
+across different laboratories/studies for meta-analysis.
+"""
+
+import warnings
+import numpy as np
 import pandas as pd
-from sklearn.linear_model import HuberRegressor
+from sklearn.mixture import BayesianGaussianMixture
 
-from .khipu import format_khipu_output, khipu
+warnings.filterwarnings("ignore")
 
 
 def ppm_diff(mz1: float, mz2: float) -> float:
+    """Calculate PPM difference between two m/z values."""
     return abs(mz1 - mz2) / mz1 * 1e6
 
 
-def find_initial_matches(
-    ds1_mz_khipus_pd: pd.DataFrame,
-    ds2_mz_khipus_pd: pd.DataFrame,
-    mz_tolerance: float = 5,
-) -> pd.DataFrame:
-    matches = []
+class KernelDensityMatcher:
+    """
+    Kernel density-based matching for inter-lab LC-MS feature alignment.
+    
+    This is the core algorithm for massSight, designed for meta-analysis of
+    metabolomics data from different laboratories or studies.
+    """
 
-    for _, row1 in ds1_mz_khipus_pd.iterrows():
-        mz1 = row1["mz_group"]
+    def __init__(
+        self,
+        ppm_bandwidth: float = 5.0,  # Bandwidth in PPM
+        rt_bandwidth: float = 0.1,  # Bandwidth in RT units (minutes)
+        ppm_weight: float = 1.0,    # Relative weight of MZ vs RT
+    ):
+        """
+        Initialize the matcher.
+        
+        Args:
+            ppm_bandwidth: MZ bandwidth for kernel density estimation (ppm)
+            rt_bandwidth: RT bandwidth for kernel density estimation (minutes)
+            ppm_weight: Relative weight of MZ vs RT in distance calculation
+        """
+        self.ppm_bandwidth = ppm_bandwidth
+        self.rt_bandwidth = rt_bandwidth
+        self.ppm_weight = ppm_weight
 
-        # Find matches in ds2 within 5 ppm - create closure with current mz1 value
-        matches_mask = ds2_mz_khipus_pd["mz_group"].apply(
-            lambda x, mz1=mz1: ppm_diff(mz1, x) <= mz_tolerance
+    def prepare_features(self, ds: pd.DataFrame) -> np.ndarray:
+        """Prepare MZ-RT features for matching."""
+        features = np.column_stack([ds["MZ"].values, ds["RT"].values])
+        return features
+
+    def match_datasets(
+        self,
+        ds1: pd.DataFrame,
+        ds2: pd.DataFrame,
+        min_score: float = 0.1,
+        use_gmm: bool = True,
+        resolve_duplicates: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Match datasets using kernel density approach.
+        
+        Args:
+            ds1: First dataset (reference)
+            ds2: Second dataset (to be matched)
+            min_score: Minimum overlap score threshold
+            use_gmm: Whether to use GMM scoring for quality assessment
+            resolve_duplicates: Whether to resolve to one-to-one matches
+            
+        Returns:
+            DataFrame with matches including confidence estimates
+        """
+        # Prepare features for kernel density calculation
+        features1 = self.prepare_features(ds1)
+        features2 = self.prepare_features(ds2)
+
+        # Vectorized pairwise distance calculation
+        mz1 = features1[:, 0][:, np.newaxis]
+        mz2 = features2[:, 0][np.newaxis, :]
+        rt1 = features1[:, 1][:, np.newaxis]
+        rt2 = features2[:, 1][np.newaxis, :]
+
+        # Use scale-invariant PPM for m/z distance
+        ppm_dist = np.abs(mz1 - mz2) / mz1 * 1e6
+        rt_dist = np.abs(rt1 - rt2)
+
+        # Combined distance using PPM and RT bandwidths
+        combined_dist = np.sqrt(
+            (self.ppm_weight * ppm_dist / self.ppm_bandwidth) ** 2
+            + (rt_dist / self.rt_bandwidth) ** 2
         )
-        matching_rows = ds2_mz_khipus_pd[matches_mask]
+        overlap_score = np.exp(-(combined_dist**2) / 2)
 
-        # Add matches to list
-        for _, row2 in matching_rows.iterrows():
-            matches.append(
-                {
-                    "id1": row1["id"],
-                    "id2": row2["id"],
-                    "mz1": row1["mz_group"],
-                    "mz2": row2["mz_group"],
-                    "ppm_diff": ppm_diff(row1["mz_group"], row2["mz_group"]),
-                }
+        # Filter by min_score
+        idx1, idx2 = np.where(overlap_score >= min_score)
+        if len(idx1) == 0:
+            return pd.DataFrame()
+
+        # Gather matches efficiently
+        mz1_vals = ds1.iloc[idx1]["MZ"].values
+        mz2_vals = ds2.iloc[idx2]["MZ"].values
+        rt1_vals = ds1.iloc[idx1]["RT"].values
+        rt2_vals = ds2.iloc[idx2]["RT"].values
+        ppm_diffs = np.abs(mz1_vals - mz2_vals) / mz1_vals * 1e6
+        rt_diffs = np.abs(rt1_vals - rt2_vals)
+        scores = overlap_score[idx1, idx2]
+
+        matches_df = pd.DataFrame(
+            {
+                "id1": idx1,
+                "id2": idx2,
+                "mz1": mz1_vals,
+                "mz2": mz2_vals,
+                "rt1": rt1_vals,
+                "rt2": rt2_vals,
+                "overlap_score": scores,
+                "ppm_diff": ppm_diffs,
+                "rt_diff": rt_diffs,
+            }
+        )
+        
+        # Apply hard cutoffs for inter-lab matching (more lenient than intra-lab)
+        matches_df = matches_df[
+            (matches_df["ppm_diff"] <= 10) & (matches_df["rt_diff"] <= 1.0)
+        ].reset_index(drop=True)
+
+        # Initial match score based on kernel density overlap
+        matches_df["match_score"] = matches_df["overlap_score"]
+
+        # GMM-based scoring for quality assessment
+        if use_gmm and len(matches_df) > 15:
+            try:
+                # Use 2D GMM on PPM and RT differences
+                X = np.column_stack([
+                    matches_df["ppm_diff"].values,
+                    matches_df["rt_diff"].values,
+                ])
+
+                from sklearn.preprocessing import StandardScaler
+                scaler = StandardScaler()
+                X_scaled = scaler.fit_transform(X)
+
+                # Bayesian GMM with 2 components for robustness
+                gmm = BayesianGaussianMixture(
+                    n_components=2, random_state=42, max_iter=400
+                )
+                gmm.fit(X_scaled)
+
+                # Identify the "correct" cluster (smaller variance = tighter cluster)
+                cluster_variances = [np.linalg.det(cov) for cov in gmm.covariances_]
+                correct_idx = np.argmin(cluster_variances)
+
+                # Get probabilities of belonging to the correct cluster
+                probs = gmm.predict_proba(X_scaled)[:, correct_idx]
+                matches_df["gmm_prob"] = np.clip(probs, 0, 1)
+
+                # Use GMM probability as match score and confidence
+                matches_df["match_score"] = matches_df["gmm_prob"]
+                matches_df["match_confidence"] = matches_df["gmm_prob"]
+                
+                # Create categorical confidence levels
+                matches_df["confidence_level"] = pd.cut(
+                    matches_df["gmm_prob"], 
+                    bins=[0, 0.5, 0.8, 0.95, 1.0],
+                    labels=["Low", "Medium", "High", "Very High"],
+                    include_lowest=True
+                )
+
+            except Exception as e:
+                print(f"GMM scoring failed: {e}")
+                # If GMM fails, use kernel density overlap as confidence
+                matches_df["match_confidence"] = matches_df["overlap_score"]
+                matches_df["confidence_level"] = pd.cut(
+                    matches_df["overlap_score"], 
+                    bins=[0, 0.3, 0.6, 0.8, 1.0],
+                    labels=["Low", "Medium", "High", "Very High"],
+                    include_lowest=True
+                )
+        else:
+            # No GMM - use kernel density overlap as confidence
+            matches_df["match_confidence"] = matches_df["overlap_score"]
+            matches_df["confidence_level"] = pd.cut(
+                matches_df["overlap_score"], 
+                bins=[0, 0.3, 0.6, 0.8, 1.0],
+                labels=["Low", "Medium", "High", "Very High"],
+                include_lowest=True
             )
 
-    # Convert matches to DataFrame
-    matches_df = pd.DataFrame(matches)
+        # Sort by score (higher is better)
+        result_df = matches_df.sort_values("match_score", ascending=False)
+        
+        # Optionally resolve to one-to-one matches
+        if resolve_duplicates:
+            # Keep best match per feature (highest score)
+            result_df = result_df.drop_duplicates(subset=['id1'], keep='first')
+            result_df = result_df.drop_duplicates(subset=['id2'], keep='first')
 
-    return matches_df
+        return result_df
 
 
-def get_high_confidence_matches(
-    matches_df: pd.DataFrame,
+def match_datasets(
     ds1: pd.DataFrame,
     ds2: pd.DataFrame,
-    rt_tolerance: float = 0.5,
+    ppm_bandwidth: float = 5.0,
+    rt_bandwidth: float = 0.1,
+    ppm_weight: float = 1.0,
+    min_score: float = 0.1,
+    use_gmm: bool = True,
+    resolve_duplicates: bool = True,
 ) -> pd.DataFrame:
-    high_confidence_matches = (
-        matches_df.merge(ds1, left_on="id1", right_on="id", how="left")
-        .merge(ds2, left_on="id2", right_on="id", how="left")
-        .query("abs(RT_x - RT_y) < 0.5")
-        .query("(isotope_x == isotope_y)")
-        .query("(modification_x == modification_y)")
-        .assign(delta_MZ=lambda x: x.MZ_y - x.MZ_x)
-        .assign(delta_RT=lambda x: x.RT_y - x.RT_x)
+    """
+    Convenience function for matching two datasets.
+    
+    Args:
+        ds1: First dataset with MZ, RT columns
+        ds2: Second dataset with MZ, RT columns
+        ppm_bandwidth: MZ bandwidth for kernel density (ppm)
+        rt_bandwidth: RT bandwidth for kernel density (minutes)
+        ppm_weight: Relative weight of MZ vs RT
+        min_score: Minimum overlap score threshold
+        use_gmm: Whether to use GMM scoring
+        resolve_duplicates: Whether to resolve to one-to-one matches
+        
+    Returns:
+        DataFrame with matched features and confidence estimates
+    """
+    matcher = KernelDensityMatcher(ppm_bandwidth, rt_bandwidth, ppm_weight)
+    return matcher.match_datasets(
+        ds1, ds2, min_score, use_gmm, resolve_duplicates
     )
-
-    return high_confidence_matches
-
-
-def get_huber_model(
-    high_confidence_matches: pd.DataFrame,
-) -> tuple[HuberRegressor, HuberRegressor]:
-    # get huber model for mz and rt
-    mz_huber = HuberRegressor().fit(
-        high_confidence_matches[["MZ_x"]], high_confidence_matches["delta_MZ"]
-    )
-    rt_huber = HuberRegressor().fit(
-        high_confidence_matches[["RT_x"]], high_confidence_matches["delta_RT"]
-    )
-
-    return mz_huber, rt_huber
-
-
-def correct_ds2(
-    ds2: pd.DataFrame, mz_huber: HuberRegressor, rt_huber: HuberRegressor
-) -> pd.DataFrame:
-    mz_huber_coef = mz_huber.coef_[0]
-    rt_huber_coef = rt_huber.coef_[0]
-    mz_huber_intercept = mz_huber.intercept_
-    rt_huber_intercept = rt_huber.intercept_
-    ds2["RT_corrected"] = (ds2["RT"] - rt_huber_intercept) / (rt_huber_coef + 1)
-    ds2["MZ_corrected"] = (ds2["MZ"] - mz_huber_intercept) / (mz_huber_coef + 1)
-    return ds2
-
-
-def get_duplicate_matches(final_matches: pd.DataFrame) -> pd.DataFrame:
-    duplicate_matches = final_matches.groupby("id1").size().reset_index(name="count")
-    duplicate_matches = duplicate_matches[duplicate_matches["count"] > 1]
-
-    return duplicate_matches
-
-
-def get_final_matches(
-    final_matches: pd.DataFrame, duplicate_matches: pd.DataFrame
-) -> pd.DataFrame:
-    # Initialize list to store best matches
-    best_matches = []
-
-    # For each compound with multiple matches
-    for compound_id in duplicate_matches["id1"]:
-        # Get all matches for this compound
-        compound_matches = final_matches[final_matches["id1"] == compound_id].copy()
-
-        # Calculate RT and MZ differences using corrected values
-        compound_matches["rt_diff"] = abs(
-            compound_matches["RT_x"] - compound_matches["RT_corrected"]
-        )
-        compound_matches["mz_diff"] = abs(
-            compound_matches["MZ_x"] - compound_matches["MZ_corrected"]
-        )
-
-        # Score each match based on RT and MZ differences
-        # Lower score is better
-        compound_matches["match_score"] = (
-            compound_matches["rt_diff"] + compound_matches["mz_diff"]
-        )
-
-        # Get the match with the lowest score
-        best_match = compound_matches.loc[compound_matches["match_score"].idxmin()]
-
-        # Add to best matches list
-        best_matches.append({"id1": best_match["id1"], "id2": best_match["id2"]})
-
-    # Create DataFrame of best matches
-    best_matches_df = pd.DataFrame(best_matches)
-
-    # Combine best matches with non-duplicate matches
-    final_matches = pd.concat(
-        [
-            final_matches[~final_matches["id1"].isin(duplicate_matches["id1"])],
-            best_matches_df,
-        ]
-    )
-
-    return final_matches
-
-
-def mass_combine(
-    ds1_file: str,
-    ds2_file: str,
-    id_col: int,
-    rt_col: int,
-    mz_col: int,
-    int_cols: tuple[int, int],
-    delimiter: str = "\t",
-    mode: str = "pos",
-    mz_tolerance: int = 5,
-    rt_tolerance: int = 1,
-):
-    ds1 = khipu(
-        ds1_file,
-        id_col=id_col,
-        rt_col=rt_col,
-        mz_col=mz_col,
-        int_cols=int_cols,
-        delimiter=delimiter,
-        mode=mode,
-        mz_tolerance_ppm=mz_tolerance,
-        rt_tolerance=rt_tolerance,
-    )
-    ds2 = khipu(
-        ds2_file,
-        id_col=id_col,
-        rt_col=rt_col,
-        mz_col=mz_col,
-        int_cols=int_cols,
-        delimiter=delimiter,
-        mode=mode,
-        mz_tolerance_ppm=mz_tolerance,
-        rt_tolerance=rt_tolerance,
-    )
-
-    ds1_mz_khipus_pd = format_khipu_output(ds1)
-    ds2_mz_khipus_pd = format_khipu_output(ds2)
-
-    initial_matches = find_initial_matches(
-        ds1_mz_khipus_pd, ds2_mz_khipus_pd, mz_tolerance=mz_tolerance
-    )
-    high_confidence_matches = get_high_confidence_matches(
-        initial_matches, ds1, ds2, rt_tolerance=rt_tolerance
-    )
-
-    mz_huber, rt_huber = get_huber_model(high_confidence_matches)
-    ds2 = correct_ds2(ds2, mz_huber, rt_huber)
-
-    matches = (
-        initial_matches.merge(ds1, left_on="id1", right_on="id", how="left")
-        .merge(ds2, left_on="id2", right_on="id", how="left")
-        .query(f"abs(RT_x - RT_corrected) < {rt_tolerance}")
-        .query(f"abs((MZ_corrected - MZ_x)/MZ_x * 1e6) < {mz_tolerance}")
-        .query("(isotope_x == isotope_y) or (isotope_x.isna()) or (isotope_y.isna())")
-        .query(
-            "(modification_x == modification_y) or (modification_x.isna()) or (modification_y.isna())"
-        )
-        .assign(delta_MZ=lambda x: x.MZ_corrected - x.MZ_x)
-        .assign(delta_RT=lambda x: x.RT_corrected - x.RT_x)
-    )
-
-    duplicate_matches = get_duplicate_matches(matches)
-    final_matches = get_final_matches(matches, duplicate_matches)
-
-    return final_matches
