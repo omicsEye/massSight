@@ -1,8 +1,13 @@
 """
-mass_sight: Python implementation of massSight for inter-lab metabolomics meta-analysis
+mass_sight: ML-based feature matching + MI fold-change for LC–MS across datasets.
 """
 
-from .core import match_datasets, KernelDensityMatcher
-from .match_engine import MatchingEngine, load_dataset
+from .ml_matcher import MLMatchConfig, MLMatchResult, match_mlnodrift
+from .mi_fold_change import mi_fold_change
 
-__all__ = ["match_datasets", "KernelDensityMatcher", "MatchingEngine", "load_dataset"]
+__all__ = [
+    "MLMatchConfig",
+    "MLMatchResult",
+    "match_mlnodrift",
+    "mi_fold_change",
+]

@@ -140,3 +140,6 @@ mass_combine_python.egg-info/
 massSight-benchmarking/
 .claude
 manuscript-mass_sight/
+
+CLAUDE.md
+/.luarc.json
