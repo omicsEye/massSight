@@ -9,7 +9,7 @@ This package provides:
 
 - Supervised matching with boosted trees (LightGBM), calibrated with out‑of‑fold isotonic regression [@zadroznyTransformingClassifierScores2002]
 - Per‑row probability mass estimates for matches and non-matches (suitable for sampling/MI).
-- MI fold‑change with randomized global 1–1 matchings using Gumbel‑perturbed Hungarian
+- MI fold‑change with randomized global 1–1 matchings using Gumbel‑perturbed Hungarian [@liEfficientFeatureLearning]
 
 ## Install
 
@@ -25,7 +25,7 @@ Requires Python $\geq$ 3.10 and the following core deps: `numpy`, `pandas`, `sci
 
 ```python
 import pandas as pd
-from mass_sight import match_mlnodrift, MLMatchConfig
+from mass_sight import match_ml, MLMatchConfig
 
 ds1 = pd.read_csv("DS1.csv") 
 ds2 = pd.read_csv("DS2.csv")
@@ -46,7 +46,7 @@ cfg = MLMatchConfig(
     intensity_regex=None,
 )
 
-res = match_mlnodrift(ds1, ds2, cfg)
+res = match_ml(ds1, ds2, cfg)
 cand = res.candidates  # DataFrame: id1, id2, prob_cal, p_row, p0, ppm_diff, rt_diff, roi_diff, log_int_diff
 
 # Optional 1–1 predictions

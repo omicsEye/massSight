@@ -1,11 +1,11 @@
 """
-Supervised ML matcher (no drift correction) with calibrated probabilities.
+Supervised ML matcher with calibrated probabilities.
 
 This module trains a simple classifier on annotated singleton matches between
 two datasets and produces calibrated candidate probabilities for all DS1 rows.
 
 Main entry point
-- match_mlnodrift(ds1: DataFrame, ds2: DataFrame, config: MLMatchConfig) -> MLMatchResult
+- match_ml(ds1: DataFrame, ds2: DataFrame, config: MLMatchConfig) -> MLMatchResult
 
 Notes
 - Uses RT±w and ppm±w windows (no isotonic RT mapping) to form candidates.
@@ -28,6 +28,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from lightgbm import LGBMClassifier  # type: ignore
 from scipy.optimize import linear_sum_assignment  # type: ignore
+import joblib
+import time
 
 def get_retention_order(ds: pd.DataFrame, rt_col: str = 'RT') -> pd.Series:
     """Normalized retention order in [0,1], robust to monotone drift."""
@@ -58,6 +60,8 @@ class MLMatchConfig:
     intensity_col: Optional[str] = "Intensity"
     intensity_cols: Optional[List[str]] = None
     intensity_regex: Optional[str] = None
+    # Persistence
+    save_model_path: Optional[str] = None
 
 
 @dataclass
@@ -156,14 +160,31 @@ def _feature_row(ds1: pd.DataFrame, ds2: pd.DataFrame, i: int, j: int) -> dict:
     ro1, ro2 = float(ds1.at[i, "ro"]), float(ds2.at[j, "ro"])  # type: ignore[index]
     il1 = float(ds1.at[i, "Intensity_log10"]) if "Intensity_log10" in ds1.columns else 0.0
     il2 = float(ds2.at[j, "Intensity_log10"]) if "Intensity_log10" in ds2.columns else 0.0
+    eps = 1e-12
+    # Engineered features (canonical set for modeling)
+    ppm_abs = abs(mz1 - mz2) / max(mz1, eps) * 1e6
+    rt_abs = abs(rt1 - rt2)
+    rt_signed = (rt2 - rt1)  # consistent orientation (DS2 − DS1)
+    roi_abs = abs(ro1 - ro2)
+    log_int_abs = abs(il1 - il2)
+    rt_center = 0.5 * (rt1 + rt2)
     return {
+        # identifiers and raw values (for diagnostics; excluded from model features)
         "id1": int(i), "id2": int(j),
         "mz1": mz1, "mz2": mz2, "rt1": rt1, "rt2": rt2, "ro1": ro1, "ro2": ro2,
         "int1": il1, "int2": il2,
-        "ppm_diff": abs(mz1 - mz2) / max(mz1, eps) * 1e6,
-        "rt_diff": abs(rt1 - rt2),
-        "roi_diff": abs(ro1 - ro2),
-        "log_int_diff": abs(il1 - il2),
+        # legacy names for backward compatibility in outputs
+        "ppm_diff": ppm_abs,
+        "rt_diff": rt_abs,
+        "roi_diff": roi_abs,
+        "log_int_diff": log_int_abs,
+        # new canonical features for training
+        "ppm_abs": ppm_abs,
+        "rt_abs": rt_abs,
+        "rt_signed": rt_signed,
+        "roi_abs": roi_abs,
+        "log_int_abs": log_int_abs,
+        "rt_center": rt_center,
     }
 
 
@@ -279,7 +300,7 @@ def _assignment_hungarian(cand: pd.DataFrame, score_col: str) -> pd.DataFrame:
     return pd.DataFrame(pairs)
 
 
-def match_mlnodrift(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMatchConfig] = None) -> MLMatchResult:
+def match_ml(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMatchConfig] = None) -> MLMatchResult:
     cfg = config or MLMatchConfig()
     ds1 = _normalize_schema(ds1, cfg)
     ds2 = _normalize_schema(ds2, cfg)
@@ -288,6 +309,11 @@ def match_mlnodrift(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMat
         raise ValueError("No shared singleton annotations to supervise the ML matcher")
     nbh = _build_neighborhoods(ds1, ds2, cfg.ppm, cfg.rt)
     X, y = _build_train(ds1, ds2, nbh, pairs, cfg)
+    # Restrict to canonical, physically meaningful features
+    allowed_features = ["ppm_abs", "rt_abs", "rt_signed", "roi_abs", "log_int_abs", "rt_center"]
+    feature_names = [c for c in allowed_features if c in X.columns]
+    if not feature_names:
+        raise RuntimeError("No valid feature columns found for training (expected ppm_abs, rt_abs, rt_signed, roi_abs, log_int_abs, rt_center).")
     # Choose model
     mdl_choice = cfg.model
     if mdl_choice == "auto":
@@ -301,10 +327,39 @@ def match_mlnodrift(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMat
     # Calibration
     iso: Optional[IsotonicRegression] = None
     if cfg.calibrate:
-        iso = _fit_oof_isotonic(clf, X, y, seed=cfg.seed)
-        clf.fit(X, y)
+        iso = _fit_oof_isotonic(clf, X[feature_names], y, seed=cfg.seed)
+        clf.fit(X[feature_names], y)
     else:
-        clf.fit(X, y)
+        clf.fit(X[feature_names], y)
+    # Optional: persist model artifact
+    if cfg.save_model_path:
+        artifact = {
+            "model": clf,
+            "iso": iso,
+            "feature_names": list(feature_names),
+            "config": {
+                "ppm": cfg.ppm,
+                "rt": cfg.rt,
+                "model": cfg.model,
+                "seed": cfg.seed,
+                "calibrate": cfg.calibrate,
+                "schema": {
+                    "mz_col": cfg.mz_col,
+                    "rt_col": cfg.rt_col,
+                    "annotation_col": cfg.annotation_col,
+                    "compound_id_col": cfg.compound_id_col,
+                    "intensity_col": cfg.intensity_col,
+                    "intensity_cols": cfg.intensity_cols,
+                    "intensity_regex": cfg.intensity_regex,
+                },
+            },
+            "created_at": time.time(),
+            "version": "1.0",
+        }
+        try:
+            joblib.dump(artifact, cfg.save_model_path)
+        except Exception as e:
+            raise RuntimeError(f"Failed to save model artifact to {cfg.save_model_path}: {e}")
     # Candidates for all DS1 rows
     rows_feats: List[dict] = []
     for i1, js in enumerate(nbh):
@@ -313,7 +368,9 @@ def match_mlnodrift(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMat
     cand = pd.DataFrame(rows_feats)
     if cand.empty:
         return MLMatchResult(candidates=cand, top1=pd.DataFrame(columns=["id1","id2","prob"]), hungarian=pd.DataFrame(columns=["id1","id2","prob"]))
-    scores = clf.predict_proba(cand[X.columns].values)[:, 1]
+    # Preserve feature names to avoid sklearn/lightgbm warnings
+    # Score using the exact feature set used for training (excludes ids)
+    scores = clf.predict_proba(cand[feature_names])[:, 1]
     if iso is not None:
         prob_cal = iso.predict(scores)
         cand["prob_raw"] = scores
@@ -337,4 +394,4 @@ def match_mlnodrift(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMat
     return MLMatchResult(candidates=cand, top1=top1, hungarian=hung)
 
 
-__all__ = ["MLMatchConfig", "MLMatchResult", "match_mlnodrift"]
+__all__ = ["MLMatchConfig", "MLMatchResult", "match_ml"]

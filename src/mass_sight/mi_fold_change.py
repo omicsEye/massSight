@@ -9,7 +9,7 @@ Inputs
 - ds1_expr, ds2_expr: DataFrames of raw intensities (rows=feature ids matching the
   DS tables used for matching; columns=sample ids). Values are nonnegative.
 - ds1_meta, ds2_meta: DataFrames with columns: sample, group. group must have 2 levels.
-- candidates: DataFrame from match_mlnodrift (columns include id1, id2, p_row, p0 or prob_cal).
+- candidates: DataFrame from match_ml (columns include id1, id2, p_row, p0 or prob_cal).
 """
 from __future__ import annotations
 

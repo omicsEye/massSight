@@ -1,4 +1,4 @@
-"""Type stubs for mass_sight package (ML matcher + MI fold-change)."""
+"""Type stubs for mass_sight package (ML matcher + MI fold-change + multi-dataset alignment)."""
 
 from typing import Any, Optional
 import pandas as pd
@@ -27,7 +27,7 @@ class MLMatchResult:
     top1: pd.DataFrame
     hungarian: pd.DataFrame
 
-def match_mlnodrift(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMatchConfig] = ...) -> MLMatchResult: ...
+def match_ml(ds1: pd.DataFrame, ds2: pd.DataFrame, config: Optional[MLMatchConfig] = ...) -> MLMatchResult: ...
 
 def mi_fold_change(
     ds1_expr: pd.DataFrame,
@@ -38,5 +38,30 @@ def mi_fold_change(
     *,
     M: int = ..., seed: int = ...,
 ) -> pd.DataFrame: ...
+
+class MultiMatchConfig:
+    ppm: float
+    rt: float
+    seed: int
+    calibrate: bool
+    model: str
+    topk: int
+    prob_floor: float
+    tau_main: float
+    max_tuples_per_anchor: int
+    mz_col: str
+    rt_col: str
+    annotation_col: str
+    compound_id_col: str
+    intensity_col: str | None
+    intensity_cols: list[str] | None
+    intensity_regex: str | None
+
+class MultiMatchResult:
+    clusters: pd.DataFrame
+    edges: dict[tuple[int, int], pd.DataFrame]
+    meta: dict[str, Any]
+
+def align_multi(datasets: list[pd.DataFrame], *, names: list[str] | None = ..., config: Optional[MultiMatchConfig] = ...) -> MultiMatchResult: ...
 
 __all__: list[str]

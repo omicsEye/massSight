@@ -143,3 +143,12 @@ manuscript-mass_sight/
 
 CLAUDE.md
 /.luarc.json
+
+# OS and tool caches
+.DS_Store
+.uv_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+.venv/
+*.joblib

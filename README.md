@@ -8,7 +8,7 @@ This package provides:
 - Per‑row probability mass estimates for matches and non-matches
   (suitable for sampling/MI).
 - MI fold‑change with randomized global 1–1 matchings using
-  Gumbel‑perturbed Hungarian
+  Gumbel‑perturbed Hungarian \[2\]
 
 ## Install
 
@@ -25,7 +25,7 @@ Requires Python $\geq$ 3.10 and the following core deps: `numpy`,
 
 ``` python
 import pandas as pd
-from mass_sight import match_mlnodrift, MLMatchConfig
+from mass_sight import match_ml, MLMatchConfig
 
 ds1 = pd.read_csv("DS1.csv") 
 ds2 = pd.read_csv("DS2.csv")
@@ -46,7 +46,7 @@ cfg = MLMatchConfig(
     intensity_regex=None,
 )
 
-res = match_mlnodrift(ds1, ds2, cfg)
+res = match_ml(ds1, ds2, cfg)
 cand = res.candidates  # DataFrame: id1, id2, prob_cal, p_row, p0, ppm_diff, rt_diff, roi_diff, log_int_diff
 
 # Optional 1–1 predictions
@@ -138,6 +138,15 @@ conference on Knowledge discovery and data mining*, in KDD ’02. New
 York, NY, USA: Association for Computing Machinery, Jul. 2002, pp.
 694–699. doi:
 [10.1145/775047.775151](https://doi.org/10.1145/775047.775151).</span>
+
+</div>
+
+<div id="ref-liEfficientFeatureLearning" class="csl-entry">
+
+<span class="csl-left-margin">\[2\]
+</span><span class="csl-right-inline">K. Li, K. Swersky, and R. Zemel,
+“Efficient <span class="nocase">Feature Learning Using
+Perturb-and-MAP</span>.”</span>
 
 </div>
 

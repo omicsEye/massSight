@@ -1,84 +1,35 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "massSight"
+name = "mass-sight"
 version = "0.1.0"
-description = "Python implementation of massSight for mass spectrometry data analysis"
+description = "ML-based LC–MS matching, multi-dataset alignment, and MI fold-change"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
-    "khipu-metabolomics>=2.0.2",
-    "matplotlib>=3.10.3",
-    "networkx>=3.5",
-    "pandas>=2.3.0",
-    "polars[all]>=1.30.0",
-    "scikit-learn>=1.7.0",
-    "scipy>=1.13.0",
-    "seaborn>=0.13.2",
-    "statsmodels>=0.14.2",
-    "typer>=0.16.0",
-    "lightgbm>=4.3.0",
-    "python-louvain>=0.16",
-    "arviz>=0.22.0",
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "lightgbm",
+    "joblib",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[dependency-groups]
-dev = [
-    "bmxp>=0.3.13",
-    "jupyter>=1.1.1",
-    "mypy>=1.16.0",
-    "pandas-stubs>=2.2.3.250527",
-    "pytest>=8.4.0",
-    "pytest-cov>=6.1.1",
-    "ruff>=0.11.13",
-    "scipy-stubs>=1.15.3.0",
-    "tabulate>=0.9.0",
-    "tqdm>=4.67.1",
+authors = [
+  {name = "Chiraag", email = "37530396+chi-raag@users.noreply.github.com"}
+]
+license = { file = "LICENSE.md" }
+keywords = ["metabolomics", "LC-MS", "alignment", "probability calibration", "lightgbm"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
 [project.scripts]
 mass-sight = "mass_sight.cli:main"
 
-[tool.ruff]
-line-length = 88
-target-version = "py313"
-
-[tool.ruff.lint]
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-]
-ignore = [
-    "E501", # line too long, handled by formatter
-]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
-
-[tool.mypy]
-python_version = "3.13"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+[build-system]
+requires = ["uv_build>=0.8.15,<0.9.0"]
+build-backend = "uv_build"
