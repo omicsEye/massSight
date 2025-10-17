@@ -1,0 +1,65 @@
+[
+  {
+    "objectID": "reference/index.html",
+    "href": "reference/index.html",
+    "title": "Function reference",
+    "section": "",
+    "text": "Functions to inspect docstrings.\n\n\n\nmatch_ml"
+  },
+  {
+    "objectID": "reference/index.html#some-functions",
+    "href": "reference/index.html#some-functions",
+    "title": "Function reference",
+    "section": "",
+    "text": "Functions to inspect docstrings.\n\n\n\nmatch_ml"
+  },
+  {
+    "objectID": "reference/match_ml.html",
+    "href": "reference/match_ml.html",
+    "title": "match_ml",
+    "section": "",
+    "text": "match_ml\nmatch_ml(ds1, ds2, config=None)"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "massSight: Machine Learning for Mass Spectrometry",
+    "section": "",
+    "text": "This package provides:"
+  },
+  {
+    "objectID": "index.html#install",
+    "href": "index.html#install",
+    "title": "massSight: Machine Learning for Mass Spectrometry",
+    "section": "Install",
+    "text": "Install\npip install git+https://github.com/omicsEye/massSight.git\nRequires Python \\(\\geq\\) 3.10 and the following core deps: numpy, pandas, scikit-learn, scipy, lightgbm."
+  },
+  {
+    "objectID": "index.html#quickstart-python-api",
+    "href": "index.html#quickstart-python-api",
+    "title": "massSight: Machine Learning for Mass Spectrometry",
+    "section": "Quickstart (Python API)",
+    "text": "Quickstart (Python API)\n\n1. Matching two feature tables\nimport pandas as pd\nfrom mass_sight import match_ml, MLMatchConfig\n\nds1 = pd.read_csv(\"DS1.csv\") \nds2 = pd.read_csv(\"DS2.csv\")\n\ncfg = MLMatchConfig(\n    ppm=12.0, \n    rt=1.0, \n    model=\"auto\", \n    seed=123,\n    mz_col=\"MZ\", \n    rt_col=\"RT\", \n    annotation_col=\"Annotation_ID\", \n    compound_id_col=\"Compound_ID\",\n    # Provide either one intensity col, \n    # or a list/regex to average (then log10):\n    intensity_col=None,\n    intensity_cols=[\"S1_int\", \"S2_int\", \"S3_int\"],  # example\n    intensity_regex=None,\n)\n\nres = match_ml(ds1, ds2, cfg)\ncand = res.candidates  # DataFrame: id1, id2, prob_cal, p_row, p0, ppm_diff, rt_diff, roi_diff, log_int_diff\n\n# Optional 1–1 predictions\ntop1 = res.top1         # greedy best per row\nhung = res.hungarian    # global 1–1 (Hungarian)\nIntensity handling:\n\nIf intensity_col is set, Intensity_log10 = log10(intensity + eps).\nIf intensity_cols or intensity_regex is set, Intensity_log10 = log10(mean(raw intensities) + eps).\nFeatures use ppm_diff, rt_diff, retention‑order diff (Δro), and log_intensity diff (Δ log10 mean).\n\n\n\n2. MI fold‑change with per‑sample matrices\nfrom mass_sight import mi_fold_change\n\nds1_expr = pd.read_csv(\"DS1_expr.csv\", index_col=0)  # rows=DS row indices (or map beforehand), cols=sample IDs\nds1_meta = pd.read_csv(\"DS1_samples.csv\")           # columns: sample, group (2 levels)\nds2_expr = pd.read_csv(\"DS2_expr.csv\", index_col=0)\nds2_meta = pd.read_csv(\"DS2_samples.csv\")\n\nmi = mi_fold_change(ds1_expr, ds1_meta, ds2_expr, ds2_meta, cand, M=200, seed=42)\n# mi columns: entity_id, id1, id2, logFC_hat, SE_MI, CI_low, CI_high, FC, draws_used, match_prob, p_row_best, margin\nWhat MI does:\n\nSamples per‑row match vs no‑match from p_row/p0.\nFor sampled match rows, solves a randomized global 1–1 matching via Hungarian on −log(p) + Gumbel noise.\nFits OLS on concatenated samples: log1p(intensity) ~ 1 + group + dataset.\nCombines M draws via Rubin’s rules to produce logFC_hat, SE, 95% CI, and FC."
+  },
+  {
+    "objectID": "index.html#cli-optional",
+    "href": "index.html#cli-optional",
+    "title": "massSight: Machine Learning for Mass Spectrometry",
+    "section": "CLI (optional)",
+    "text": "CLI (optional)\nAfter install, you can run:\n# 1. Matching with schema mapping and intensity rules\nmass-sight match DS1.csv DS2.csv \\\n  --out candidates.csv \\\n  --ppm 12 --rt 1.0 \\\n  --mz-col MZ --rt-col RT \\ \n  --annotation-col Annotation_ID \\\n  --compound-id-col Compound_ID \\\n  --int-col Intensity # or: --int-col S1_int --int-col S2_int  ...\n  # or: --int-regex '^S\\\\d+_int$'\n\n# 2. MI fold-change\nmass-sight mi \\\n  --ds1-expr DS1_expr.csv --ds1-meta DS1_samples.csv \\\n  --ds2-expr DS2_expr.csv --ds2-meta DS2_samples.csv \\\n  --candidates candidates.csv --M 200 --out mi_fc.csv"
+  },
+  {
+    "objectID": "index.html#notes-best-practices",
+    "href": "index.html#notes-best-practices",
+    "title": "massSight: Machine Learning for Mass Spectrometry",
+    "section": "Notes & best practices",
+    "text": "Notes & best practices\n\nMatching windows (ppm, rt) are the only knobs you usually need.\nProvide intensity columns or regex to compute a stable log10 mean per feature; the model uses Δlog10 mean as one of the features.\nFor MI, ensure both datasets have group labels with two levels and adequate replication.\nThe dataset offset in the MI model absorbs platform/global shifts; do not pre‑normalize across datasets."
+  },
+  {
+    "objectID": "index.html#license-citation",
+    "href": "index.html#license-citation",
+    "title": "massSight: Machine Learning for Mass Spectrometry",
+    "section": "License & citation",
+    "text": "License & citation\nMIT. If you use massSight, please cite the repo and version tag you used."
+  }
+]

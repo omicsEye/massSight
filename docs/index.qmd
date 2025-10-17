@@ -1,9 +1,6 @@
 ---
-title: massSight
-subtitle: ML-based feature matching + Multiple imputation (MI) fold-change for cross‑dataset LC–MS.
-format: gfm
-bibliography: references.bib
-csl: https://www.zotero.org/styles/ieee
+title: "massSight: Machine Learning for Mass Spectrometry"
+format: html
 ---
 
 This package provides:
@@ -82,7 +79,7 @@ What MI does:
 - Fits OLS on concatenated samples: log1p(intensity) ~ 1 + group + dataset.
 - Combines M draws via Rubin’s rules to produce logFC_hat, SE, 95% CI, and FC.
 
-## CLI 
+## CLI (optional)
 
 After install, you can run:
 
@@ -114,5 +111,3 @@ mass-sight mi \
 ## License & citation
 
 MIT. If you use massSight, please cite the repo and version tag you used.
-
-## References

@@ -18,6 +18,7 @@ from scipy.optimize import linear_sum_assignment  # type: ignore
 import math
 import numpy as np
 import pandas as pd
+from scipy.stats import t as student_t  # type: ignore
 
 
 def _encode_group(meta: pd.DataFrame) -> pd.Series:
@@ -146,17 +147,32 @@ def mi_fold_change(
         m_used = len(betas)
         if m_used < max(5, int(0.1 * M)):
             continue
-        Qbar = float(betas.mean()); Ubar = float(vars_.mean()); B = float(betas.var(ddof=1)) if m_used > 1 else 0.0
+        Qbar = float(betas.mean())
+        Ubar = float(vars_.mean())
+        B = float(betas.var(ddof=1)) if m_used > 1 else 0.0
+        # Rubin's total variance
         T = Ubar + (1 + 1 / max(1, m_used)) * B
-        se = math.sqrt(max(T, 1e-12)); z = 1.96
+        se = math.sqrt(max(T, 1e-12))
+        # Barnard–Rubin degrees of freedom for MI
+        if B > 0:
+            r = (1 + 1 / m_used) * B / max(Ubar, 1e-12)
+            nu_old = m_used - 1
+            nu = (m_used - 1) * (1 + 1 / r) ** 2
+            # Small-sample correction (old+within) — conservative fallback if needed
+            nu = float(max(1.0, nu))
+            tcrit = float(student_t.ppf(0.975, df=nu))
+        else:
+            # No between-imputation variance: revert to normal
+            nu = float('inf'); tcrit = 1.96
         rows.append({
             "entity_id": f"{i1}->{j2}", "id1": i1, "id2": j2,
             "logFC_hat": Qbar, "SE_MI": se,
-            "CI_low": Qbar - z * se, "CI_high": Qbar + z * se,
+            "CI_low": Qbar - tcrit * se, "CI_high": Qbar + tcrit * se,
             "FC": math.exp(Qbar),
             "draws_used": m_used, "match_prob": used_count.get((i1, j2), 0) / float(M),
             "p_row_best": best.get(i1, np.nan), "margin": margin.get(i1, np.nan),
             "n_samples": ds1_expr.shape[1] + ds2_expr.shape[1],
+            "nu_MI": nu,
         })
     return pd.DataFrame(rows)
 

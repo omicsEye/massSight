@@ -1,0 +1,365 @@
+---
+title: "Simulated Matching + MI Fold-Change"
+format:
+  html:
+    toc: true
+    code-fold: show
+execute:
+  echo: true
+  warning: false
+  error: false
+  cache: false
+jupyter: python3
+---
+
+# Overview
+
+This vignette simulates two LC–MS feature tables (DS1, DS2), runs ML-based matching with calibrated probabilities, and performs multiple-imputation (MI) fold-change estimation with uncertainty.
+
+The goal is to demonstrate end‑to‑end usage of `mass_sight`: matching → calibrated probabilities → MI log fold‑change with confidence intervals.
+
+## Setup
+
+```{python}
+import numpy as np, pandas as pd
+from pathlib import Path
+import matplotlib.pyplot as plt
+from sklearn.metrics import precision_recall_curve, average_precision_score
+
+from mass_sight import MLMatchConfig, match_ml, mi_fold_change
+
+SEED = 123
+RNG = np.random.default_rng(SEED)
+```
+
+## 1) Simulate ground truth features
+
+We simulate `N` compounds with true m/z and RT, assign unique labels (singletons), and generate dataset‑specific observations with ppm noise and RT drift.
+
+```{python}
+N = 500
+
+# True compound properties
+true_mz = RNG.uniform(100, 1000, size=N)
+true_rt = RNG.uniform(0, 10, size=N)  # minutes
+labels = np.array([f"C{i:04d}" for i in range(1, N+1)])
+
+# Group design for expression matrices (common treatment effect across labs)
+n_ctrl = 3; n_treat = 3
+ds1_samples = [f"S1_C{i}" for i in range(1, n_ctrl+1)] + [f"S1_T{i}" for i in range(1, n_treat+1)]
+ds2_samples = [f"S2_C{i}" for i in range(1, n_ctrl+1)] + [f"S2_T{i}" for i in range(1, n_treat+1)]
+ds1_meta = pd.DataFrame({"sample": ds1_samples, "group": ["ctrl"]*n_ctrl + ["treat"]*n_treat})
+ds2_meta = pd.DataFrame({"sample": ds2_samples, "group": ["ctrl"]*n_ctrl + ["treat"]*n_treat})
+
+# Dataset-specific observation model
+def observe_dataset(mz, rt, *, ppm_sigma=3.0, rt_drift=0.15, rt_sigma=0.04):
+    # ppm noise ~ N(0, ppm_sigma)
+    eps_ppm = RNG.normal(0, ppm_sigma, size=mz.shape) / 1e6
+    obs_mz = mz * (1.0 + eps_ppm)
+    # RT drift + noise
+    obs_rt = rt + rt_drift + RNG.normal(0, rt_sigma, size=rt.shape)
+    return obs_mz, obs_rt
+
+# DS1: mild positive drift; DS2: mild negative drift
+ds1_mz, ds1_rt = observe_dataset(true_mz, true_rt, ppm_sigma=2.5, rt_drift=+0.10, rt_sigma=0.03)
+ds2_mz, ds2_rt = observe_dataset(true_mz, true_rt, ppm_sigma=2.5, rt_drift=-0.10, rt_sigma=0.03)
+
+def retention_order(rt):
+    return pd.Series(rt).rank(pct=True).to_numpy()
+
+ds1 = pd.DataFrame({
+    "Compound_ID": [f"Q{1000+i}" for i in range(N)],
+    "MZ": ds1_mz,
+    "RT": ds1_rt,
+    "Intensity": np.zeros(N),  # placeholder; set below
+    "Annotation_ID": labels,
+})
+ds2 = pd.DataFrame({
+    "Compound_ID": [f"Q{2000+i}" for i in range(N)],
+    "MZ": ds2_mz,
+    "RT": ds2_rt,
+    "Intensity": np.zeros(N),
+    "Annotation_ID": labels,
+})
+```
+
+### Expression matrices with ground‑truth fold changes
+
+We simulate per‑sample intensities. A fraction of compounds have true log‑fold changes; others stay at 0.
+
+```{python}
+p_diff = 0.25
+is_diff = RNG.random(N) < p_diff
+true_logFC = np.zeros(N)
+true_logFC[is_diff] = RNG.normal(1.0, 0.2, size=is_diff.sum())  # lab‑invariant treatment effect on log scale
+
+def simulate_expr(rt, base_mu=8.0):
+    # base log-intensity with slight RT dependence for heteroscedasticity
+    return base_mu - 0.05 * (rt - np.median(rt))
+
+base1 = simulate_expr(ds1["RT"].to_numpy())
+base2 = simulate_expr(ds2["RT"].to_numpy()) + 0.3  # lab offset (DS2 level shift)
+
+def build_matrix(base, log_fc_vec, samples, meta):
+    Y = np.zeros((N, len(samples)), dtype=float)
+    for j, s in enumerate(samples):
+        is_treat = (meta.loc[meta["sample"] == s, "group"].item() == "treat")
+        # Common treatment effect across labs on log scale
+        eff = log_fc_vec if is_treat else 0.0
+        Y[:, j] = base + eff + RNG.normal(0, 0.25, size=N)
+    # convert to raw intensities
+    return np.expm1(Y)
+
+ds1_expr = pd.DataFrame(build_matrix(base1, true_logFC, ds1_samples, ds1_meta), index=ds1.index, columns=ds1_samples)
+ds2_expr = pd.DataFrame(build_matrix(base2, true_logFC, ds2_samples, ds2_meta), index=ds2.index, columns=ds2_samples)
+
+# Set per-row mean intensity into DS tables for matching features
+ds1["Intensity"] = ds1_expr.mean(axis=1).to_numpy()
+ds2["Intensity"] = ds2_expr.mean(axis=1).to_numpy()
+
+# Inject ambiguous decoys in DS2 to stress matching (MI should help here)
+q_amb = 0.30  # fraction of DS1 compounds that get a close decoy in DS2
+K = int(q_amb * N)
+amb_idx = RNG.choice(np.arange(N), size=K, replace=False)
+new_rows = []
+new_expr = []
+for i in amb_idx:
+    # Close-by m/z and RT around the true counterpart (within a typical candidate window)
+    mz_d = ds2_mz[i] * (1.0 + RNG.normal(0, 1.5)/1e6)  # ~1.5 ppm difference
+    rt_d = ds2_rt[i] + RNG.normal(0, 0.06)             # ~0.06 min difference
+    # Unique decoy label (different from the true annotation)
+    dec_lab = f"DEC_{labels[i]}_{RNG.integers(1e6)}"
+    new_rows.append({
+        "Compound_ID": f"Q{3000+i}",
+        "MZ": mz_d,
+        "RT": rt_d,
+        "Intensity": 0.0,  # filled after expr
+        "Annotation_ID": dec_lab,
+    })
+    # Decoy expression: similar baseline, no treatment effect
+    base_decoy = simulate_expr(np.array([rt_d]))[0] + 0.3
+    Yd = np.zeros((len(ds2_samples),), dtype=float)
+    for j, s in enumerate(ds2_samples):
+        is_treat = (ds2_meta.loc[ds2_meta["sample"] == s, "group"].item() == "treat")
+        eff = 0.0  # no effect on decoy
+        Yd[j] = base_decoy + eff + RNG.normal(0, 0.25)
+    new_expr.append(np.expm1(Yd))
+
+if len(new_rows) > 0:
+    new_df = pd.DataFrame(new_rows)
+    start_idx = len(ds2)
+    ds2 = pd.concat([ds2, new_df], ignore_index=True)
+    new_expr_mat = np.vstack(new_expr) if len(new_expr) > 0 else np.zeros((0, len(ds2_samples)))
+    ds2_expr = pd.concat([ds2_expr, pd.DataFrame(new_expr_mat, index=np.arange(start_idx, start_idx+len(new_rows)), columns=ds2_samples)])
+    ds2["Intensity"] = ds2_expr.mean(axis=1).to_numpy()
+```
+
+## 2) Match DS1 ↔ DS2 with ML + calibration
+
+```{python}
+cfg = MLMatchConfig(ppm=12.0, rt=1.0, model="auto", seed=SEED, calibrate=True)
+res = match_ml(ds1, ds2, cfg)
+cand = res.candidates.copy()
+cand.head(5)
+```
+
+### Evaluate against ground truth
+
+```{python}
+# Ground truth: singleton equality by Annotation_ID
+lab1 = ds1["Annotation_ID"].astype(str)
+lab2 = ds2["Annotation_ID"].astype(str)
+
+top1 = res.top1
+tp = sum(lab1.iloc[i] == lab2.iloc[j] for i, j in zip(top1["id1"].astype(int), top1["id2"].astype(int)))
+prec = tp / len(top1) if len(top1) else np.nan
+rec = tp / N
+f1 = (2*prec*rec/(prec+rec)) if np.isfinite(prec) and (prec+rec)>0 else np.nan
+print(f"Top1: P={prec:.3f} R={rec:.3f} F1={f1:.3f}  (TP={tp}/{N})")
+
+# PR on candidates using calibrated per-edge probabilities
+g = cand.copy()
+gt = (lab1.iloc[g["id1"].astype(int)].values == lab2.iloc[g["id2"].astype(int)].values).astype(int)
+p = g["prob_cal" if "prob_cal" in g.columns else "prob"].to_numpy()
+prec_curve, rec_curve, _ = precision_recall_curve(gt, p)
+ap = average_precision_score(gt, p)
+fig, ax = plt.subplots()
+ax.plot(rec_curve, prec_curve)
+ax.set(xlabel="Recall", ylabel="Precision", title=f"PR (AP={ap:.3f})")
+plt.show()
+```
+
+## 3) MI fold‑change estimation with uncertainty
+
+```{python}
+mi = mi_fold_change(
+    ds1_expr=ds1_expr,
+    ds1_meta=ds1_meta,
+    ds2_expr=ds2_expr,
+    ds2_meta=ds2_meta,
+    candidates=cand,
+    M=200,
+    seed=SEED,
+)
+mi.head(5)
+```
+
+### Compare to truth
+
+```{python}
+truth = pd.DataFrame({"id1": ds1.index, "id2": ds2.index, "true_logFC": true_logFC})
+mi2 = mi.merge(truth, on=["id1", "id2"], how="left")
+
+# Coverage of 95% CI
+cov = np.mean((mi2["true_logFC"] >= mi2["CI_low"]) & (mi2["true_logFC"] <= mi2["CI_high"]))
+rmse = np.sqrt(np.mean((mi2["logFC_hat"] - mi2["true_logFC"])**2))
+print(f"CI coverage (95% nominal): {cov:.3f}; RMSE: {rmse:.3f}")
+
+fig, ax = plt.subplots(figsize=(5,4))
+ax.scatter(mi2["true_logFC"], mi2["logFC_hat"], s=8, alpha=0.6)
+ax.plot([mi2["true_logFC"].min(), mi2["true_logFC"].max()],
+        [mi2["true_logFC"].min(), mi2["true_logFC"].max()], '--', color='gray')
+ax.set(xlabel="True logFC", ylabel="MI logFC_hat", title="MI estimates vs truth")
+plt.show()
+```
+
+## 4) Compare MI vs Naive (deterministic assignment, no uncertainty)
+
+We now compare MI to a naive pipeline that assigns a single global 1–1 match (Hungarian on −log p_row) and fits the same regression once.
+
+```{python}
+import math
+from scipy.optimize import linear_sum_assignment
+from scipy.stats import t as student_t
+
+# Deterministic Hungarian assignment using p_row (or prob_cal if p_row missing)
+pcol = "p_row" if "p_row" in cand.columns else ("prob_cal" if "prob_cal" in cand.columns else "prob")
+rows = sorted(cand["id1"].astype(int).unique()); cols = sorted(cand["id2"].astype(int).unique())
+r_index = {r:i for i,r in enumerate(rows)}; c_index = {c:i for i,c in enumerate(cols)}
+R, C = len(rows), len(cols)
+cost = np.full((R,C), 50.0, dtype=float)
+for _, r in cand.iterrows():
+    i = r_index[int(r.id1)]; j = c_index[int(r.id2)]; p = float(r[pcol]); p = min(max(p, 1e-12), 1-1e-12)
+    cost[i,j] = -math.log(p)
+ri, cj = linear_sum_assignment(cost)
+assign = [(rows[i], cols[j]) for i,j in zip(ri, cj) if cost[i,j] < 25.0]
+
+def ols_group_lab(y1_row, y2_row, meta1, meta2):
+    y = np.concatenate([np.log1p(y1_row), np.log1p(y2_row)])
+    g1 = (meta1["group"].to_numpy() == "treat").astype(float)
+    g2 = (meta2["group"].to_numpy() == "treat").astype(float)
+    group = np.concatenate([g1, g2])
+    lab = np.concatenate([np.zeros_like(g1), np.ones_like(g2)])
+    X = np.column_stack([np.ones_like(group), group, lab])
+    XtX = X.T @ X
+    try:
+        XtX_inv = np.linalg.inv(XtX)
+    except np.linalg.LinAlgError:
+        XtX_inv = np.linalg.inv(XtX + 1e-8*np.eye(3))
+    beta = XtX_inv @ (X.T @ y)
+    resid = y - X @ beta
+    dof = max(1, len(y) - X.shape[1])
+    sigma2 = float((resid @ resid) / dof)
+    var_b = sigma2 * XtX_inv[1,1]  # variance of group coefficient (common effect)
+    se = math.sqrt(max(var_b, 1e-12))
+    tcrit = float(student_t.ppf(0.975, df=dof))
+    return float(beta[1]), se, float(beta[1] - tcrit*se), float(beta[1] + tcrit*se), dof
+
+naive_rows = []
+for i1, j2 in assign:
+    b, se, lo, hi, dof = ols_group_lab(ds1_expr.loc[i1].to_numpy(), ds2_expr.loc[j2].to_numpy(), ds1_meta, ds2_meta)
+    naive_rows.append({"id1": i1, "id2": j2, "logFC_hat_NV": b, "SE_NV": se, "CI_low_NV": lo, "CI_high_NV": hi, "nu_NV": dof})
+naive = pd.DataFrame(naive_rows)
+
+# Join MI and Naive with truth and margin diagnostics
+mij = mi.merge(naive, on=["id1","id2"], how="outer")
+truth = pd.DataFrame({"id1": ds1.index, "id2": ds2.index, "true_logFC": true_logFC})
+mij = mij.merge(truth, on=["id1","id2"], how="left")
+
+# Margin per DS1 row (best minus second-best p_row) — robust to single-candidate rows
+grp = cand[["id1", pcol]].copy()
+grp["id1"] = grp["id1"].astype(int)
+grp = grp.sort_values(["id1", pcol], ascending=[True, False])
+grp["rank"] = grp.groupby("id1").cumcount() + 1
+wide = grp.pivot_table(index="id1", columns="rank", values=pcol)
+wide = wide.rename(columns={1: "p_best", 2: "p_second"}).reset_index()
+if "p_second" not in wide.columns:
+    wide["p_second"] = 0.0
+wide["p_second"] = wide["p_second"].fillna(0.0)
+wide["margin"] = wide["p_best"] - wide["p_second"]
+mij = mij.merge(wide[["id1", "margin", "p_best"]], on="id1", how="left")
+if "margin" not in mij.columns:
+    mij["margin"] = 0.0
+
+### Metrics and fairness (same evaluation domain)
+def coverage_series(lo, hi, truth):
+    m = (~pd.isna(lo)) & (~pd.isna(hi)) & (~pd.isna(truth))
+    if m.sum() == 0:
+        return float('nan')
+    return float(np.mean((truth[m] >= lo[m]) & (truth[m] <= hi[m])))
+
+# Report p_best quantiles for context
+print("p_best quantiles:", mij["p_best"].quantile([0, .5, .8, .9, .95, .99]).to_dict())
+
+# Overall (on each method's available rows)
+cov_mi = coverage_series(mij["CI_low"], mij["CI_high"], mij["true_logFC"])
+cov_nv = coverage_series(mij["CI_low_NV"], mij["CI_high_NV"], mij["true_logFC"])
+rmse_mi = float(np.sqrt(np.nanmean((mij["logFC_hat"] - mij["true_logFC"])**2)))
+rmse_nv = float(np.sqrt(np.nanmean((mij["logFC_hat_NV"] - mij["true_logFC"])**2)))
+print(f"Overall (each on its domain): MI cov={cov_mi:.3f} RMSE={rmse_mi:.3f} | Naive cov={cov_nv:.3f} RMSE={rmse_nv:.3f}")
+
+# Intersection domain fairness
+mask_both = mij["CI_low"].notna() & mij["CI_low_NV"].notna() & mij["true_logFC"].notna()
+cov_mi_b = coverage_series(mij.loc[mask_both, "CI_low"], mij.loc[mask_both, "CI_high"], mij.loc[mask_both, "true_logFC"])
+cov_nv_b = coverage_series(mij.loc[mask_both, "CI_low_NV"], mij.loc[mask_both, "CI_high_NV"], mij.loc[mask_both, "true_logFC"])
+rmse_mi_b = float(np.sqrt(np.nanmean((mij.loc[mask_both, "logFC_hat"] - mij.loc[mask_both, "true_logFC"])**2)))
+rmse_nv_b = float(np.sqrt(np.nanmean((mij.loc[mask_both, "logFC_hat_NV"] - mij.loc[mask_both, "true_logFC"])**2)))
+print(f"Intersection: MI cov={cov_mi_b:.3f} RMSE={rmse_mi_b:.3f} | Naive cov={cov_nv_b:.3f} RMSE={rmse_nv_b:.3f}")
+
+# By margin bins (quantile-based for balanced counts), with safe fallback
+marg = mij["margin"].fillna(0.0).clip(0, 1)
+q = np.unique(np.quantile(marg, [0, 0.5, 0.8, 0.9, 0.95, 1.0]))
+if len(q) < 2:
+    q = np.array([0.0, 1.01])
+else:
+    q[-1] = min(1.01, float(q[-1]) + 1e-9)
+mij["m_bin"] = pd.cut(marg, bins=q, right=False, include_lowest=True)
+rows_summ = []
+for name, d in mij.groupby("m_bin", observed=True):
+    rows_summ.append({
+        "m_bin": name,
+        "cov_mi": coverage_series(d["CI_low"], d["CI_high"], d["true_logFC"]),
+        "cov_nv": coverage_series(d["CI_low_NV"], d["CI_high_NV"], d["true_logFC"]),
+        "rmse_mi": float(np.sqrt(np.nanmean((d["logFC_hat"] - d["true_logFC"])**2))),
+        "rmse_nv": float(np.sqrt(np.nanmean((d["logFC_hat_NV"] - d["true_logFC"])**2))),
+        "n": len(d)
+    })
+summ = pd.DataFrame(rows_summ)
+if summ.empty:
+    summ = pd.DataFrame([{
+        "m_bin": pd.Interval(left=0.0, right=1.01, closed="left"),
+        "cov_mi": coverage_series(mij["CI_low"], mij["CI_high"], mij["true_logFC"]),
+        "cov_nv": coverage_series(mij["CI_low_NV"], mij["CI_high_NV"], mij["true_logFC"]),
+        "rmse_mi": float(np.sqrt(np.nanmean((mij["logFC_hat"] - mij["true_logFC"])**2))),
+        "rmse_nv": float(np.sqrt(np.nanmean((mij["logFC_hat_NV"] - mij["true_logFC"])**2))),
+        "n": len(mij)
+    }])
+print("\nBy margin bin:\n", summ)
+
+# Simple bar plot: coverage by margin bin
+fig, ax = plt.subplots(figsize=(6,3))
+pos = np.arange(len(summ))
+ax.bar(pos-0.2, summ["cov_mi"], width=0.4, label="MI")
+ax.bar(pos+0.2, summ["cov_nv"], width=0.4, label="Naive")
+ax.set_xticks(pos); ax.set_xticklabels([str(b) for b in summ["m_bin"].astype(str)], rotation=45)
+ax.set_ylim(0,1.05)
+ax.axhline(0.95, color='gray', linestyle='--', linewidth=0.8)
+ax.set_ylabel("Coverage (95% nominal)"); ax.set_title("Coverage by margin bin")
+ax.legend(); plt.tight_layout(); plt.show()
+```
+
+## Notes
+
+- Matching uses ppm and RT windows only (no drift correction); probabilities are out‑of‑fold calibrated via isotonic regression and normalized per row.
+- MI uses randomized global 1–1 matchings (Gumbel‑perturbed Hungarian) and Rubin’s rules to combine draws.
+- You can adjust `ppm`, `rt`, and `M` to explore robustness.

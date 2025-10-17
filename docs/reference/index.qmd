@@ -1,0 +1,9 @@
+# Function reference {.doc .doc-index}
+
+## Some functions
+
+Functions to inspect docstrings.
+
+| | |
+| --- | --- |
+| [match_ml](match_ml.qmd#mass_sight.match_ml) |  |

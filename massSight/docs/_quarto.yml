@@ -1,0 +1,19 @@
+project:
+  type: website
+  output-dir: docs-site
+  render:
+    - vignettes/**/*.qmd
+
+website:
+  title: mass-sight
+  navbar:
+    left:
+      - text: Vignettes
+        menu:
+          - href: vignettes/sim_matching_mi.qmd
+            text: Simulated Matching + MI
+
+format:
+  html:
+    toc: true
+    code-fold: show

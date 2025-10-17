@@ -1,0 +1,9 @@
+website:
+  sidebar:
+  - contents:
+    - reference/index.qmd
+    - contents:
+      - reference/match_ml.qmd
+      section: Some functions
+    id: reference
+  - id: dummy-sidebar

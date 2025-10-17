@@ -1,0 +1,40 @@
+project:
+  type: website
+  render:
+    - index.qmd
+    - vignettes/**/*.qmd
+    - reference/**
+
+website:
+  title: "massSight"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - text: Vignettes
+        menu:
+          - href: vignettes/sim_matching_mi.qmd
+            text: Simulated Matching + MI
+      - href: reference/
+        text: Reference
+
+format:
+  html:
+    css:
+      - reference/_styles-quartodoc.css
+
+quartodoc:
+  # the name used to import the package you want to create reference docs for
+  package: mass_sight
+
+  # write sidebar and style data
+  sidebar: reference/_sidebar.yml
+  css: reference/_styles-quartodoc.css
+
+  sections:
+    - title: Some functions
+      desc: Functions to inspect docstrings.
+      contents:
+        # the functions being documented in the package.
+        # you can refer to anything: class methods, modules, etc..
+        - match_ml
