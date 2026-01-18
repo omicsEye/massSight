@@ -1,0 +1,45 @@
+---
+title: "massSight"
+format:
+  html:
+    toc: true
+---
+
+`massSight` is a probabilistic method for **cross-study LC–MS feature matching** and **multi-study clustering**.
+
+[![](https://zenodo.org/badge/608216683.svg)](https://doi.org/10.5281/zenodo.8101763)
+
+## Install
+
+Install from source (recommended until the first release):
+
+```bash
+uv pip install git+https://github.com/omicsEye/massSight
+```
+
+## Quickstart: match two studies
+
+```bash
+mass_sight match study_a.csv study_b.csv \
+  --out-candidates candidates.csv \
+  --out-top1 top1.csv \
+  --ppm 15
+```
+
+## Quickstart: cluster multiple studies
+
+Create a multi-study manifest (YAML/JSON) and run:
+
+```bash
+mass_sight cluster \
+  --manifest path/to/manifest.yaml \
+  --out-dir tmp_outputs/mass_sight_cluster_demo \
+  --strategy hub \
+  --ppm 15
+```
+
+## Build these docs
+
+```bash
+./docs/build.sh
+```

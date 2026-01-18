@@ -1,0 +1,161 @@
+---
+title: "Clustering multiple studies"
+format:
+  html:
+    toc: true
+---
+
+## Overview
+
+Multi-study clustering converts a set of untargeted LC–MS feature tables into **cross-study clusters** (putative shared analytes).
+
+For **k≥3** studies, the default strategy in `massSight` v1 is a **hub-anchored OT barycenter**:
+
+1. select a hub study,
+2. initialize a template from the hub’s feature list,
+3. align each non-hub study to the template using `massSight` OT couplings,
+4. update the template’s m/z coordinates using a robust OT-weighted update (repeat for a few iterations),
+5. finalize clusters as ≤1 feature per study per template atom.
+
+Optionally, you can run hub clustering in **full outer join** mode, which retains:
+- hub-only features,
+- matched features, and
+- non-hub features that do not match the hub (as singleton clusters).
+
+## Manifest
+
+Create a YAML/JSON manifest describing each study and how to parse its feature table:
+
+```yaml
+studies:
+  - study_id: StudyA
+    feature_format: separate_tables
+    features_path: path/to/study_a_features.csv
+    matrix_path: path/to/study_a_matrix.csv
+    endpoints_path: path/to/study_a_sample_metadata.csv  # optional
+    polarity: positive
+    chromatography: RP
+  - study_id: StudyB
+    feature_format: separate_tables
+    features_path: path/to/study_b_features.csv
+    matrix_path: path/to/study_b_matrix.csv
+    polarity: positive
+    chromatography: RP
+```
+
+## CLI example
+
+```bash
+mass_sight cluster \
+  --manifest path/to/my_manifest.yaml \
+  --out-dir tmp_outputs/mass_sight_cluster \
+  --strategy hub \
+  --full-join \
+  --ppm 20
+```
+
+For manifests with **k≥3** studies, the hub strategy uses barycenter alignment by default. To force hub mutual top‑1, add `--hub-alignment mutual_top1`.
+
+Outputs:
+
+- `cluster_metadata.tsv`: representative m/z/RT per cluster
+- `cluster_map.tsv`: feature IDs assigned to each cluster per study
+- `cluster_expr_<study_id>.tsv.gz`: sample×cluster matrices (when sample matrices are available)
+
+## Python example
+
+This example creates three toy studies, clusters them with hub-anchored OT barycenter alignment, and inspects the outputs:
+
+```{python}
+#| label: clustering-multiple-studies-setup
+import numpy as np
+import pandas as pd
+
+from mass_sight import MassSightConfig
+from mass_sight.multistudy import LoadedStudy, cluster_hub_barycenter_ot
+
+rng = np.random.default_rng(0)
+
+# Hub study A.
+features_a = (
+    pd.DataFrame(
+        {
+            "feature_id": ["a1", "a2", "a3"],
+            "MZ": [100.0, 150.0, 200.0],
+            "RT": [1.0, 2.0, 3.0],
+            "Intensity": [1.0, 2.0, 3.0],
+        }
+    )
+    .set_index("feature_id", drop=False)
+)
+expr_a = pd.DataFrame(
+    rng.lognormal(mean=4.0, sigma=0.2, size=(5, 3)),
+    index=[f"s{i}" for i in range(5)],
+    columns=features_a["feature_id"],
+)
+
+# Study B: same analytes with a small +5 ppm drift, plus one extra feature.
+ppm_shift = 5e-6
+features_b = (
+    pd.DataFrame(
+        {
+            "feature_id": ["b1", "b2", "b3", "b_extra"],
+            "MZ": [mz * (1 + ppm_shift) for mz in [100.0, 150.0, 200.0]] + [500.0],
+            "RT": [1.1, 2.1, 3.1, 10.0],
+            "Intensity": [1.1, 2.1, 2.9, 0.5],
+        }
+    )
+    .set_index("feature_id", drop=False)
+)
+expr_b = pd.DataFrame(
+    rng.lognormal(mean=4.0, sigma=0.2, size=(6, 4)),
+    index=[f"t{i}" for i in range(6)],
+    columns=features_b["feature_id"],
+)
+
+# Study C: missing one analyte.
+features_c = (
+    pd.DataFrame(
+        {
+            "feature_id": ["c1", "c2"],
+            "MZ": [100.0 * (1 - 3e-6), 150.0 * (1 + 2e-6)],
+            "RT": [0.9, 2.05],
+            "Intensity": [0.9, 2.2],
+        }
+    )
+    .set_index("feature_id", drop=False)
+)
+expr_c = pd.DataFrame(
+    rng.lognormal(mean=4.0, sigma=0.2, size=(4, 2)),
+    index=[f"u{i}" for i in range(4)],
+    columns=features_c["feature_id"],
+)
+
+studies = [
+    LoadedStudy(analysis_id="A", features=features_a, expr=expr_a),
+    LoadedStudy(analysis_id="B", features=features_b, expr=expr_b),
+    LoadedStudy(analysis_id="C", features=features_c, expr=expr_c),
+]
+
+cfg = MassSightConfig(ppm=20.0, rt=0.0, polarity="positive")
+res = cluster_hub_barycenter_ot(studies, cfg, hub_id="A", include_unmatched=True, export_expr=True)
+
+res.diagnostics
+```
+
+Cluster tables:
+
+```{python}
+#| label: clustering-multiple-studies-cluster-metadata
+res.cluster_metadata.head()
+```
+
+```{python}
+#| label: clustering-multiple-studies-cluster-map
+res.cluster_map.head(10)
+```
+
+```{python}
+#| label: clustering-multiple-studies-cluster-expr
+{k: v.shape for k, v in res.cluster_expr.items()}
+```

@@ -1,0 +1,40 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "massSight"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: tutorials/index.qmd
+        text: Tutorials
+      - href: reference/index.qmd
+        text: API
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-copy: true
+
+quartodoc:
+  style: pkgdown
+  package: mass_sight
+  dir: reference
+  title: "API reference"
+  parser: numpy
+  sections:
+    - title: "Core matching"
+      desc: "Probabilistic drift-aware optimal transport matcher for cross-study LC–MS feature matching."
+      contents:
+        - matcher
+    - title: "Multi-study clustering"
+      desc: "Load multiple untargeted studies and build cross-study clusters."
+      contents:
+        - multistudy
+        - assignment_sampling
+    - title: "Command-line interface"
+      contents:
+        - cli

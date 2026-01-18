@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use massSight in your research, please cite this software."
+title: "massSight: probabilistic drift-aware optimal transport for cross-study LC–MS feature matching"
+type: software
+version: 0.1.0
+license: MIT
+doi: 10.5281/zenodo.8101763
+authors:
+  - given-names: Chiraag
+    family-names: Gohel
+repository-code: "https://github.com/omicsEye/massSight"

@@ -1,0 +1,47 @@
+[project]
+name = "mass-sight"
+version = "0.1.0"
+description = "Probabilistic drift-aware optimal transport for cross-study LC–MS feature matching"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  {name = "Chiraag", email = "37530396+chi-raag@users.noreply.github.com"}
+]
+license = { file = "LICENSE.md" }
+keywords = ["metabolomics", "LC-MS", "alignment", "optimal transport", "cross-study"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "pyyaml",
+]
+
+[project.urls]
+Homepage = "https://github.com/omicsEye/massSight"
+Repository = "https://github.com/omicsEye/massSight"
+Issues = "https://github.com/omicsEye/massSight/issues"
+Documentation = "https://github.com/omicsEye/massSight/tree/main/docs"
+
+[project.scripts]
+mass_sight = "mass_sight.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.8.15,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "quartodoc>=0.11.1",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.29.0",
+]

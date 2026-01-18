@@ -1,0 +1,206 @@
+---
+title: "Pathway analysis workflow (template)"
+format:
+  html:
+    toc: true
+---
+
+This tutorial shows how to use `massSight` from Python to:
+
+1. load full untargeted matrices,
+2. build cross-study clusters, and
+3. export cluster-level tables for downstream statistics and pathway analysis (e.g., pathway enrichment).
+
+## Toy example (executable)
+
+For documentation, we use a small simulated example so this tutorial is fully executable.
+
+```{python}
+#| label: pathway-toy-clustering
+import numpy as np
+import pandas as pd
+
+from mass_sight import MassSightConfig
+from mass_sight.multistudy import LoadedStudy, cluster_hub_mutual_top1
+
+rng = np.random.default_rng(0)
+
+# Study A (hub): three analytes.
+features_a = (
+    pd.DataFrame(
+        {
+            "feature_id": ["a_mz100", "a_mz150", "a_mz200"],
+            "MZ": [100.0, 150.0, 200.0],
+            "RT": [1.0, 2.0, 3.0],
+            "Intensity": [1.0, 1.0, 1.0],
+        }
+    )
+    .set_index("feature_id", drop=False)
+)
+n_a = 20
+samples_a = [f"A_s{i}" for i in range(n_a)]
+endpoints_a = pd.DataFrame({"outcome": [1] * 10 + [0] * 10}, index=samples_a)
+expr_a = rng.lognormal(mean=4.0, sigma=0.3, size=(n_a, 3))
+# Add a clear case/control effect on the first analyte (mz100) for illustration.
+expr_a[endpoints_a["outcome"].to_numpy(bool), 0] *= 3.0
+expr_a = pd.DataFrame(expr_a, index=samples_a, columns=features_a["feature_id"])
+features_a["Intensity"] = expr_a.mean(axis=0).to_numpy(dtype=float)
+
+# Study B: same analytes with a small +5 ppm mass drift.
+ppm_shift = 5e-6
+features_b = (
+    pd.DataFrame(
+        {
+            "feature_id": ["b_mz100", "b_mz150", "b_mz200"],
+            "MZ": [mz * (1 + ppm_shift) for mz in [100.0, 150.0, 200.0]],
+            "RT": [1.2, 2.2, 3.2],
+            "Intensity": [1.0, 1.0, 1.0],
+        }
+    )
+    .set_index("feature_id", drop=False)
+)
+n_b = 18
+samples_b = [f"B_s{i}" for i in range(n_b)]
+endpoints_b = pd.DataFrame({"outcome": [1] * 9 + [0] * 9}, index=samples_b)
+expr_b = rng.lognormal(mean=4.0, sigma=0.3, size=(n_b, 3))
+expr_b[endpoints_b["outcome"].to_numpy(bool), 0] *= 3.0
+expr_b = pd.DataFrame(expr_b, index=samples_b, columns=features_b["feature_id"])
+features_b["Intensity"] = expr_b.mean(axis=0).to_numpy(dtype=float)
+
+studies = [
+    LoadedStudy(analysis_id="StudyA", features=features_a, expr=expr_a),
+    LoadedStudy(analysis_id="StudyB", features=features_b, expr=expr_b),
+]
+
+cfg = MassSightConfig(ppm=20.0, rt=0.0, polarity="positive")
+clusters = cluster_hub_mutual_top1(
+    studies,
+    cfg,
+    hub_id="StudyA",
+    include_unmatched=True,  # full outer-join (retain singletons as NaN across other studies)
+    export_expr=True,
+)
+
+clusters.diagnostics
+```
+
+Cluster membership table:
+
+```{python}
+#| label: pathway-toy-cluster-map
+clusters.cluster_map
+```
+
+`clusters.cluster_expr` is a dictionary mapping `analysis_id -> sample×cluster` matrix, where structural missingness across studies is encoded as `NaN` (absent-in-study ≠ within-study zero).
+
+## Running on your data (template)
+
+Create a YAML/JSON manifest describing where your downloaded files live (example schema shown in the clustering tutorial). Then:
+
+```{python}
+#| label: pathway-real-data-template
+#| eval: false
+from pathlib import Path
+
+from mass_sight import MassSightConfig
+from mass_sight.multistudy import cluster_hub_mutual_top1, load_manifest, load_study
+
+specs = load_manifest(Path("path/to/manifest.yaml"))
+studies = [load_study(s) for s in specs]
+
+cfg = MassSightConfig(
+    ppm=20.0,
+    rt=0.0,  # cross-study default: no hard RT candidate gating
+    polarity="positive",
+)
+
+clusters = cluster_hub_mutual_top1(
+    studies,
+    cfg,
+    hub_id=None,            # auto-select hub
+    include_unmatched=True, # full outer-join (retain singletons as NaN across other studies)
+    export_expr=True,       # export sample×cluster matrices when sample matrices are available
+)
+```
+
+## Compute per-cluster statistics (template)
+
+`massSight` does not enforce a specific normalization or outcome model. A minimal per-study template is:
+
+```{python}
+#| label: pathway-toy-cluster-stats
+import math
+import numpy as np
+import pandas as pd
+
+def hedges_g(x_case: np.ndarray, x_ctrl: np.ndarray) -> tuple[float, float]:
+    x_case = np.asarray(x_case, dtype=float)
+    x_ctrl = np.asarray(x_ctrl, dtype=float)
+    x_case = x_case[np.isfinite(x_case)]
+    x_ctrl = x_ctrl[np.isfinite(x_ctrl)]
+    n1, n0 = int(x_case.size), int(x_ctrl.size)
+    if n1 < 2 or n0 < 2:
+        return np.nan, np.nan
+
+    m1, m0 = float(np.mean(x_case)), float(np.mean(x_ctrl))
+    s1, s0 = float(np.var(x_case, ddof=1)), float(np.var(x_ctrl, ddof=1))
+    sp = np.sqrt(((n1 - 1) * s1 + (n0 - 1) * s0) / max(n1 + n0 - 2, 1))
+    if not np.isfinite(sp) or sp <= 0:
+        return np.nan, np.nan
+
+    d = (m1 - m0) / sp
+    j = 1.0 - (3.0 / (4.0 * (n1 + n0) - 9.0))
+    g = j * d
+    se = np.sqrt((n1 + n0) / (n1 * n0) + (g * g) / (2.0 * (n1 + n0 - 2)))
+    return float(g), float(se)
+
+def per_cluster_stats(X: pd.DataFrame, endpoints: pd.DataFrame, *, outcome_col: str = "outcome") -> pd.DataFrame:
+    endpoints = endpoints.reindex(X.index)
+    y = endpoints[outcome_col].astype(int).to_numpy()
+    logX = np.log1p(X.to_numpy(dtype=float))
+
+    rows = []
+    for j, cid in enumerate(X.columns.astype(str).tolist()):
+        g, se = hedges_g(logX[y == 1, j], logX[y == 0, j])
+        z = g / se if (se and np.isfinite(se) and se > 0) else np.nan
+        p = math.erfc(abs(z) / math.sqrt(2.0)) if np.isfinite(z) else np.nan
+        rows.append({"cluster_id": cid, "hedges_g": g, "se": se, "z": z, "p": p})
+    return pd.DataFrame(rows).sort_values("p")
+
+stats_a = per_cluster_stats(clusters.cluster_expr["StudyA"], endpoints_a, outcome_col="outcome")
+stats_b = per_cluster_stats(clusters.cluster_expr["StudyB"], endpoints_b, outcome_col="outcome")
+
+stats_a.head()
+```
+
+```{python}
+#| label: pathway-toy-cluster-stats-studyb
+stats_b.head()
+```
+
+For additional worked examples, see the companion tutorial on per-cluster statistics.
+
+## Export cluster m/z for pathway enrichment
+
+Many pathway tools accept a list of m/z values (and polarity). You can export representative cluster m/z as:
+
+```{python}
+#| label: pathway-toy-export-mz
+clusters.cluster_metadata.loc[:, ["cluster_id", "MZ"]]
+```
+
+```{python}
+#| label: pathway-export-mz-template
+#| eval: false
+clusters.cluster_metadata.loc[:, ["cluster_id", "MZ"]].to_csv(
+    "cluster_mz.tsv",
+    sep="\t",
+    index=False,
+)
+```
+
+## Outputs
+
+- `cluster_metadata.tsv`: representative m/z/RT per cluster
+- `cluster_map.tsv`: feature IDs assigned to each cluster per study
+- `cluster_expr_<study_id>.tsv.gz`: sample×cluster matrices (when sample matrices are available)

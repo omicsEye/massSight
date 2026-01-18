@@ -1,0 +1,65 @@
+---
+title: "Matching two studies"
+format:
+  html:
+    toc: true
+---
+
+## Inputs
+
+`massSight` expects two feature tables with at least:
+
+- `MZ` (m/z)
+- `RT` (retention time in minutes)
+- `Intensity` (a per-feature intensity summary; optional; often not comparable across studies)
+
+## CLI example
+
+```bash
+mass_sight match study_a.csv study_b.csv \
+  --out-candidates candidates.csv \
+  --out-top1 top1.csv \
+  --ppm 15
+```
+
+## Python example
+
+This example matches two small in-memory feature tables:
+
+```{python}
+#| label: matching-two-studies
+import pandas as pd
+
+from mass_sight import MassSightConfig, match_features
+
+study_a = pd.DataFrame(
+    {
+        "MZ": [100.0000, 150.0000, 200.0000, 250.0000],
+        "RT": [1.0, 2.0, 3.0, 4.0],
+        "Intensity": [1e5, 2e5, 1.5e5, 3e5],
+    }
+)
+
+# Simulate a small systematic mass drift (+5 ppm) plus an extra feature in study_b.
+ppm_shift = 5e-6
+study_b = pd.DataFrame(
+    {
+        "MZ": [mz * (1 + ppm_shift) for mz in [100.0000, 150.0000, 200.0000, 250.0000]] + [300.0],
+        "RT": [1.1, 2.1, 3.1, 4.1, 5.0],
+        "Intensity": [1.1e5, 1.9e5, 1.4e5, 3.1e5, 5e4],
+    }
+)
+
+cfg = MassSightConfig(ppm=20.0, rt=0.0, polarity="positive")
+res = match_features(study_a, study_b, cfg)
+res.top1
+```
+
+The `top1.csv` output includes:
+
+- `id1`, `id2`: row indices for `study_a` and `study_b` (`id2=-1` means unmatched when enabled)
+- `decision`: `match`, `null_ot` (OT explicit null), `abstain` (discriminative abstention), or `no_candidate`
+- `support`: stability score in \[0,1\] from perturb-and-match sampling (edge inclusion frequency; higher = more stable)
+- `margin`: OT ambiguity score (`p1-p2`, where `p1`/`p2` are the top-2 OT row probabilities)
+- `prob_raw`: OT row-normalized weight for the returned decision (match probability or `p_null` when unmatched)
+- `p_null`: (when enabled) OT row-normalized weight assigned to the explicit null match
