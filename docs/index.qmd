@@ -11,10 +11,16 @@ format:
 
 ## Install
 
-Install from source (recommended until the first release):
+Install using `uv`:
 
 ```bash
-uv pip install git+https://github.com/omicsEye/massSight
+uv add mass-sight
+```
+
+Or using pip:
+
+```bash
+pip install mass-sight
 ```
 
 ## Quickstart: match two studies
@@ -26,20 +32,7 @@ mass_sight match study_a.csv study_b.csv \
   --ppm 15
 ```
 
-## Quickstart: cluster multiple studies
-
-Create a multi-study manifest (YAML/JSON) and run:
-
-```bash
-mass_sight cluster \
-  --manifest path/to/manifest.yaml \
-  --out-dir tmp_outputs/mass_sight_cluster_demo \
-  --strategy hub \
-  --ppm 15
-```
-
-## Build these docs
-
-```bash
-./docs/build.sh
-```
+- `study_a.csv` and `study_b.csv` are feature tables (CSV/TSV) with at least `feature_id`, `mz`, and `rt` columns.
+- `candidates.csv` contains all possible feature matches with their probabilities.
+- `top1.csv` contains the top 1 peak match between the two studies.
+- `--ppm` specifies the mass accuracy tolerance in parts-per-million.

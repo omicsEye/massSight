@@ -6,23 +6,16 @@ massSight implements probabilistic drift-aware optimal transport for cross-study
 
 ## Install
 
-Requires Python ≥3.10.
-
-After installing, you can:
-
-- import `mass_sight` in Python
-- run `mass_sight` on the command line
-
-### Using `uv`
+Install using `uv`:
 
 ```bash
-uv pip install git+https://github.com/omicsEye/massSight
+uv add mass-sight
 ```
 
-### Using `pip`
+Or using pip:
 
 ```bash
-pip install git+https://github.com/omicsEye/massSight
+pip install mass-sight
 ```
 
 Core dependencies include `numpy`, `pandas`, `scikit-learn`, and `scipy`.
