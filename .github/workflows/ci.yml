@@ -38,7 +38,7 @@ jobs:
             uv-${{ runner.os }}-${{ matrix.python-version }}-
 
       - name: Sync
-        run: uv sync --all-groups
+        run: uv sync --frozen --all-groups
 
       - name: Run tests
         run: uv run pytest -q
