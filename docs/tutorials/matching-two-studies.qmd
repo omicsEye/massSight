@@ -58,8 +58,8 @@ res.top1
 The `top1.csv` output includes:
 
 - `id1`, `id2`: row indices for `study_a` and `study_b` (`id2=-1` means unmatched when enabled)
-- `decision`: `match`, `null_ot` (OT explicit null), `abstain` (discriminative abstention), or `no_candidate`
-- `support`: stability score in \[0,1\] from perturb-and-match sampling (edge inclusion frequency; higher = more stable)
+- `decision`: `match`, `null_ot` (OT explicit null), or `no_candidate`
+- `id2_raw`, `prob_match_raw`: top match candidate (before the OT null decision)
 - `margin`: OT ambiguity score (`p1-p2`, where `p1`/`p2` are the top-2 OT row probabilities)
 - `prob_raw`: OT row-normalized weight for the returned decision (match probability or `p_null` when unmatched)
 - `p_null`: (when enabled) OT row-normalized weight assigned to the explicit null match

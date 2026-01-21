@@ -67,7 +67,7 @@ study_b = pd.read_csv("study_b.csv")
 cfg = MassSightConfig()
 res = match_features(study_a, study_b, cfg)
 
-top1 = res.top1 # id1, id2, decision, support, margin, prob_raw, ...
+top1 = res.top1 # id1, id2, decision, margin, prob_raw, ...
 candidates = res.candidates  # residuals, log-likelihoods, OT weights, etc.
 ```
 

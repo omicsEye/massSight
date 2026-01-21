@@ -14,12 +14,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from .assignment_sampling import (
-    AssignmentSamplingConfig,
-    ConsensusAlignmentConfig,
-    consensus_one_to_one_alignment,
-    sample_one_to_one_assignments,
-)
 from .structure_graph import (
     StructureGraph,
     build_structure_graph,
@@ -145,25 +139,6 @@ class MassSightConfig:
     null_loglik_quantile: float = 0.2
     null_loglik: Optional[float] = None
     max_p0: Optional[float] = None
-
-    # Stability sampling (perturb-and-match) and optional consensus 1–1 output.
-    # We can sample many globally consistent 1–1 matchings and compute edge inclusion
-    # frequencies ("support") as a stability diagnostic. Consensus 1–1 output remains
-    # available, but the default output is OT top‑1 with an explicit no-match option.
-    use_consensus: bool = False
-    consensus_samples: int = 50
-    consensus_gumbel_scale: float = 1.0
-    # Default: keep matches that are stable across sampled 1–1 matchings.
-    # This is a stability/support threshold, not a calibrated probability.
-    consensus_min_support: float = 0.25
-    consensus_seed: int = 0
-
-    # Discriminative abstention (optional)
-    # Abstain (return no-match) only when a candidate match is both (i) unstable across
-    # sampled 1–1 matchings and (ii) ambiguous under OT (small p1-p2 margin).
-    use_discriminative_abstention: bool = False
-    abstain_support: float = 0.25
-    abstain_margin: float = 0.1
 
     # Structure-aware matching (optional)
     use_structure: bool = False
@@ -1892,161 +1867,49 @@ def match_features(
 
     # === Output ===
     # We always solve OT (above) to obtain a globally consistent soft coupling and to compute
-    # a principled null utility. Reporting is configurable:
-    #  - optional consensus 1–1 output (use_consensus=True)
-    #  - default OT top‑1 (use_consensus=False), with optional discriminative abstention
-    #    when use_discriminative_abstention=True.
-    if bool(getattr(cfg, "use_consensus", False)) and not cand.empty:
-        util_col = "loglik_total" if "loglik_total" in cand.columns else "loglik"
-        util = cand[util_col].to_numpy(dtype=float)
+    # a principled null utility. We report OT top‑1 (soft) with an explicit no‑match option.
+    # Build per-row top‑1 and OT ambiguity margin (p1-p2).
+    ranked = (
+        cand.sort_values(["id1", "p_row_ot"], ascending=[True, False])
+        .groupby("id1")
+        .head(2)
+        .copy()
+    )
+    ranked["rank"] = ranked.groupby("id1").cumcount()
+    pivot = ranked.pivot(index="id1", columns="rank", values="p_row_ot")
+    p1 = pivot.get(0, pd.Series(dtype=float)).reindex(range(int(n1))).fillna(0.0).to_numpy(dtype=float)
+    p2 = pivot.get(1, pd.Series(dtype=float)).reindex(range(int(n1))).fillna(0.0).to_numpy(dtype=float)
+    margin = np.maximum(p1 - p2, 0.0)
 
-        null_util = float(ot_summary.get("null_loglik", float("nan")))
-        if not np.isfinite(null_util):
-            finite = util[np.isfinite(util)]
-            null_util = float(np.nanquantile(finite, float(cfg.null_loglik_quantile))) if finite.size else -10.0
-        if not cfg.allow_unmatched:
-            finite = util[np.isfinite(util)]
-            null_util = float(np.nanmin(finite) - 100.0) if finite.size else -1e6
+    best = ranked[ranked["rank"] == 0].loc[:, ["id1", "id2", "p_row_ot"]].copy()
+    best = best.rename(columns={"id2": "id2_raw", "p_row_ot": "prob_match_raw"})
+    top1 = pd.DataFrame({"id1": np.arange(int(n1), dtype=int)})
+    top1 = top1.merge(best, how="left", on="id1")
+    top1["id2_raw"] = top1["id2_raw"].fillna(-1).astype(int)
+    top1["prob_match_raw"] = top1["prob_match_raw"].fillna(0.0)
+    top1["margin"] = margin.astype(float)
 
-        assign, support = consensus_one_to_one_alignment(
-            cand["id1"].to_numpy(dtype=int),
-            cand["id2"].to_numpy(dtype=int),
-            util,
-            n1=n1,
-            n2=n2,
-            sample_cfg=AssignmentSamplingConfig(
-                n_samples=int(getattr(cfg, "consensus_samples", 50)),
-                seed=int(getattr(cfg, "consensus_seed", 0)),
-                gumbel_scale=float(getattr(cfg, "consensus_gumbel_scale", 1.0)),
-                null_utility=float(null_util),
-            ),
-            consensus_cfg=ConsensusAlignmentConfig(
-                min_support=0.0
-                if not cfg.allow_unmatched
-                else float(getattr(cfg, "consensus_min_support", 0.25)),
-            ),
-        )
-        top1 = pd.DataFrame(
-            {
-                "id1": np.arange(n1, dtype=int),
-                "id2": assign.astype(int),
-                "support": support.astype(float),
-            }
-        )
+    top1["id2"] = top1["id2_raw"].to_numpy(dtype=int)
+    top1["decision"] = np.where(top1["id2"].to_numpy(dtype=int) >= 0, "match", "no_candidate")
 
-        # Attach raw OT row probability for the chosen assignment when available.
-        if "p_row_ot" in cand.columns:
-            top1 = top1.merge(
-                cand.loc[:, ["id1", "id2", "p_row_ot"]].rename(columns={"p_row_ot": "prob_raw"}),
-                how="left",
-                on=["id1", "id2"],
-            )
-            top1["prob_raw"] = top1["prob_raw"].fillna(0.0)
-
-        if cfg.allow_unmatched and p0 is not None:
-            p0_map = pd.Series(p0)
-            top1["p_null"] = top1["id1"].map(p0_map).fillna(0.0)
-            if "prob_raw" in top1.columns:
-                use_null = top1["id2"].to_numpy(dtype=int) < 0
-                top1.loc[use_null, "prob_raw"] = top1.loc[use_null, "p_null"]
-            if cfg.max_p0 is not None:
-                top1 = top1[top1["p_null"] < float(cfg.max_p0)].copy()
+    # OT null decision.
+    if cfg.allow_unmatched and p0 is not None:
+        p0_map = pd.Series(p0)
+        top1["p_null"] = top1["id1"].map(p0_map).fillna(0.0)
+        use_null = (top1["id2_raw"].to_numpy(dtype=int) >= 0) & (top1["p_null"] >= top1["prob_match_raw"])
+        top1.loc[use_null, "id2"] = -1
+        top1.loc[use_null, "decision"] = "null_ot"
     else:
-        # Default: OT top‑1 (soft), with optional null + stability-based abstention.
-        # Build per-row top‑1 and OT ambiguity margin (p1-p2).
-        ranked = (
-            cand.sort_values(["id1", "p_row_ot"], ascending=[True, False])
-            .groupby("id1")
-            .head(2)
-            .copy()
-        )
-        ranked["rank"] = ranked.groupby("id1").cumcount()
-        pivot = ranked.pivot(index="id1", columns="rank", values="p_row_ot")
-        p1 = pivot.get(0, pd.Series(dtype=float)).reindex(range(int(n1))).fillna(0.0).to_numpy(dtype=float)
-        p2 = pivot.get(1, pd.Series(dtype=float)).reindex(range(int(n1))).fillna(0.0).to_numpy(dtype=float)
-        margin = np.maximum(p1 - p2, 0.0)
+        top1["p_null"] = 0.0
 
-        best = ranked[ranked["rank"] == 0].loc[:, ["id1", "id2", "p_row_ot"]].copy()
-        best = best.rename(columns={"id2": "id2_raw", "p_row_ot": "prob_match_raw"})
-        top1 = pd.DataFrame({"id1": np.arange(int(n1), dtype=int)})
-        top1 = top1.merge(best, how="left", on="id1")
-        top1["id2_raw"] = top1["id2_raw"].fillna(-1).astype(int)
-        top1["prob_match_raw"] = top1["prob_match_raw"].fillna(0.0)
-        top1["margin"] = margin.astype(float)
+    # Final output probability: for matches report OT p1; for no-match report OT p_null.
+    top1["prob_raw"] = top1["prob_match_raw"].to_numpy(dtype=float)
+    no_match = top1["id2"].to_numpy(dtype=int) < 0
+    if "p_null" in top1.columns:
+        top1.loc[no_match, "prob_raw"] = top1.loc[no_match, "p_null"]
 
-        top1["id2"] = top1["id2_raw"].to_numpy(dtype=int)
-        top1["decision"] = np.where(top1["id2"].to_numpy(dtype=int) >= 0, "match", "no_candidate")
-
-        # OT null decision.
-        if cfg.allow_unmatched and p0 is not None:
-            p0_map = pd.Series(p0)
-            top1["p_null"] = top1["id1"].map(p0_map).fillna(0.0)
-            use_null = (top1["id2_raw"].to_numpy(dtype=int) >= 0) & (top1["p_null"] >= top1["prob_match_raw"])
-            top1.loc[use_null, "id2"] = -1
-            top1.loc[use_null, "decision"] = "null_ot"
-        else:
-            top1["p_null"] = 0.0
-
-        # Stability support for the current (pre-abstention) decision.
-        support = None
-        need_support = bool(getattr(cfg, "use_discriminative_abstention", False)) and bool(cfg.allow_unmatched)
-        if need_support and not cand.empty:
-            util_col = "loglik_total" if "loglik_total" in cand.columns else "loglik"
-            util = cand[util_col].to_numpy(dtype=float)
-
-            null_util = float(ot_summary.get("null_loglik", float("nan")))
-            if not np.isfinite(null_util):
-                finite = util[np.isfinite(util)]
-                null_util = float(np.nanquantile(finite, float(cfg.null_loglik_quantile))) if finite.size else -10.0
-            if not cfg.allow_unmatched:
-                finite = util[np.isfinite(util)]
-                null_util = float(np.nanmin(finite) - 100.0) if finite.size else -1e6
-
-            assigns = sample_one_to_one_assignments(
-                cand["id1"].to_numpy(dtype=int),
-                cand["id2"].to_numpy(dtype=int),
-                util,
-                n1=int(n1),
-                n2=int(n2),
-                cfg=AssignmentSamplingConfig(
-                    n_samples=int(getattr(cfg, "consensus_samples", 50)),
-                    seed=int(getattr(cfg, "consensus_seed", 0)),
-                    gumbel_scale=float(getattr(cfg, "consensus_gumbel_scale", 1.0)),
-                    null_utility=float(null_util),
-                ),
-            )
-            pred = top1["id2"].to_numpy(dtype=int)
-            support = np.mean(assigns == pred[None, :], axis=0).astype(float)
-
-        if support is None:
-            top1["support"] = np.nan
-        else:
-            top1["support"] = support
-
-        # Discriminative abstention: abstain only on low-support AND low-margin matches.
-        if need_support and support is not None:
-            abstain_support = float(getattr(cfg, "abstain_support", 0.25))
-            abstain_margin = float(getattr(cfg, "abstain_margin", 0.1))
-            if not np.isfinite(abstain_support):
-                abstain_support = 0.25
-            if not np.isfinite(abstain_margin):
-                abstain_margin = 0.1
-            abstain_support = float(np.clip(abstain_support, 0.0, 1.0))
-            abstain_margin = float(max(abstain_margin, 0.0))
-
-            can_abstain = top1["decision"].astype(str) == "match"
-            abstain = can_abstain & (top1["support"] < abstain_support) & (top1["margin"] < abstain_margin)
-            top1.loc[abstain, "id2"] = -1
-            top1.loc[abstain, "decision"] = "abstain"
-
-        # Final output probability: for matches report OT p1; for no-match report OT p_null.
-        top1["prob_raw"] = top1["prob_match_raw"].to_numpy(dtype=float)
-        no_match = top1["id2"].to_numpy(dtype=int) < 0
-        if "p_null" in top1.columns:
-            top1.loc[no_match, "prob_raw"] = top1.loc[no_match, "p_null"]
-
-        if cfg.max_p0 is not None:
-            top1 = top1[top1["p_null"] < float(cfg.max_p0)].copy()
+    if cfg.max_p0 is not None:
+        top1 = top1[top1["p_null"] < float(cfg.max_p0)].copy()
 
     ot_summary.update({
         "n_candidates": float(len(cand)),

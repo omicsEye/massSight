@@ -34,7 +34,6 @@ quartodoc:
       desc: "Load multiple untargeted studies and build cross-study clusters."
       contents:
         - multistudy
-        - assignment_sampling
     - title: "Command-line interface"
       contents:
         - cli

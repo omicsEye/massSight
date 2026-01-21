@@ -43,58 +43,10 @@ def _add_match_parser(sub):
                    help="Disable intensity residual term (default)")
     p.set_defaults(use_intensity=False)
     p.add_argument(
-        "--consensus",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Output a consensus 1–1 alignment (default: disabled; use OT top‑1 + explicit no-match).",
-    )
-    p.add_argument(
-        "--consensus-samples",
-        type=int,
-        default=50,
-        help="Number of sampled 1–1 matchings for consensus stability (default: 50).",
-    )
-    p.add_argument(
-        "--consensus-min-support",
-        type=float,
-        default=0.25,
-        help="Consensus output: minimum edge inclusion frequency to accept a match (default: 0.25).",
-    )
-    p.add_argument(
-        "--consensus-gumbel-scale",
-        type=float,
-        default=1.0,
-        help="Gumbel noise scale (temperature) for consensus sampling (default: 1.0).",
-    )
-    p.add_argument(
-        "--consensus-seed",
-        type=int,
-        default=0,
-        help="RNG seed for consensus sampling (default: 0).",
-    )
-    p.add_argument(
         "--allow-unmatched",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Add a null column to allow 'no match' (default: enabled)",
-    )
-    p.add_argument(
-        "--abstain",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Enable discriminative abstention (support + OT margin) (default: disabled).",
-    )
-    p.add_argument(
-        "--abstain-support",
-        type=float,
-        default=0.25,
-        help="Abstain when support < this AND margin < --abstain-margin (default: 0.25).",
-    )
-    p.add_argument(
-        "--abstain-margin",
-        type=float,
-        default=0.1,
-        help="Abstain when support < --abstain-support AND margin < this (default: 0.1).",
     )
     p.add_argument("--null-mass", type=float, default=0.1, help="OT mass assigned to the null column when enabled")
 
@@ -110,24 +62,6 @@ def _add_cluster_parser(sub):
     p = sub.add_parser("cluster", help="Cluster multiple untargeted studies with massSight")
     p.add_argument("--manifest", required=True, type=str, help="Path to YAML/JSON multi-study manifest")
     p.add_argument("--out-dir", required=True, type=str, help="Output directory")
-    p.add_argument(
-        "--cluster-consensus",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Use consensus 1–1 output within pairwise matching (default: disabled).",
-    )
-    p.add_argument("--cluster-consensus-samples", type=int, default=50)
-    p.add_argument("--cluster-consensus-min-support", type=float, default=0.25)
-    p.add_argument("--cluster-consensus-gumbel-scale", type=float, default=1.0)
-    p.add_argument("--cluster-consensus-seed", type=int, default=0)
-    p.add_argument(
-        "--cluster-abstain",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Enable discriminative abstention within pairwise matching (default: disabled).",
-    )
-    p.add_argument("--cluster-abstain-support", type=float, default=0.25)
-    p.add_argument("--cluster-abstain-margin", type=float, default=0.1)
 
     p.add_argument(
         "--strategy",
@@ -160,8 +94,12 @@ def _add_cluster_parser(sub):
     p.add_argument("--polarity", choices=["positive", "negative"], default=None,
                    help="Override polarity for shift hypotheses (default: infer/validate from manifest).")
 
-    p.add_argument("--drift-fit-bootstrap", action="store_true", default=False,
-                   help="Fit drift models on a bootstrap resample of tight matches (perturb-and-match).")
+    p.add_argument(
+        "--drift-fit-bootstrap",
+        action="store_true",
+        default=False,
+        help="Fit drift models on a bootstrap resample of tight matches (uncertainty propagation).",
+    )
     p.add_argument("--drift-bootstrap-seed", type=int, default=0, help="RNG seed for drift bootstrap resampling.")
     return p
 
@@ -186,14 +124,6 @@ def main(argv=None) -> int:
             mz_shift_manual_deltas_da=[float(x) for x in (args.mz_shift_deltas_da or [])],
             mz_shift_penalty=float(args.mz_shift_penalty),
             use_intensity=bool(args.use_intensity),
-            use_consensus=bool(args.consensus),
-            consensus_samples=int(args.consensus_samples),
-            consensus_min_support=float(args.consensus_min_support),
-            consensus_gumbel_scale=float(args.consensus_gumbel_scale),
-            consensus_seed=int(args.consensus_seed),
-            use_discriminative_abstention=bool(args.abstain),
-            abstain_support=float(args.abstain_support),
-            abstain_margin=float(args.abstain_margin),
             allow_unmatched=bool(args.allow_unmatched),
             null_mass=float(args.null_mass),
             mz_col=str(args.mz_col),
@@ -241,14 +171,6 @@ def main(argv=None) -> int:
             polarity=polarity,
             drift_fit_bootstrap=bool(args.drift_fit_bootstrap),
             drift_bootstrap_seed=int(args.drift_bootstrap_seed),
-            use_consensus=bool(args.cluster_consensus),
-            consensus_samples=int(args.cluster_consensus_samples),
-            consensus_min_support=float(args.cluster_consensus_min_support),
-            consensus_gumbel_scale=float(args.cluster_consensus_gumbel_scale),
-            consensus_seed=int(args.cluster_consensus_seed),
-            use_discriminative_abstention=bool(args.cluster_abstain),
-            abstain_support=float(args.cluster_abstain_support),
-            abstain_margin=float(args.cluster_abstain_margin),
         )
 
         strategies = [args.strategy] if args.strategy != "both" else ["hub", "symmetric"]

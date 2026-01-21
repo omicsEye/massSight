@@ -288,27 +288,13 @@ def mutual_top1_map(study: LoadedStudy, hub: LoadedStudy, cfg: MassSightConfig) 
         rows.append({"study_idx": int(s_idx), "hub_idx": int(h_idx)})
 
     if not rows:
-        return pd.DataFrame(columns=["cluster_id", "study_id", "feature_id", "support_s2h", "support_h2s"])
+        return pd.DataFrame(columns=["cluster_id", "study_id", "feature_id"])
 
     mutual = pd.DataFrame(rows)
     mutual["cluster_id"] = mutual["hub_idx"].map(lambda i: str(ids_h[int(i)]))
     mutual["study_id"] = str(study.analysis_id)
     mutual["feature_id"] = mutual["study_idx"].map(lambda i: str(ids_s[int(i)]))
-
-    support_s2h = (
-        dict(zip(res_s2h.top1["id1"].to_numpy(dtype=int), res_s2h.top1["support"].to_numpy(dtype=float)))
-        if "support" in res_s2h.top1.columns
-        else {}
-    )
-    support_h2s = (
-        dict(zip(res_h2s.top1["id1"].to_numpy(dtype=int), res_h2s.top1["support"].to_numpy(dtype=float)))
-        if "support" in res_h2s.top1.columns
-        else {}
-    )
-    mutual["support_s2h"] = mutual["study_idx"].map(support_s2h)
-    mutual["support_h2s"] = mutual["hub_idx"].map(support_h2s)
-
-    return mutual.loc[:, ["cluster_id", "study_id", "feature_id", "support_s2h", "support_h2s"]].copy()
+    return mutual.loc[:, ["cluster_id", "study_id", "feature_id"]].copy()
 
 
 def build_cluster_expr(hub: LoadedStudy, other: LoadedStudy, cluster_map: pd.DataFrame) -> pd.DataFrame:
@@ -390,8 +376,6 @@ def cluster_hub_mutual_top1(
                     "cluster_id": str(fid),
                     "study_id": str(hub.analysis_id),
                     "feature_id": str(fid),
-                    "support_s2h": float("nan"),
-                    "support_h2s": float("nan"),
                 }
             )
         if cluster_map_rows:
@@ -403,17 +387,15 @@ def cluster_hub_mutual_top1(
                         "cluster_id": str(cid),
                         "study_id": str(sid),
                         "feature_id": str(fid),
-                        "support_s2h": float("nan"),
-                        "support_h2s": float("nan"),
                     }
                 )
         cluster_map = pd.DataFrame.from_records(
             records,
-            columns=["cluster_id", "study_id", "feature_id", "support_s2h", "support_h2s"],
+            columns=["cluster_id", "study_id", "feature_id"],
         )
     else:
         cluster_map = pd.concat(cluster_map_rows, ignore_index=True) if cluster_map_rows else pd.DataFrame(
-            columns=["cluster_id", "study_id", "feature_id", "support_s2h", "support_h2s"]
+            columns=["cluster_id", "study_id", "feature_id"]
         )
 
     cluster_expr: Dict[str, pd.DataFrame] = {}
@@ -520,16 +502,8 @@ def cluster_symmetric_mutual_graph(
             map_12 = dict(zip(t12["id1"].to_numpy(int), t12["id2"].to_numpy(int)))
             map_21 = dict(zip(t21["id1"].to_numpy(int), t21["id2"].to_numpy(int)))
 
-            support_12 = (
-                dict(zip(res_12.top1["id1"].to_numpy(int), res_12.top1["support"].to_numpy(float)))
-                if "support" in res_12.top1.columns
-                else {}
-            )
-            support_21 = (
-                dict(zip(res_21.top1["id1"].to_numpy(int), res_21.top1["support"].to_numpy(float)))
-                if "support" in res_21.top1.columns
-                else {}
-            )
+            prob_12 = dict(zip(t12["id1"].to_numpy(int), t12["prob_match_raw"].to_numpy(float)))
+            prob_21 = dict(zip(t21["id1"].to_numpy(int), t21["prob_match_raw"].to_numpy(float)))
 
             for idx1, idx2 in map_12.items():
                 back = map_21.get(int(idx2))
@@ -546,8 +520,8 @@ def cluster_symmetric_mutual_graph(
                         "feature_a": f1,
                         "study_b": s2.analysis_id,
                         "feature_b": f2,
-                        "support_ab": float(support_12.get(int(idx1), np.nan)),
-                        "support_ba": float(support_21.get(int(idx2), np.nan)),
+                        "prob_ab": float(prob_12.get(int(idx1), np.nan)),
+                        "prob_ba": float(prob_21.get(int(idx2), np.nan)),
                     }
                 )
 
@@ -573,9 +547,9 @@ def cluster_symmetric_mutual_graph(
             score = 0.0
             for e in edges:
                 if e["study_a"] == study_id and e["feature_a"] == feat_id:
-                    score += float(e.get("support_ab") or 0.0)
+                    score += float(e.get("prob_ab") or 0.0)
                 if e["study_b"] == study_id and e["feature_b"] == feat_id:
-                    score += float(e.get("support_ba") or 0.0)
+                    score += float(e.get("prob_ba") or 0.0)
             prev = chosen.get(study_id)
             if prev is None or score > prev[1]:
                 chosen[study_id] = (feat_id, score)
@@ -818,7 +792,7 @@ def cluster_hub_consensus_template_ot(
             if mutual_pairs.empty:
                 continue
 
-            # Attach diagnostics from the forward candidate table (mz1_eff, mz_shift_da, support).
+            # Attach diagnostics from the forward candidate table (mz1_eff, mz_shift_da).
             cand = res_s2t.candidates
             cand_sub = cand.merge(mutual_pairs, on=["id1", "id2"], how="inner")
             if not cand_sub.empty and "loglik" in cand_sub.columns:
@@ -828,27 +802,15 @@ def cluster_hub_consensus_template_ot(
                     .copy()
                 )
 
-            # Support maps
-            support_s2t = (
-                dict(zip(res_s2t.top1["id1"].to_numpy(dtype=int), res_s2t.top1["support"].to_numpy(dtype=float)))
-                if "support" in res_s2t.top1.columns
-                else {}
-            )
-            support_t2s = {}
-            if res_t2s is not None and "support" in res_t2s.top1.columns:
-                support_t2s = dict(zip(res_t2s.top1["id1"].to_numpy(dtype=int), res_t2s.top1["support"].to_numpy(dtype=float)))
-
             out = mutual_pairs.copy()
             out["cluster_id"] = out["id2"].map(lambda j: str(template_ids[int(j)]))
             out["study_id"] = str(study.analysis_id)
             out["feature_id"] = out["id1"].map(lambda i: str(ids_s[int(i)]))
-            out["support_s2t"] = out["id1"].map(support_s2t)
-            out["support_t2s"] = out["id2"].map(support_t2s) if support_t2s else np.nan
 
             if not cand_sub.empty:
                 out = out.merge(cand_sub.loc[:, ["id1", "id2", "mz1_eff", "mz_shift_da"]], on=["id1", "id2"], how="left")
 
-            cluster_map_rows.append(out.loc[:, ["cluster_id", "study_id", "feature_id", "support_s2t", "support_t2s"]].copy())
+            cluster_map_rows.append(out.loc[:, ["cluster_id", "study_id", "feature_id"]].copy())
 
             if "mz1_eff" in out.columns:
                 for rec in out.to_dict("records"):
@@ -884,7 +846,11 @@ def cluster_hub_consensus_template_ot(
             }
         )
 
-    cluster_map = pd.concat(cluster_map_rows, ignore_index=True) if cluster_map_rows else pd.DataFrame(columns=["cluster_id", "study_id", "feature_id", "support_s2t", "support_t2s"])
+    cluster_map = (
+        pd.concat(cluster_map_rows, ignore_index=True)
+        if cluster_map_rows
+        else pd.DataFrame(columns=["cluster_id", "study_id", "feature_id"])
+    )
 
     # Cluster metadata = final template values.
     # Note: cluster_id is the hub feature_id (template index) for this strategy.
@@ -1088,27 +1054,16 @@ def cluster_hub_barycenter_ot(
         if mutual_pairs.empty:
             continue
 
-        support_s2t = (
-            dict(zip(res_s2t.top1["id1"].to_numpy(dtype=int), res_s2t.top1["support"].to_numpy(dtype=float)))
-            if "support" in res_s2t.top1.columns
-            else {}
-        )
-        support_t2s = {}
-        if res_t2s is not None and "support" in res_t2s.top1.columns:
-            support_t2s = dict(zip(res_t2s.top1["id1"].to_numpy(dtype=int), res_t2s.top1["support"].to_numpy(dtype=float)))
-
         out = mutual_pairs.copy()
         out["cluster_id"] = out["id2"].map(lambda j: str(template_ids[int(j)]))
         out["study_id"] = str(study.analysis_id)
         out["feature_id"] = out["id1"].map(lambda i: str(ids_s[int(i)]))
-        out["support_s2t"] = out["id1"].map(support_s2t)
-        out["support_t2s"] = out["id2"].map(support_t2s) if support_t2s else np.nan
-        cluster_map_rows.append(out.loc[:, ["cluster_id", "study_id", "feature_id", "support_s2t", "support_t2s"]].copy())
+        cluster_map_rows.append(out.loc[:, ["cluster_id", "study_id", "feature_id"]].copy())
 
     cluster_map_matches = (
         pd.concat(cluster_map_rows, ignore_index=True)
         if cluster_map_rows
-        else pd.DataFrame(columns=["cluster_id", "study_id", "feature_id", "support_s2t", "support_t2s"])
+        else pd.DataFrame(columns=["cluster_id", "study_id", "feature_id"])
     )
 
     unmatched: Dict[str, List[Tuple[str, str]]] = {}
@@ -1158,8 +1113,6 @@ def cluster_hub_barycenter_ot(
                     "cluster_id": str(cid),
                     "study_id": str(hub.analysis_id),
                     "feature_id": str(cid),
-                    "support_s2t": float("nan"),
-                    "support_t2s": float("nan"),
                 }
             )
         if not cluster_map_matches.empty:
@@ -1171,13 +1124,11 @@ def cluster_hub_barycenter_ot(
                         "cluster_id": str(cid),
                         "study_id": str(sid),
                         "feature_id": str(fid),
-                        "support_s2t": float("nan"),
-                        "support_t2s": float("nan"),
                     }
                 )
         cluster_map = pd.DataFrame.from_records(
             records,
-            columns=["cluster_id", "study_id", "feature_id", "support_s2t", "support_t2s"],
+            columns=["cluster_id", "study_id", "feature_id"],
         )
 
         counts = (
