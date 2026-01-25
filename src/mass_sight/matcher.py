@@ -105,7 +105,7 @@ class MassSightConfig:
     rt_drift_x: str = "rt"  # "rt" | "ro" (retention order)
     # Cross-study default: disable explicit RT drift correction (often overfits sparse anchors).
     rt_drift_model: str = "none"  # "none" | "lowess" | "linear" | "robust-linear"
-    ppm_drift_model: str = "linear"  # "lowess" | "linear" | "robust-linear"
+    ppm_drift_model: str = "linear"  # "none" | "lowess" | "linear" | "robust-linear"
     # Retention-order drift correction model (delta_roi as a function of roi_x).
     # "none" disables explicit ROI drift correction (roi_fit=0 -> roi_resid=delta_roi).
     roi_drift_model: str = "none"  # "none" | "lowess" | "linear" | "robust-linear"
@@ -1105,7 +1105,9 @@ def _fit_drift_models_core(
     mz_x = tight_matches["mz_x"].to_numpy(dtype=float)
     delta_ppm = tight_matches["delta_ppm"].to_numpy(dtype=float)
     ppm_mode = str(getattr(cfg, "ppm_drift_model", "lowess") or "lowess").lower().strip()
-    if ppm_mode in {"lowess", "smooth"}:
+    if ppm_mode in {"none", "off", "identity"}:
+        ppm_model = lambda x: np.zeros_like(np.asarray(x, dtype=float))
+    elif ppm_mode in {"lowess", "smooth"}:
         ppm_model = _fit_spline_smooth(mz_x, delta_ppm, df=int(cfg.ppm_spline_df))
     elif ppm_mode in {"linear", "ols"}:
         ppm_model = _fit_linear_model(mz_x, delta_ppm)
