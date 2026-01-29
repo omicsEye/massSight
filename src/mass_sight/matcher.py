@@ -129,10 +129,19 @@ class MassSightConfig:
     anchor_scale_min_count: int = 30
 
     # OT parameters
+    # OT mode:
+    # - "balanced": (default) entropic OT with row + column marginals (and optional null column)
+    # - "unbalanced": entropic OT with relaxed KL-penalized marginals (better supports many-to-one)
+    # - "semi_relaxed": constrain rows only (columns have infinite capacity; effectively a per-row softmax at temperature `ot_epsilon`)
+    ot_mode: str = "balanced"  # "balanced" | "unbalanced" | "semi_relaxed"
     ot_epsilon: float = 0.5
     ot_max_iter: int = 200
     ot_tol: float = 1e-4
     ot_min_mass: float = 1e-12
+    # Unbalanced OT (KL-relaxed marginals) parameters. Larger values enforce marginals more strongly.
+    # Effective exponent: tau = lambda / (lambda + ot_epsilon), so lambda >> epsilon approximates balanced OT.
+    ot_unbalanced_lambda_row: float = 10.0
+    ot_unbalanced_lambda_col: float = 1.0
     # Cross-study default: permit explicit no-match via a null OT column.
     allow_unmatched: bool = True
     null_mass: float = 0.1
@@ -1349,6 +1358,8 @@ def _sinkhorn_sparse(
     *,
     a: Optional[np.ndarray] = None,
     b: Optional[np.ndarray] = None,
+    tau_a: float = 1.0,
+    tau_b: float = 1.0,
 ) -> Tuple[np.ndarray, Dict[str, float]]:
     eps = float(cfg.ot_epsilon)
     min_mass = float(cfg.ot_min_mass)
@@ -1388,27 +1399,51 @@ def _sinkhorn_sparse(
 
     row_err = float("nan")
     col_err = float("nan")
+    unbalanced = (abs(float(tau_a) - 1.0) > 1e-12) or (abs(float(tau_b) - 1.0) > 1e-12)
+    tau_a = float(tau_a)
+    tau_b = float(tau_b)
+    if not np.isfinite(tau_a) or tau_a < 0:
+        tau_a = 1.0
+    if not np.isfinite(tau_b) or tau_b < 0:
+        tau_b = 1.0
 
     for it in range(max_iter):
+        u_prev = u.copy() if unbalanced else None
+        v_prev = v.copy() if unbalanced else None
+
         r = np.bincount(id1, weights=k * v[id2], minlength=n1)
         u = np.zeros(n1, dtype=float)
-        u[row_has] = a[row_has] / np.maximum(r[row_has], min_mass)
+        if unbalanced:
+            u[row_has] = (a[row_has] / np.maximum(r[row_has], min_mass)) ** tau_a
+        else:
+            u[row_has] = a[row_has] / np.maximum(r[row_has], min_mass)
 
         c = np.bincount(id2, weights=k * u[id1], minlength=n2)
         v = np.zeros(n2, dtype=float)
-        v[col_has] = b[col_has] / np.maximum(c[col_has], min_mass)
+        if unbalanced:
+            v[col_has] = (b[col_has] / np.maximum(c[col_has], min_mass)) ** tau_b
+        else:
+            v[col_has] = b[col_has] / np.maximum(c[col_has], min_mass)
 
         if it % 10 == 0 or it == max_iter - 1:
-            r_check = np.bincount(id1, weights=k * v[id2], minlength=n1)
-            row_sum = u * r_check
-            c_check = np.bincount(id2, weights=k * u[id1], minlength=n2)
-            col_sum = v * c_check
-            if row_has.any():
-                row_err = float(np.nanmax(np.abs(row_sum[row_has] - a[row_has])))
-            if col_has.any():
-                col_err = float(np.nanmax(np.abs(col_sum[col_has] - b[col_has])))
-            if row_err <= tol and col_err <= tol:
-                break
+            if unbalanced:
+                du = float(np.nanmax(np.abs(u - (u_prev if u_prev is not None else u))))
+                dv = float(np.nanmax(np.abs(v - (v_prev if v_prev is not None else v))))
+                row_err = du
+                col_err = dv
+                if du <= tol and dv <= tol:
+                    break
+            else:
+                r_check = np.bincount(id1, weights=k * v[id2], minlength=n1)
+                row_sum = u * r_check
+                c_check = np.bincount(id2, weights=k * u[id1], minlength=n2)
+                col_sum = v * c_check
+                if row_has.any():
+                    row_err = float(np.nanmax(np.abs(row_sum[row_has] - a[row_has])))
+                if col_has.any():
+                    col_err = float(np.nanmax(np.abs(col_sum[col_has] - b[col_has])))
+                if row_err <= tol and col_err <= tol:
+                    break
 
     weights = k * u[id1] * v[id2]
     summary = {
@@ -1416,6 +1451,9 @@ def _sinkhorn_sparse(
         "ot_row_err": float(row_err),
         "ot_col_err": float(col_err),
         "ot_epsilon": float(eps),
+        "ot_tau_row": float(tau_a),
+        "ot_tau_col": float(tau_b),
+        "ot_unbalanced": float(1.0 if unbalanced else 0.0),
     }
     return weights, summary
 
@@ -1478,7 +1516,64 @@ def _solve_ot(
         id2 = np.concatenate([id2, np.full(len(null_rows), null_col, dtype=int)], axis=0)
         loglik = np.concatenate([loglik, np.full(len(null_rows), null_loglik, dtype=float)], axis=0)
 
-    weights, ot_summary = _sinkhorn_sparse(id1, id2, loglik, n1, n2_ext, cfg, a=a, b=b)
+    mode = str(getattr(cfg, "ot_mode", "balanced") or "balanced").strip().lower()
+    mode = mode.replace("-", "_")
+    if mode not in {"balanced", "unbalanced", "semi_relaxed"}:
+        raise ValueError(f"Unsupported ot_mode: {cfg.ot_mode!r}")
+
+    # --- Semi-relaxed OT: constrain rows only (columns have infinite capacity). ---
+    # This yields a per-row softmax distribution at temperature `ot_epsilon` (plus null option).
+    if mode == "semi_relaxed":
+        # Row marginals used only to produce a transport mass (for diagnostics / compatibility).
+        if a is None:
+            row_has2 = np.bincount(id1[:n_edges_real], minlength=n1) > 0
+            a = np.zeros(n1, dtype=float)
+            if row_has2.any():
+                a[row_has2] = 1.0 / float(row_has2.sum())
+
+        # Probabilities over real edges (and per-row null via p0).
+        p_row, p0 = _row_softmax_sparse(
+            id1[:n_edges_real],
+            loglik[:n_edges_real],
+            n1,
+            null_loglik=float(null_loglik) if (cfg.allow_unmatched and null_loglik is not None) else None,
+            temperature=float(cfg.ot_epsilon),
+        )
+        weights_real = p_row * a[id1[:n_edges_real]]
+        ot_summary = {
+            "ot_mode": "semi_relaxed",
+            "ot_iter": 1.0,
+            "ot_row_err": float("nan"),
+            "ot_col_err": float("nan"),
+            "ot_epsilon": float(cfg.ot_epsilon),
+            "ot_tau_row": float("nan"),
+            "ot_tau_col": float("nan"),
+            "ot_unbalanced": 0.0,
+        }
+        ot_summary.update({
+            "allow_unmatched": float(1.0 if cfg.allow_unmatched else 0.0),
+            "null_mass": float(null_mass if cfg.allow_unmatched else np.nan),
+            "null_loglik": float(null_loglik) if cfg.allow_unmatched else float("nan"),
+        })
+        return weights_real, p_row, p0, ot_summary, null_loglik
+
+    # --- Balanced / unbalanced OT via Sinkhorn on a sparse kernel. ---
+    tau_a = 1.0
+    tau_b = 1.0
+    if mode == "unbalanced":
+        lam_row = float(getattr(cfg, "ot_unbalanced_lambda_row", 10.0) or 10.0)
+        lam_col = float(getattr(cfg, "ot_unbalanced_lambda_col", 1.0) or 1.0)
+        eps = float(cfg.ot_epsilon)
+        if not np.isfinite(lam_row) or lam_row < 0:
+            lam_row = 10.0
+        if not np.isfinite(lam_col) or lam_col < 0:
+            lam_col = 1.0
+        if not np.isfinite(eps) or eps <= 0:
+            eps = 1.0
+        tau_a = float(lam_row / (lam_row + eps))
+        tau_b = float(lam_col / (lam_col + eps))
+
+    weights, ot_summary = _sinkhorn_sparse(id1, id2, loglik, n1, n2_ext, cfg, a=a, b=b, tau_a=tau_a, tau_b=tau_b)
 
     weights_real = weights[:n_edges_real]
     row_real = np.bincount(id1[:n_edges_real], weights=weights_real, minlength=n1)
@@ -1499,12 +1594,84 @@ def _solve_ot(
         p0[nonzero] = row_null[nonzero] / row_total[nonzero]
 
     ot_summary.update({
+        "ot_mode": str(mode),
         "allow_unmatched": float(1.0 if cfg.allow_unmatched else 0.0),
         "null_mass": float(null_mass if cfg.allow_unmatched else np.nan),
         "null_loglik": float(null_loglik) if cfg.allow_unmatched else float("nan"),
     })
 
     return weights_real, p_row_ot, p0, ot_summary, null_loglik
+
+
+def _row_softmax_sparse(
+    id1: np.ndarray,
+    score: np.ndarray,
+    n1: int,
+    *,
+    null_loglik: Optional[float] = None,
+    temperature: float = 1.0,
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """Row-wise softmax over a sparse edge list, optionally including a null option.
+
+    Returns:
+      - p_row: per-edge probabilities, normalized within each id1 (and including null if provided)
+      - p0: per-row null probability (length n1) if null_loglik is not None
+    """
+    id1 = np.asarray(id1, dtype=int)
+    score = np.asarray(score, dtype=float)
+    n1 = int(n1)
+    if n1 <= 0 or score.size == 0:
+        p0 = None
+        if null_loglik is not None and n1 > 0:
+            p0 = np.ones(n1, dtype=float)
+        return np.zeros_like(score, dtype=float), p0
+
+    temp = float(temperature)
+    if not np.isfinite(temp) or temp <= 0:
+        temp = 1.0
+
+    s = score.copy()
+    s[~np.isfinite(s)] = -np.inf
+
+    # Stable row max via numpy (avoid pandas overhead).
+    row_max = np.full(n1, -np.inf, dtype=float)
+    np.maximum.at(row_max, id1, s)
+    row_max[~np.isfinite(row_max)] = 0.0
+
+    exp_scores = np.exp((s - row_max[id1]) / temp)
+    sum_exp = np.bincount(id1, weights=exp_scores, minlength=n1).astype(float)
+
+    if null_loglik is None:
+        denom = sum_exp[id1]
+        denom = np.where(denom > 0, denom, 1.0)
+        return exp_scores / denom, None
+
+    nl = float(null_loglik)
+    # Include the null option for every row (even those with no edges).
+    exp_null = np.exp((nl - row_max) / temp)
+    total = sum_exp + exp_null
+    total_safe = np.where(total > 0, total, 1.0)
+    p0 = exp_null / total_safe
+    return exp_scores / total_safe[id1], p0
+
+
+def _row_entropy_sparse(id1: np.ndarray, p_row: np.ndarray, n1: int, *, p0: Optional[np.ndarray] = None) -> np.ndarray:
+    """Per-row Shannon entropy for a sparse row distribution (optionally with null mass)."""
+    id1 = np.asarray(id1, dtype=int)
+    p_row = np.asarray(p_row, dtype=float)
+    n1 = int(n1)
+    if n1 <= 0:
+        return np.zeros(0, dtype=float)
+    ent = np.zeros(n1, dtype=float)
+    ok = np.isfinite(p_row) & (p_row > 0)
+    if np.any(ok):
+        term = p_row[ok] * np.log(p_row[ok])
+        np.add.at(ent, id1[ok], term)
+    if p0 is not None:
+        p0 = np.asarray(p0, dtype=float)
+        ok0 = np.isfinite(p0) & (p0 > 0)
+        ent[ok0] += p0[ok0] * np.log(p0[ok0])
+    return -ent
 
 
 def _build_row_maps(cand: pd.DataFrame, n1: int, prob_col: str) -> List[Dict[int, float]]:
@@ -1870,6 +2037,30 @@ def match_features(
     # === Output ===
     # We always solve OT (above) to obtain a globally consistent soft coupling and to compute
     # a principled null utility. We report OT top‑1 (soft) with an explicit no‑match option.
+    #
+    # In addition, we expose a "local" correspondence distribution that does not impose
+    # global 1‑1 competition: a row-wise softmax over `loglik_total` (plus the same null option).
+    id1 = cand["id1"].to_numpy(dtype=int)
+    p_row_local, p0_local = _row_softmax_sparse(
+        id1,
+        cand["loglik_total"].to_numpy(dtype=float),
+        n1,
+        null_loglik=(float(null_loglik) if (cfg.allow_unmatched and null_loglik is not None) else None),
+    )
+    cand["p_row_local"] = p_row_local
+    if cfg.allow_unmatched and p0_local is not None:
+        cand["p0_local"] = cand["id1"].map(pd.Series(p0_local))
+
+    # Per-row uncertainty diagnostics (entropy + effective candidate count).
+    row_ent_local = _row_entropy_sparse(id1, p_row_local, n1, p0=p0_local if cfg.allow_unmatched else None)
+    cand["row_entropy_local"] = cand["id1"].map(pd.Series(row_ent_local))
+    cand["row_neff_local"] = cand["id1"].map(pd.Series(np.exp(row_ent_local)))
+    if "p_row_ot" in cand.columns:
+        p_row_ot = cand["p_row_ot"].to_numpy(dtype=float)
+        row_ent_ot = _row_entropy_sparse(id1, p_row_ot, n1, p0=p0 if cfg.allow_unmatched else None)
+        cand["row_entropy_ot"] = cand["id1"].map(pd.Series(row_ent_ot))
+        cand["row_neff_ot"] = cand["id1"].map(pd.Series(np.exp(row_ent_ot)))
+
     # Build per-row top‑1 and OT ambiguity margin (p1-p2).
     ranked = (
         cand.sort_values(["id1", "p_row_ot"], ascending=[True, False])
