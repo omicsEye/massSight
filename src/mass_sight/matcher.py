@@ -42,9 +42,12 @@ class MassSightConfig:
     # comparable across instruments and preprocessing pipelines.
     intensity_log_diff_max: float = 5.0
 
-    # Candidate expansion via discrete m/z shift hypotheses
-    # Cross-study default: enable ion-aware discrete mass-shift expansion.
-    mz_shift_mode: str = "auto"  # "none" | "auto" | "manual"
+    # Candidate expansion via discrete m/z shift hypotheses (experimental).
+    #
+    # We currently disable this by default because it degrades performance on the
+    # canonical MW NEW_V1 benchmark. The functionality remains available for
+    # targeted stress tests / future work.
+    mz_shift_mode: str = "none"  # "none" | "auto" | "manual"
     # Positive-mode shift family selection (used only when polarity="positive").
     # - "conservative": ±H only
     # - "expanded": include common POS adducts (H/NH4/Na/K) in addition to ±H

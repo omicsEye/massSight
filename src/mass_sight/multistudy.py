@@ -753,12 +753,11 @@ def cluster_hub_consensus_template_ot(
     This is a lightweight “multi-marginal” extension of hub clustering:
     - Initialize a template from the hub study’s features.
     - Align every other study to the template via mutual top-1 matching.
-    - Update template m/z using the matched features’ *effective* m/z (mz + inferred discrete shift).
+    - Update template m/z using the matched features’ m/z (in template space).
     - Repeat for a small number of iterations.
 
     Notes:
-    - Template m/z updates use `mz1_eff` from candidate edges (feature m/z adjusted into template space),
-      which avoids the failure mode of averaging raw m/z across adduct states.
+    - Template m/z updates use `mz1_eff` from candidate edges when available (feature m/z adjusted into template space).
     - RT/intensity are not updated in V1 (hub values are retained).
     """
     if not studies:

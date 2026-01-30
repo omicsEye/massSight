@@ -26,17 +26,6 @@ def _add_match_parser(sub):
     p.add_argument("--tight-ppm", type=float, default=7.0, help="Tight ppm window for drift fitting")
     p.add_argument("--tight-rt", type=float, default=0.0, help="Tight RT window for drift fitting")
 
-    # Candidate expansion (ion-aware mass offsets)
-    p.add_argument("--mz-shift-mode", choices=["none", "auto", "manual"], default="auto")
-    p.add_argument(
-        "--mz-shift-delta-da",
-        dest="mz_shift_deltas_da",
-        action="append",
-        default=None,
-        help="Manual discrete m/z shift in Da (repeatable; used when --mz-shift-mode manual)",
-    )
-    p.add_argument("--mz-shift-penalty", type=float, default=0.5, help="Penalty for non-zero shift hypotheses")
-
     # Intensity / unmatched mass
     p.add_argument("--use-intensity", dest="use_intensity", action="store_true", help="Enable intensity residual term")
     p.add_argument("--no-intensity", dest="use_intensity", action="store_false",
@@ -92,7 +81,7 @@ def _add_cluster_parser(sub):
     p.add_argument("--tight-ppm", type=float, default=7.0, help="Tight ppm window for drift fitting")
     p.add_argument("--tight-rt", type=float, default=0.0, help="Tight RT window for drift fitting")
     p.add_argument("--polarity", choices=["positive", "negative"], default=None,
-                   help="Override polarity for shift hypotheses (default: infer/validate from manifest).")
+                   help="Override polarity (default: infer/validate from manifest).")
 
     p.add_argument(
         "--drift-fit-bootstrap",
@@ -120,9 +109,6 @@ def main(argv=None) -> int:
             rt=float(args.rt),
             tight_ppm=float(args.tight_ppm),
             tight_rt=float(args.tight_rt),
-            mz_shift_mode=str(args.mz_shift_mode),
-            mz_shift_manual_deltas_da=[float(x) for x in (args.mz_shift_deltas_da or [])],
-            mz_shift_penalty=float(args.mz_shift_penalty),
             use_intensity=bool(args.use_intensity),
             allow_unmatched=bool(args.allow_unmatched),
             null_mass=float(args.null_mass),
