@@ -17,6 +17,7 @@ import pandas as pd
 from .structure_graph import (
     StructureGraph,
     build_structure_graph,
+    build_structure_graph_local_rt,
     build_structure_graph_stable,
     coerce_expression,
 )
@@ -25,6 +26,7 @@ from .lcms_utils import (
     ADDUCT_MASS_NEG,
     PROTON_MASS,
     SchemaConfig,
+    infer_rt_unit_scale_to_minutes,
     normalize_schema,
 )
 
@@ -87,6 +89,21 @@ class MassSightConfig:
     retention_min_unique_frac: float = 0.01
     retention_round_decimals: int = 3
 
+    # RT unit normalization + per-pair RT transferability.
+    #
+    # Some public feature tables store RT in seconds while others store minutes. In addition,
+    # even minutes-scale RT is not always transferable across studies (e.g., different HILIC
+    # columns/gradients). In `auto` mode we use m/z-tight mutual-NN anchors to decide whether
+    # to (a) fit a simple linear RT transfer (scale+offset) or (b) ignore RT/ROI terms.
+    normalize_rt_units: bool = True
+    rt_transferability: str = "auto"  # "off" | "auto"
+    rt_transfer_anchor_ppm: float = 5.0
+    rt_transfer_min_anchors: int = 25
+    rt_transfer_spearman_min: float = 0.8
+    rt_transfer_p95_abs_resid_max: float = 2.0
+    rt_transfer_max_anchors: int = 5000
+    rt_transfer_ransac_iters: int = 2000
+
     # Tight windows for drift estimation
     tight_ppm: float = 7.0
     tight_rt: float = 0.0
@@ -97,7 +114,7 @@ class MassSightConfig:
     #  - "all": keep all within tight windows (legacy)
     #  - "nn": per-feature nearest neighbor (by |ppm|) within tight windows
     #  - "mnn": mutual nearest neighbors (higher precision, fewer anchors)
-    tight_anchor_strategy: str = "all"
+    tight_anchor_strategy: str = "mnn"
     # Intensity-based tight-anchor filtering is only applied when `use_intensity=True`.
     tight_intensity_log_diff: float = 5.0
 
@@ -161,7 +178,10 @@ class MassSightConfig:
     structure_abs: bool = True
     structure_min_samples: int = 25
     # Graph construction strategy
-    structure_graph: str = "knn"  # "knn" | "stable"
+    structure_graph: str = "knn"  # "knn" | "stable" | "local_rt"
+    # RT-local correlation graph parameters (used only when structure_graph="local_rt").
+    structure_rt_window: float = 0.05
+    structure_max_candidates: int = 200
     structure_n_boot: int = 10
     structure_subsample_frac: float = 0.8
     structure_min_freq: float = 0.6
@@ -176,6 +196,9 @@ class MassSightConfig:
     structure_iters: int = 2
     structure_eps: float = 1e-8
     structure_bonus_mode: str = "mass"
+    # Optional: when RT is deemed non-transferable (rt_policy="ignore") and expression matrices
+    # are provided, automatically enable structure refinement with this alpha (>0).
+    structure_alpha_on_nontransferable_rt: float = 0.0
 
     # Schema columns
     mz_col: str = "MZ"
@@ -492,6 +515,239 @@ def _candidate_neighborhood_indices(
 def _ppm_signed_over_mean(mz_x: float, mz_y: float) -> float:
     denom = max(0.5 * (float(mz_x) + float(mz_y)), 1e-12)
     return (float(mz_y) - float(mz_x)) / denom * 1e6
+
+
+def _nearest_neighbor_mz_matches(
+    mz_query: np.ndarray,
+    mz_target: np.ndarray,
+    *,
+    mz_ppm: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    For each mz_query[i], find the nearest mz_target[j] within `mz_ppm` (ppm over mean m/z).
+
+    Returns:
+      - best_idx: shape (n_query,), -1 when no match within tolerance
+      - delta_ppm: signed ppm error for the chosen neighbor, NaN when no match
+    """
+    mz_query = np.asarray(mz_query, dtype=float)
+    mz_target = np.asarray(mz_target, dtype=float)
+
+    n_q = int(mz_query.size)
+    best_idx = np.full(n_q, -1, dtype=int)
+    delta_ppm = np.full(n_q, np.nan, dtype=float)
+    if n_q == 0 or int(mz_target.size) == 0:
+        return best_idx, delta_ppm
+
+    mask_t = np.isfinite(mz_target) & (mz_target > 0)
+    if int(mask_t.sum()) == 0:
+        return best_idx, delta_ppm
+
+    order = np.argsort(mz_target[mask_t])
+    idx_t = np.nonzero(mask_t)[0][order]
+    mz_sorted = mz_target[idx_t]
+    n_t = int(mz_sorted.size)
+    if n_t == 0:
+        return best_idx, delta_ppm
+
+    mask_q = np.isfinite(mz_query) & (mz_query > 0)
+    if int(mask_q.sum()) == 0:
+        return best_idx, delta_ppm
+
+    q = mz_query[mask_q]
+    pos = np.searchsorted(mz_sorted, q)
+    pos0 = np.clip(pos, 0, n_t - 1)
+    pos1 = np.clip(pos - 1, 0, n_t - 1)
+
+    cand0 = idx_t[pos0]
+    cand1 = idx_t[pos1]
+    diff0 = np.abs(mz_target[cand0] - q)
+    diff1 = np.abs(mz_target[cand1] - q)
+    use0 = diff0 <= diff1
+    cand = np.where(use0, cand0, cand1).astype(int)
+
+    denom = 0.5 * (mz_target[cand] + q)
+    denom = np.where(denom <= 1e-12, 1e-12, denom)
+    dppm = (mz_target[cand] - q) / denom * 1e6
+    ok = np.abs(dppm) <= float(mz_ppm)
+
+    q_idx = np.nonzero(mask_q)[0]
+    best_idx[q_idx[ok]] = cand[ok]
+    delta_ppm[q_idx[ok]] = dppm[ok]
+    return best_idx, delta_ppm
+
+
+def _infer_pair_rt_transferability(
+    study_a: pd.DataFrame,
+    study_b: pd.DataFrame,
+    cfg: MassSightConfig,
+) -> Dict[str, object]:
+    """
+    Decide whether RT is transferable across a dataset pair and, if so, fit a linear RT transform.
+
+    Uses m/z-tight mutual-nearest-neighbor (MNN) anchors as a high-precision proxy for shared ions.
+
+    Returns a dict with:
+      - rt_policy: 'linear' | 'ignore' | 'unknown'
+      - rt_scale, rt_offset: mapping from dataset B -> dataset A (rt_a ≈ scale*rt_b + offset)
+      - anchor diagnostics: n_anchors, spearman_rt, p95_abs_resid_rt, inlier_frac, etc.
+    """
+    mz1 = pd.to_numeric(study_a.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
+    mz2 = pd.to_numeric(study_b.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
+    rt1 = pd.to_numeric(study_a.get("RT"), errors="coerce").to_numpy(dtype=float, copy=False)
+    rt2 = pd.to_numeric(study_b.get("RT"), errors="coerce").to_numpy(dtype=float, copy=False)
+
+    anchor_ppm = float(getattr(cfg, "rt_transfer_anchor_ppm", 5.0) or 5.0)
+    min_anchors = int(getattr(cfg, "rt_transfer_min_anchors", 25) or 25)
+    spearman_min = float(getattr(cfg, "rt_transfer_spearman_min", 0.8) or 0.8)
+    p95_abs_resid_max = float(getattr(cfg, "rt_transfer_p95_abs_resid_max", 2.0) or 2.0)
+    max_anchors = int(getattr(cfg, "rt_transfer_max_anchors", 5000) or 5000)
+    max_anchors = max(max_anchors, 0)
+    ransac_cap = int(getattr(cfg, "rt_transfer_ransac_iters", 2000) or 2000)
+
+    out: Dict[str, object] = {
+        "rt_policy": "unknown",
+        "rt_scale": 1.0,
+        "rt_offset": 0.0,
+        "rt_anchor_ppm": float(anchor_ppm),
+        "rt_min_anchors": int(min_anchors),
+        "rt_n_anchors": 0,
+        "rt_n_inliers": 0,
+        "rt_inlier_frac": float("nan"),
+        "rt_ransac_tol": float("nan"),
+        "rt_spearman": float("nan"),
+        "rt_median_abs_resid": float("nan"),
+        "rt_p95_abs_resid": float("nan"),
+        "rt_note": "",
+    }
+
+    if int(mz1.size) == 0 or int(mz2.size) == 0:
+        out["rt_note"] = "empty_mz"
+        return out
+
+    best2_for_1, _ = _nearest_neighbor_mz_matches(mz1, mz2, mz_ppm=float(anchor_ppm))
+    best1_for_2, _ = _nearest_neighbor_mz_matches(mz2, mz1, mz_ppm=float(anchor_ppm))
+
+    i = np.arange(mz1.size, dtype=int)
+    j = best2_for_1
+    mnn = (j >= 0) & (best1_for_2[j] == i)
+    if not np.any(mnn):
+        out["rt_note"] = "no_mnn_anchors"
+        return out
+
+    i = i[mnn]
+    j = j[mnn]
+
+    rt1_a = rt1[i]
+    rt2_a = rt2[j]
+    keep = np.isfinite(rt1_a) & np.isfinite(rt2_a)
+    rt1_a = rt1_a[keep]
+    rt2_a = rt2_a[keep]
+
+    n = int(rt1_a.size)
+    out["rt_n_anchors"] = int(n)
+    if n < int(min_anchors):
+        out["rt_note"] = "too_few_anchors"
+        return out
+
+    if max_anchors > 0 and n > max_anchors:
+        rng = np.random.default_rng(0)
+        sel = rng.choice(n, size=max_anchors, replace=False)
+        rt1_a = rt1_a[sel]
+        rt2_a = rt2_a[sel]
+        n = int(rt1_a.size)
+        out["rt_n_anchors"] = int(n)
+        out["rt_note"] = "subsampled_anchors"
+
+    # Choose an inlier tolerance on a minutes-like scale; proportional to RT range but bounded.
+    with np.errstate(invalid="ignore"):
+        r1_range = float(np.nanmax(rt1_a) - np.nanmin(rt1_a))
+        r2_range = float(np.nanmax(rt2_a) - np.nanmin(rt2_a))
+    r_range = float(min(r1_range, r2_range))
+    tol = float(min(1.0, max(0.2, 0.05 * r_range)))
+    out["rt_ransac_tol"] = float(tol)
+
+    rng = np.random.default_rng(0)
+    iters = int(min(max(ransac_cap, 0), max(200, 2 * n)))
+    idx = np.arange(n, dtype=int)
+
+    best_inliers = None
+    best_count = -1
+    best_scale = 1.0
+    best_offset = 0.0
+    for _ in range(iters):
+        a, b = rng.choice(idx, size=2, replace=False)
+        x1 = float(rt2_a[a])
+        x2 = float(rt2_a[b])
+        if not np.isfinite(x1) or not np.isfinite(x2) or abs(x2 - x1) <= 1e-6:
+            continue
+        y1 = float(rt1_a[a])
+        y2 = float(rt1_a[b])
+        if not np.isfinite(y1) or not np.isfinite(y2):
+            continue
+        scale = (y2 - y1) / (x2 - x1)
+        if not np.isfinite(scale) or scale <= 0:
+            continue
+        offset = y1 - scale * x1
+        resid = (rt2_a * float(scale) + float(offset)) - rt1_a
+        inliers = np.abs(resid) <= tol
+        count = int(np.sum(inliers))
+        if count > best_count:
+            best_count = count
+            best_scale = float(scale)
+            best_offset = float(offset)
+            best_inliers = inliers
+
+    if best_inliers is None or best_count <= 0:
+        out["rt_note"] = "ransac_failed"
+        return out
+
+    # Refine using least squares on inliers.
+    in_mask = best_inliers
+    rt1_in = rt1_a[in_mask]
+    rt2_in = rt2_a[in_mask]
+    out["rt_n_inliers"] = int(rt1_in.size)
+    out["rt_inlier_frac"] = float(rt1_in.size / max(n, 1))
+
+    X = np.vstack([rt2_in, np.ones_like(rt2_in)]).T
+    beta = np.linalg.lstsq(X, rt1_in, rcond=None)[0]
+    scale = float(beta[0])
+    offset = float(beta[1])
+    if not np.isfinite(scale) or scale <= 0:
+        out["rt_note"] = "invalid_scale_refit"
+        return out
+    scale = float(np.clip(scale, 1.0 / 120.0, 120.0))
+
+    rt2_hat_in = rt2_in * scale + offset
+    resid_in = rt2_hat_in - rt1_in
+    abs_resid_in = np.abs(resid_in)
+    out["rt_scale"] = float(scale)
+    out["rt_offset"] = float(offset)
+    out["rt_median_abs_resid"] = float(np.median(abs_resid_in))
+    out["rt_p95_abs_resid"] = float(np.quantile(abs_resid_in, 0.95))
+
+    if rt1_in.size >= 3:
+        r1 = pd.Series(rt1_in).rank(method="average").to_numpy(dtype=float)
+        r2 = pd.Series(rt2_hat_in).rank(method="average").to_numpy(dtype=float)
+        if float(np.std(r1)) > 0 and float(np.std(r2)) > 0:
+            out["rt_spearman"] = float(np.corrcoef(r1, r2)[0, 1])
+
+    # Decision rule: trust RT when there is a substantial inlier population supporting a monotone linear map.
+    min_inlier_frac = 0.1
+    transferable = (
+        (out["rt_n_inliers"] >= int(min_anchors))
+        and np.isfinite(out["rt_spearman"])
+        and (float(out["rt_spearman"]) >= float(spearman_min))
+        and (float(out["rt_p95_abs_resid"]) <= float(p95_abs_resid_max))
+        and (float(out["rt_inlier_frac"]) >= float(min_inlier_frac))
+    )
+    if transferable:
+        out["rt_policy"] = "linear"
+        out["rt_note"] = "transferable"
+    else:
+        out["rt_policy"] = "ignore"
+        out["rt_note"] = "nontransferable"
+    return out
 
 
 def _build_candidate_pairs_shifted(
@@ -1830,8 +2086,67 @@ def _prepare_match(
         compound_override=cfg.compound_id_col_study_b,
     )
 
+    # --- RT unit normalization (seconds -> minutes) ---
+    if bool(getattr(cfg_eff, "normalize_rt_units", True)):
+        scale_a, info_a = infer_rt_unit_scale_to_minutes(study_a["RT"].to_numpy(dtype=float))
+        scale_b, info_b = infer_rt_unit_scale_to_minutes(study_b["RT"].to_numpy(dtype=float))
+        rt_gate_diag["rt_unit_scale_study_a"] = float(scale_a)
+        rt_gate_diag["rt_unit_scale_study_b"] = float(scale_b)
+        rt_gate_diag["rt_unit_note_study_a"] = str(info_a.get("note", ""))
+        rt_gate_diag["rt_unit_note_study_b"] = str(info_b.get("note", ""))
+        if float(scale_a) != 1.0:
+            study_a["RT"] = study_a["RT"].to_numpy(dtype=float) * float(scale_a)
+        if float(scale_b) != 1.0:
+            study_b["RT"] = study_b["RT"].to_numpy(dtype=float) * float(scale_b)
+
     cfg_eff, retention_diag = _maybe_disable_retention(study_a, study_b, cfg_eff)
     rt_gate_diag.update(retention_diag)
+
+    # --- Per-pair RT transferability (fit linear transform or ignore retention) ---
+    rt_transfer_mode = str(getattr(cfg_eff, "rt_transferability", "auto") or "auto").lower().strip()
+    if rt_transfer_mode not in {"off", "auto"}:
+        raise ValueError(
+            f"Unsupported rt_transferability: {getattr(cfg_eff, 'rt_transferability', None)!r} "
+            "(expected 'off' or 'auto')."
+        )
+    rt_gate_diag["rt_transferability"] = rt_transfer_mode
+    rt_gate_diag["rt_policy"] = "off" if rt_transfer_mode == "off" else "unknown"
+    rt_gate_diag["rt_scale"] = 1.0
+    rt_gate_diag["rt_offset"] = 0.0
+    rt_gate_diag["rt_note"] = ""
+
+    retention_mode_req = str(retention_diag.get("retention_mode_requested", "auto") or "auto").lower().strip()
+    retention_mode_eff = str(retention_diag.get("retention_mode_effective", retention_mode_req) or retention_mode_req)
+
+    if (
+        rt_transfer_mode == "auto"
+        and retention_mode_eff != "mz_only"
+        and (float(cfg_eff.w_rt) != 0.0 or float(cfg_eff.w_roi) != 0.0)
+    ):
+        rt_pair = _infer_pair_rt_transferability(study_a, study_b, cfg_eff)
+        # Flatten under stable keys for downstream logging.
+        for k, v in rt_pair.items():
+            rt_gate_diag[str(k)] = v
+
+        if str(rt_pair.get("rt_policy")) == "linear":
+            scale = float(rt_pair.get("rt_scale", 1.0) or 1.0)
+            offset = float(rt_pair.get("rt_offset", 0.0) or 0.0)
+            study_b["RT"] = study_b["RT"].to_numpy(dtype=float) * scale + offset
+            rt_gate_diag["rt_applied"] = True
+        elif str(rt_pair.get("rt_policy")) == "ignore" and retention_mode_req == "auto":
+            # In auto mode, treat non-transferable retention as uninformative and disable RT/ROI terms.
+            cfg_eff = replace(
+                cfg_eff,
+                w_rt=0.0,
+                w_roi=0.0,
+                rt=0.0,
+                tight_rt=0.0,
+                tight_roi=0.0,
+                rt_drift_model="none",
+                roi_drift_model="none",
+            )
+            rt_gate_diag["retention_mode_effective"] = "mz_only"
+            rt_gate_diag["retention_disable_reason"] = "rt_nontransferable_pair"
 
     if rt_gate_mode == "adaptive-disable" and float(cfg_eff.rt or 0.0) > 0:
         anchor_ppm = cfg_eff.rt_gate_anchor_ppm
@@ -1915,80 +2230,119 @@ def match_features(
     n1 = len(study_a)
     n2 = len(study_b)
 
-    use_structure = (
-        cfg.use_structure
-        and cfg.structure_alpha != 0.0
-        and cfg.structure_iters > 0
-    )
+    cfg_use = cfg
+    # Optional auto-structure fallback: when RT is deemed non-transferable across the pair,
+    # within-study correlation structure can provide the missing disambiguation signal.
+    try:
+        rt_policy = str(mz_shift_diag.get("rt_policy", "") or "")
+    except Exception:
+        rt_policy = ""
+    auto_alpha = float(getattr(cfg, "structure_alpha_on_nontransferable_rt", 0.0) or 0.0)
+    if (
+        (not bool(cfg.use_structure))
+        and auto_alpha != 0.0
+        and rt_policy == "ignore"
+        and expr_a is not None
+        and expr_b is not None
+    ):
+        cfg_use = replace(cfg, use_structure=True, structure_alpha=float(auto_alpha), structure_graph="local_rt")
+
+    use_structure = bool(cfg_use.use_structure) and float(cfg_use.structure_alpha) != 0.0 and int(cfg_use.structure_iters) > 0
     graph1 = graph2 = None
     if use_structure:
         if expr_a is None or expr_b is None:
             raise ValueError("expr_a/expr_b are required when use_structure=True.")
         x1 = coerce_expression(expr_a, n1, "expr_a")
         x2 = coerce_expression(expr_b, n2, "expr_b")
-        if x1.shape[0] >= int(cfg.structure_min_samples) and x2.shape[0] >= int(cfg.structure_min_samples):
-            graph_mode = str(cfg.structure_graph).lower().strip()
-            if graph_mode not in {"knn", "stable"}:
-                raise ValueError(f"Unsupported structure_graph: {cfg.structure_graph!r} (expected 'knn' or 'stable').")
+        if x1.shape[0] >= int(cfg_use.structure_min_samples) and x2.shape[0] >= int(cfg_use.structure_min_samples):
+            graph_mode = str(cfg_use.structure_graph).lower().strip()
+            if graph_mode not in {"knn", "stable", "local_rt"}:
+                raise ValueError(
+                    f"Unsupported structure_graph: {cfg_use.structure_graph!r} (expected 'knn', 'stable', or 'local_rt')."
+                )
 
-            graph_builder = build_structure_graph if graph_mode == "knn" else build_structure_graph_stable
             if graph_mode == "knn":
-                graph1 = graph_builder(
+                graph1 = build_structure_graph(
                     x1,
-                    k=int(cfg.structure_k),
-                    corr_method=str(cfg.structure_corr).lower(),
-                    corr_estimator=str(cfg.structure_corr_estimator).lower(),
-                    use_abs=bool(cfg.structure_abs),
-                    eps=float(cfg.structure_eps),
+                    k=int(cfg_use.structure_k),
+                    corr_method=str(cfg_use.structure_corr).lower(),
+                    corr_estimator=str(cfg_use.structure_corr_estimator).lower(),
+                    use_abs=bool(cfg_use.structure_abs),
+                    eps=float(cfg_use.structure_eps),
                 )
-                graph2 = graph_builder(
+                graph2 = build_structure_graph(
                     x2,
-                    k=int(cfg.structure_k),
-                    corr_method=str(cfg.structure_corr).lower(),
-                    corr_estimator=str(cfg.structure_corr_estimator).lower(),
-                    use_abs=bool(cfg.structure_abs),
-                    eps=float(cfg.structure_eps),
+                    k=int(cfg_use.structure_k),
+                    corr_method=str(cfg_use.structure_corr).lower(),
+                    corr_estimator=str(cfg_use.structure_corr_estimator).lower(),
+                    use_abs=bool(cfg_use.structure_abs),
+                    eps=float(cfg_use.structure_eps),
                 )
-            else:
-                graph1 = graph_builder(
+            elif graph_mode == "stable":
+                graph1 = build_structure_graph_stable(
                     x1,
-                    corr_method=str(cfg.structure_corr).lower(),
-                    corr_estimator=str(cfg.structure_corr_estimator).lower(),
-                    use_abs=bool(cfg.structure_abs),
-                    k_max=int(cfg.structure_k),
-                    n_boot=int(cfg.structure_n_boot),
-                    subsample_frac=float(cfg.structure_subsample_frac),
-                    min_freq=float(cfg.structure_min_freq),
-                    eps=float(cfg.structure_eps),
+                    corr_method=str(cfg_use.structure_corr).lower(),
+                    corr_estimator=str(cfg_use.structure_corr_estimator).lower(),
+                    use_abs=bool(cfg_use.structure_abs),
+                    k_max=int(cfg_use.structure_k),
+                    n_boot=int(cfg_use.structure_n_boot),
+                    subsample_frac=float(cfg_use.structure_subsample_frac),
+                    min_freq=float(cfg_use.structure_min_freq),
+                    eps=float(cfg_use.structure_eps),
                     seed=0,
                 )
-                graph2 = graph_builder(
+                graph2 = build_structure_graph_stable(
                     x2,
-                    corr_method=str(cfg.structure_corr).lower(),
-                    corr_estimator=str(cfg.structure_corr_estimator).lower(),
-                    use_abs=bool(cfg.structure_abs),
-                    k_max=int(cfg.structure_k),
-                    n_boot=int(cfg.structure_n_boot),
-                    subsample_frac=float(cfg.structure_subsample_frac),
-                    min_freq=float(cfg.structure_min_freq),
-                    eps=float(cfg.structure_eps),
+                    corr_method=str(cfg_use.structure_corr).lower(),
+                    corr_estimator=str(cfg_use.structure_corr_estimator).lower(),
+                    use_abs=bool(cfg_use.structure_abs),
+                    k_max=int(cfg_use.structure_k),
+                    n_boot=int(cfg_use.structure_n_boot),
+                    subsample_frac=float(cfg_use.structure_subsample_frac),
+                    min_freq=float(cfg_use.structure_min_freq),
+                    eps=float(cfg_use.structure_eps),
                     seed=1,
+                )
+            else:
+                rt1 = study_a["RT"].to_numpy(dtype=float, copy=False)
+                rt2 = study_b["RT"].to_numpy(dtype=float, copy=False)
+                graph1 = build_structure_graph_local_rt(
+                    x1,
+                    rt1,
+                    k=int(cfg_use.structure_k),
+                    rt_window=float(cfg_use.structure_rt_window),
+                    corr_method=str(cfg_use.structure_corr).lower(),
+                    corr_estimator=str(cfg_use.structure_corr_estimator).lower(),
+                    use_abs=bool(cfg_use.structure_abs),
+                    max_candidates=int(cfg_use.structure_max_candidates),
+                    eps=float(cfg_use.structure_eps),
+                )
+                graph2 = build_structure_graph_local_rt(
+                    x2,
+                    rt2,
+                    k=int(cfg_use.structure_k),
+                    rt_window=float(cfg_use.structure_rt_window),
+                    corr_method=str(cfg_use.structure_corr).lower(),
+                    corr_estimator=str(cfg_use.structure_corr_estimator).lower(),
+                    use_abs=bool(cfg_use.structure_abs),
+                    max_candidates=int(cfg_use.structure_max_candidates),
+                    eps=float(cfg_use.structure_eps),
                 )
         else:
             use_structure = False
 
-    n_iters = int(cfg.structure_iters) if use_structure else 1
+    n_iters = int(cfg_use.structure_iters) if use_structure else 1
     ot_summary = {}
     p0 = None
     null_loglik = None
     for iter_idx in range(max(n_iters, 1)):
-        cfg_ot = cfg
-        if use_structure and cfg.structure_anneal and n_iters > 1:
+        cfg_ot = cfg_use
+        if use_structure and cfg_use.structure_anneal and n_iters > 1:
             t = float(iter_idx) / float(max(n_iters - 1, 1))
-            mult_start = float(cfg.structure_ot_epsilon_mult_start)
+            mult_start = float(cfg_use.structure_ot_epsilon_mult_start)
             mult_start = max(mult_start, 1.0)
-            eps_iter = float(cfg.ot_epsilon) * (mult_start * (1.0 - t) + 1.0 * t)
-            cfg_ot = replace(cfg, ot_epsilon=eps_iter)
+            eps_iter = float(cfg_use.ot_epsilon) * (mult_start * (1.0 - t) + 1.0 * t)
+            cfg_ot = replace(cfg_use, ot_epsilon=eps_iter)
 
         weights_real, p_row_ot, p0, ot_summary, null_loglik = _solve_ot(
             cand,
@@ -1999,20 +2353,20 @@ def match_features(
         )
         cand["ot_weight"] = weights_real
         cand["p_row_ot"] = p_row_ot
-        if cfg.allow_unmatched and p0 is not None:
+        if cfg_use.allow_unmatched and p0 is not None:
             cand["p0_ot"] = cand["id1"].map(pd.Series(p0))
 
         if not use_structure or iter_idx == n_iters - 1 or graph1 is None or graph2 is None:
             break
 
         row_maps = _build_row_maps(cand, n1, "p_row_ot")
-        bonus = _compute_structure_bonus(cand, row_maps, graph1, graph2, cfg)
+        bonus = _compute_structure_bonus(cand, row_maps, graph1, graph2, cfg_use)
         cand["struct_bonus"] = bonus
-        alpha = float(cfg.structure_alpha)
-        if cfg.structure_anneal and cfg.structure_alpha_ramp and n_iters > 1:
+        alpha = float(cfg_use.structure_alpha)
+        if cfg_use.structure_anneal and cfg_use.structure_alpha_ramp and n_iters > 1:
             alpha = alpha * float(iter_idx + 1) / float(n_iters - 1)
 
-        if cfg.structure_adaptive_alpha and float(cfg.structure_margin_tau) > 0.0:
+        if cfg_use.structure_adaptive_alpha and float(cfg_use.structure_margin_tau) > 0.0:
             ranked = cand.sort_values(["id1", "p_row_ot"], ascending=[True, False]).groupby("id1").head(2).copy()
             ranked["rank"] = ranked.groupby("id1").cumcount()
             pivot = ranked.pivot(index="id1", columns="rank", values="p_row_ot")
@@ -2022,12 +2376,12 @@ def match_features(
                 alpha_row = pd.Series(0.0, index=pd.RangeIndex(n1))
             else:
                 margin = top1.fillna(0.0) - (top2.fillna(0.0) if top2 is not None else 0.0)
-                tau = float(cfg.structure_margin_tau)
+                tau = float(cfg_use.structure_margin_tau)
                 # Smoothly downweight structure on confident rows (large top1-top2 margin)
                 # without fully disabling it (important when structure provides global consistency).
                 margin_v = margin.to_numpy(dtype=float)
                 scale = 1.0 / (1.0 + (np.maximum(margin_v, 0.0) / tau))
-                gamma = float(cfg.structure_margin_gamma)
+                gamma = float(cfg_use.structure_margin_gamma)
                 if gamma != 1.0:
                     scale = scale ** gamma
                 alpha_row = pd.Series(scale, index=margin.index)
@@ -2048,19 +2402,19 @@ def match_features(
         id1,
         cand["loglik_total"].to_numpy(dtype=float),
         n1,
-        null_loglik=(float(null_loglik) if (cfg.allow_unmatched and null_loglik is not None) else None),
+        null_loglik=(float(null_loglik) if (cfg_use.allow_unmatched and null_loglik is not None) else None),
     )
     cand["p_row_local"] = p_row_local
-    if cfg.allow_unmatched and p0_local is not None:
+    if cfg_use.allow_unmatched and p0_local is not None:
         cand["p0_local"] = cand["id1"].map(pd.Series(p0_local))
 
     # Per-row uncertainty diagnostics (entropy + effective candidate count).
-    row_ent_local = _row_entropy_sparse(id1, p_row_local, n1, p0=p0_local if cfg.allow_unmatched else None)
+    row_ent_local = _row_entropy_sparse(id1, p_row_local, n1, p0=p0_local if cfg_use.allow_unmatched else None)
     cand["row_entropy_local"] = cand["id1"].map(pd.Series(row_ent_local))
     cand["row_neff_local"] = cand["id1"].map(pd.Series(np.exp(row_ent_local)))
     if "p_row_ot" in cand.columns:
         p_row_ot = cand["p_row_ot"].to_numpy(dtype=float)
-        row_ent_ot = _row_entropy_sparse(id1, p_row_ot, n1, p0=p0 if cfg.allow_unmatched else None)
+        row_ent_ot = _row_entropy_sparse(id1, p_row_ot, n1, p0=p0 if cfg_use.allow_unmatched else None)
         cand["row_entropy_ot"] = cand["id1"].map(pd.Series(row_ent_ot))
         cand["row_neff_ot"] = cand["id1"].map(pd.Series(np.exp(row_ent_ot)))
 
@@ -2089,7 +2443,7 @@ def match_features(
     top1["decision"] = np.where(top1["id2"].to_numpy(dtype=int) >= 0, "match", "no_candidate")
 
     # OT null decision.
-    if cfg.allow_unmatched and p0 is not None:
+    if cfg_use.allow_unmatched and p0 is not None:
         p0_map = pd.Series(p0)
         top1["p_null"] = top1["id1"].map(p0_map).fillna(0.0)
         use_null = (top1["id2_raw"].to_numpy(dtype=int) >= 0) & (top1["p_null"] >= top1["prob_match_raw"])
@@ -2104,8 +2458,8 @@ def match_features(
     if "p_null" in top1.columns:
         top1.loc[no_match, "prob_raw"] = top1.loc[no_match, "p_null"]
 
-    if cfg.max_p0 is not None:
-        top1 = top1[top1["p_null"] < float(cfg.max_p0)].copy()
+    if cfg_use.max_p0 is not None:
+        top1 = top1[top1["p_null"] < float(cfg_use.max_p0)].copy()
 
     ot_summary.update({
         "n_candidates": float(len(cand)),
@@ -2113,10 +2467,10 @@ def match_features(
         "scale_rt": float(scales.get("rt", np.nan)),
         "scale_roi": float(scales.get("roi", np.nan)),
         "scale_int": float(scales.get("int", np.nan)),
-        "t_df": float(cfg.t_df),
+        "t_df": float(cfg_use.t_df),
         "anchor_scale_used": float(1.0 if anchor_scales else 0.0),
         "structure_enabled": float(1.0 if use_structure else 0.0),
-        "structure_alpha": float(cfg.structure_alpha),
+        "structure_alpha": float(cfg_use.structure_alpha),
         "structure_iters": float(n_iters),
     })
 

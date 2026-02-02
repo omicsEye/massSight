@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -35,6 +35,49 @@ ADDUCT_MASS_NEG = {
 def get_retention_order(ds: pd.DataFrame, rt_col: str = "RT") -> pd.Series:
     """Normalized retention order in [0,1], robust to monotone drift."""
     return ds[rt_col].rank(pct=True)
+
+
+def infer_rt_unit_scale_to_minutes(rt: np.ndarray, *, min_n: int = 20) -> Tuple[float, dict[str, Any]]:
+    """
+    Infer a simple unit scaling to put RT values on a minutes-like scale.
+
+    Motivation:
+      - Public LC-MS feature tables are not consistent about RT units. Some pipelines/exporters
+        use seconds while others use minutes. Treating seconds as minutes breaks any matcher
+        that uses RT as a geometric coordinate or residual.
+
+    Returns:
+        (scale, info) where `scale` multiplies raw RT values.
+    """
+    rt = np.asarray(rt, dtype=float)
+    finite = rt[np.isfinite(rt) & (rt > 0)]
+    info: dict[str, Any] = {
+        "note": "",
+        "n_finite": int(finite.size),
+        "median": float("nan"),
+        "p95": float("nan"),
+        "max": float("nan"),
+        "scale": 1.0,
+    }
+    if finite.size < int(min_n):
+        info["note"] = "insufficient_rt"
+        return 1.0, info
+
+    med = float(np.median(finite))
+    p95 = float(np.quantile(finite, 0.95))
+    mx = float(np.max(finite))
+    info.update({"median": med, "p95": p95, "max": mx})
+
+    # Conservative seconds-vs-minutes heuristic:
+    # - Minutes-scale LC typically has med well below ~100 and p95 well below ~300
+    # - Seconds-scale RT often has med ~600+, p95 ~1200+, max ~1500+
+    if (med >= 100.0) and (p95 >= 300.0) and (mx >= 500.0):
+        scale = 1.0 / 60.0
+        info.update({"note": "seconds_to_minutes", "scale": float(scale)})
+        return float(scale), info
+
+    info["note"] = "no_rescale"
+    return 1.0, info
 
 
 @dataclass(frozen=True)

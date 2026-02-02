@@ -127,6 +127,128 @@ def build_structure_graph(
     return StructureGraph(neighbors=neighbors, weights=weights)
 
 
+def build_structure_graph_local_rt(
+    expr: np.ndarray,
+    rt: np.ndarray,
+    *,
+    k: int,
+    rt_window: float,
+    corr_method: CorrMethod = "spearman",
+    corr_estimator: CorrEstimator | str = "sample",
+    use_abs: bool = True,
+    max_candidates: int = 200,
+    eps: float = 1e-8,
+) -> StructureGraph:
+    """
+    Build a sparse correlation graph using only within-study RT-local candidates.
+
+    This avoids O(p^2) full-correlation computation on large untargeted feature lists by
+    restricting candidate neighbors to features that co-elute (within `rt_window` minutes).
+    """
+    if expr.ndim != 2:
+        raise ValueError(f"expr must be 2D, got shape {expr.shape}.")
+    rt = np.asarray(rt, dtype=float)
+    n_samples, n_features = expr.shape
+    if rt.shape[0] != n_features:
+        raise ValueError(f"rt has length {rt.shape[0]}, expected {n_features}.")
+
+    if n_features <= 1 or k <= 0 or (not np.isfinite(float(rt_window))) or float(rt_window) <= 0.0:
+        return StructureGraph(
+            neighbors=np.full((n_features, 0), -1, dtype=int),
+            weights=np.zeros((n_features, 0), dtype=float),
+        )
+
+    est = str(corr_estimator).strip().lower().replace("-", "_")
+    if est not in {"sample", "empirical", "none"}:
+        raise ValueError(
+            "build_structure_graph_local_rt currently supports corr_estimator='sample' only "
+            f"(got {corr_estimator!r})."
+        )
+
+    # Preprocess expression into standardized columns so corr(i,j) = (z_i · z_j) / (n-1).
+    x = np.asarray(expr, dtype=np.float32)
+    x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0, copy=False)
+    if corr_method == "spearman":
+        x = _spearman_rank(x).astype(np.float32, copy=False)
+    x = x - x.mean(axis=0, keepdims=True)
+    std = x.std(axis=0, ddof=1)
+    std = np.where(std > eps, std, 1.0)
+    z = x / std
+    denom = float(max(n_samples - 1, 1))
+
+    k_eff_global = min(int(k), n_features - 1)
+    neighbors = np.full((n_features, k_eff_global), -1, dtype=int)
+    weights = np.zeros((n_features, k_eff_global), dtype=float)
+
+    # Sort by RT for fast window lookups.
+    rt_key = np.where(np.isfinite(rt), rt, np.inf).astype(float, copy=False)
+    order = np.argsort(rt_key)
+    rt_sorted = rt_key[order]
+    w = float(rt_window)
+
+    left = np.searchsorted(rt_sorted, rt_sorted - w, side="left")
+    right = np.searchsorted(rt_sorted, rt_sorted + w, side="right")
+
+    max_candidates = int(max_candidates)
+    if max_candidates <= 0:
+        max_candidates = 1
+    half = max_candidates // 2
+
+    for pos in range(n_features):
+        i = int(order[pos])
+        rti = float(rt[i])
+        if not np.isfinite(rti):
+            continue
+
+        lo = int(left[pos])
+        hi = int(right[pos])
+        if hi - lo <= 1:
+            continue
+
+        # Cap candidate window by taking the closest RT neighbors (by position).
+        lo2 = max(lo, pos - half)
+        hi2 = min(hi, pos + half + 1)
+        cand = order[lo2:hi2]
+        if cand.size <= 1:
+            continue
+
+        rel = pos - lo2
+        if 0 <= rel < cand.size:
+            cand_idx = np.concatenate([cand[:rel], cand[rel + 1 :]])
+        else:
+            cand_idx = cand
+
+        if cand_idx.size == 0:
+            continue
+
+        # corr(i, cand) in a single matmul.
+        v = z[:, i]
+        corr = (v @ z[:, cand_idx]) / denom
+        corr = np.asarray(corr, dtype=float)
+        if corr.size == 0:
+            continue
+
+        k_eff = min(k_eff_global, int(corr.size))
+        score = np.abs(corr)
+        top = np.argpartition(score, -k_eff)[-k_eff:]
+        top = top[np.argsort(score[top])[::-1]]
+
+        nbrs = cand_idx[top].astype(int, copy=False)
+        wts = corr[top].astype(float, copy=False)
+        if use_abs:
+            wts = np.abs(wts)
+            d = float(np.sum(wts))
+        else:
+            d = float(np.sum(np.abs(wts)))
+        d = d if d > eps else 1.0
+        wts = wts / d
+
+        neighbors[i, :k_eff] = nbrs[:k_eff]
+        weights[i, :k_eff] = wts[:k_eff]
+
+    return StructureGraph(neighbors=neighbors, weights=weights)
+
+
 def build_structure_graph_stable(
     expr: np.ndarray,
     *,
