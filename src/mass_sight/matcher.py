@@ -77,6 +77,15 @@ class MassSightConfig:
     # Per-feature gate: only allow nonzero shifts for study_a features with no delta=0
     # candidate within the tight_ppm window (reduces spurious expansion on dense datasets).
     mz_shift_per_feature_tight_ppm_gate: bool = True
+    # Optional: only apply m/z shift expansion when the pair is deemed RT non-transferable.
+    # This can improve robustness by avoiding unnecessary graph inflation on RT-transferable
+    # pairs where RT already disambiguates candidates.
+    mz_shift_only_on_nontransferable_rt: bool = False
+    # When using expanded adduct families, applying shift expansion to RT-transferable pairs can
+    # add many spurious candidates (increasing local ambiguity) without improving recall.
+    # If enabled, treat expanded adduct families as active only when the pair is deemed RT
+    # non-transferable (rt_policy in {"ignore","unknown"}).
+    mz_shift_expanded_adducts_only_on_nontransferable_rt: bool = False
 
     # Candidate pruning (optional): keep only the top-K candidates per id1 by log-likelihood
     # before OT/softmax. This can reduce ambiguity on dense m/z-only graphs.
@@ -526,7 +535,31 @@ def _select_mz_shifts(
             nonzero.append((int(c), float(d)))
     nonzero.sort(key=lambda x: (-x[0], abs(x[1]), x[1]))
 
-    selected = [0.0] + [d for _, d in nonzero[:top_k]]
+    selected_nonzero = [d for _, d in nonzero[:top_k]]
+
+    # If the user enables the proton override gate, ensure the proton shifts are actually available
+    # to candidate generation. Otherwise the override has no effect when auto shift selection
+    # happens to prefer other deltas (common under dense m/z-only overlap).
+    thr_proton_override = float(getattr(cfg, "mz_shift_proton_override_min_support_ratio_vs_zero", 0.0) or 0.0)
+    if thr_proton_override > 0.0:
+        proton_deltas: List[float] = []
+        for d in family:
+            dd = float(d)
+            if abs(dd) <= 1e-12:
+                continue
+            if abs(abs(dd) - float(PROTON_MASS)) <= 1e-6:
+                c = int(counts.get(dd, 0) or 0)
+                frac = float(c) / float(n1) if n1 else 0.0
+                if c >= min_count and frac >= min_frac:
+                    proton_deltas.append(dd)
+        # Deterministic order: smaller |delta| first, then sign.
+        proton_deltas.sort(key=lambda x: (abs(x), x))
+        for d in proton_deltas:
+            if any(abs(float(d) - float(x)) <= 1e-9 for x in selected_nonzero):
+                continue
+            selected_nonzero.append(float(d))
+
+    selected = [0.0] + selected_nonzero
 
     diag["mz_shift_selected_deltas_da"] = selected
     diag["mz_shift_top_k"] = int(cfg.mz_shift_top_k)
@@ -2345,6 +2378,32 @@ def _prepare_match(
         rt_gate_diag["rt_gate_n_anchors"] = None
         rt_gate_diag["rt_gate_disabled"] = False
         rt_gate_diag["rt_gate_rt_final"] = float(cfg_eff.rt) if cfg_eff.rt is not None else 0.0
+
+    # Optional: only apply expanded adduct families when RT is non-transferable. This keeps shift
+    # expansion available for RT-fail regimes (where it can fix missing-candidate errors) without
+    # degrading RT-transferable pairs by inflating the candidate graph.
+    try:
+        rt_policy_eff = str(rt_gate_diag.get("rt_policy", "") or "").strip().lower()
+    except Exception:
+        rt_policy_eff = ""
+    shift_only_on_rtfail = bool(getattr(cfg_eff, "mz_shift_only_on_nontransferable_rt", False))
+    rt_gate_diag["mz_shift_only_on_nontransferable_rt"] = bool(shift_only_on_rtfail)
+    if shift_only_on_rtfail and rt_policy_eff not in {"ignore", "unknown"}:
+        cfg_eff = replace(cfg_eff, mz_shift_mode="none")
+
+    expanded_only_on_rtfail = bool(
+        getattr(cfg_eff, "mz_shift_expanded_adducts_only_on_nontransferable_rt", False)
+    )
+    rt_gate_diag["mz_shift_expanded_adducts_only_on_nontransferable_rt"] = bool(expanded_only_on_rtfail)
+    if expanded_only_on_rtfail and rt_policy_eff not in {"ignore", "unknown"}:
+        pol = str(getattr(cfg_eff, "polarity", "") or "").strip().lower()
+        if pol == "positive" and str(getattr(cfg_eff, "mz_shift_pos_adducts", "conservative")).strip().lower() == "expanded":
+            cfg_eff = replace(cfg_eff, mz_shift_pos_adducts="conservative")
+        if pol == "negative" and str(getattr(cfg_eff, "mz_shift_neg_adducts", "conservative")).strip().lower() == "expanded":
+            cfg_eff = replace(cfg_eff, mz_shift_neg_adducts="conservative")
+    rt_gate_diag["mz_shift_pos_adducts_effective"] = str(getattr(cfg_eff, "mz_shift_pos_adducts", "conservative"))
+    rt_gate_diag["mz_shift_neg_adducts_effective"] = str(getattr(cfg_eff, "mz_shift_neg_adducts", "conservative"))
+    rt_gate_diag["mz_shift_mode_effective"] = str(getattr(cfg_eff, "mz_shift_mode", "none"))
 
     shifts_da, mz_shift_diag = _select_mz_shifts(study_a, study_b, cfg_eff)
     mz_shift_diag.update(rt_gate_diag)
