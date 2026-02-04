@@ -61,6 +61,12 @@ class MassSightConfig:
     mz_shift_top_k: int = 1
     mz_shift_min_support_count: int = 10
     mz_shift_min_support_frac: float = 0.01
+    # Optional (experimental) gate override: allow proton-shift expansion even when an unshifted
+    # tight-ppm neighbor exists, but only when the proton-shift support is comparable to the
+    # unshifted support (systematic adduct-state mismatch).
+    #
+    # 0 disables the override (legacy behavior). Typical values: ~1.0.
+    mz_shift_proton_override_min_support_ratio_vs_zero: float = 0.0
     mz_shift_max_abs_da: float = 40.0
     mz_shift_manual_deltas_da: List[float] = field(default_factory=list)
     mz_shift_include_isotope: bool = True
@@ -71,6 +77,22 @@ class MassSightConfig:
     # Per-feature gate: only allow nonzero shifts for study_a features with no delta=0
     # candidate within the tight_ppm window (reduces spurious expansion on dense datasets).
     mz_shift_per_feature_tight_ppm_gate: bool = True
+
+    # Candidate pruning (optional): keep only the top-K candidates per id1 by log-likelihood
+    # before OT/softmax. This can reduce ambiguity on dense m/z-only graphs.
+    #
+    # 0 disables pruning.
+    candidate_top_k_per_id1: int = 20
+
+    # Top-1 selection policy.
+    # - "ot": (default) use OT top-1 + OT null.
+    # - "local": use per-row softmax (no global column competition) + local null.
+    # - "hybrid": use OT by default, but override with local top-1 when local is confident
+    #   and OT is ambiguous (mitigates OT swap errors).
+    top1_policy: str = "hybrid"  # "ot" | "local" | "hybrid"
+    top1_hybrid_local_p_min: float = 0.6
+    top1_hybrid_local_margin_min: float = 0.2
+    top1_hybrid_ot_margin_max: float = 0.1
 
     # Candidate RT gating: optionally enable gating but disable it automatically when
     # the estimated RT drift (from m/z-tight anchors) is too large.
@@ -103,6 +125,11 @@ class MassSightConfig:
     rt_transfer_p95_abs_resid_max: float = 2.0
     rt_transfer_max_anchors: int = 5000
     rt_transfer_ransac_iters: int = 2000
+    # Optional precision boost for RT-transfer anchors:
+    # require that m/z mutual-NN anchors are locally unique within the anchor_ppm window
+    # in both studies. Disabled by default because it can reduce anchor count and does
+    # not consistently improve benchmark performance.
+    rt_transfer_use_unique_mz_mnn: bool = False
 
     # Tight windows for drift estimation
     tight_ppm: float = 7.0
@@ -475,6 +502,17 @@ def _select_mz_shifts(
     diag["mz_shift_support_median_nonzero"] = float(support_med) if np.isfinite(support_med) else None
     diag["mz_shift_support_mad_nonzero"] = float(support_mad) if np.isfinite(support_mad) else None
 
+    support0 = int(counts.get(0.0, 0) or 0)
+    diag["mz_shift_support_zero"] = int(support0)
+    support_proton_max = 0
+    for d, c in counts.items():
+        if abs(abs(float(d)) - float(PROTON_MASS)) <= 1e-6:
+            support_proton_max = max(support_proton_max, int(c))
+    diag["mz_shift_support_proton_max"] = int(support_proton_max)
+    diag["mz_shift_support_proton_ratio_vs_zero"] = (
+        float(support_proton_max) / float(support0) if support0 > 0 else None
+    )
+
     nonzero = []
     for d, c in counts.items():
         if abs(float(d)) <= 1e-12:
@@ -592,6 +630,17 @@ def _infer_pair_rt_transferability(
       - rt_scale, rt_offset: mapping from dataset B -> dataset A (rt_a ≈ scale*rt_b + offset)
       - anchor diagnostics: n_anchors, spearman_rt, p95_abs_resid_rt, inlier_frac, etc.
     """
+
+    def _count_within_ppm(mz_sorted: np.ndarray, q: float, ppm: float) -> int:
+        if mz_sorted.size == 0 or not np.isfinite(q) or q <= 0 or not np.isfinite(ppm) or ppm <= 0:
+            return 0
+        tol = float(q) * float(ppm) / 1e6
+        lo = float(q) - tol
+        hi = float(q) + tol
+        left = int(np.searchsorted(mz_sorted, lo, side="left"))
+        right = int(np.searchsorted(mz_sorted, hi, side="right"))
+        return int(max(0, right - left))
+
     mz1 = pd.to_numeric(study_a.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
     mz2 = pd.to_numeric(study_b.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
     rt1 = pd.to_numeric(study_a.get("RT"), errors="coerce").to_numpy(dtype=float, copy=False)
@@ -604,17 +653,24 @@ def _infer_pair_rt_transferability(
     max_anchors = int(getattr(cfg, "rt_transfer_max_anchors", 5000) or 5000)
     max_anchors = max(max_anchors, 0)
     ransac_cap = int(getattr(cfg, "rt_transfer_ransac_iters", 2000) or 2000)
+    use_unique_mz_mnn = bool(getattr(cfg, "rt_transfer_use_unique_mz_mnn", False))
 
     out: Dict[str, object] = {
         "rt_policy": "unknown",
         "rt_scale": 1.0,
         "rt_offset": 0.0,
+        "rt_fit_method": "",
         "rt_anchor_ppm": float(anchor_ppm),
         "rt_min_anchors": int(min_anchors),
+        "rt_n_mnn_anchors_raw": 0,
+        "rt_n_mnn_anchors_unambig": 0,
+        "rt_mnn_unambig_used": False,
         "rt_n_anchors": 0,
         "rt_n_inliers": 0,
         "rt_inlier_frac": float("nan"),
         "rt_ransac_tol": float("nan"),
+        "rt_ransac_scale": float("nan"),
+        "rt_ransac_offset": float("nan"),
         "rt_spearman": float("nan"),
         "rt_median_abs_resid": float("nan"),
         "rt_p95_abs_resid": float("nan"),
@@ -637,6 +693,38 @@ def _infer_pair_rt_transferability(
 
     i = i[mnn]
     j = j[mnn]
+    out["rt_n_mnn_anchors_raw"] = int(i.size)
+
+    # Heuristic anchor precision boost:
+    # m/z-only mutual NN anchors can still be contaminated by isobaric collisions on dense tables.
+    # Prefer anchors that are locally unique within the anchor_ppm window in *both* studies, but
+    # fall back to the full MNN set if this would leave too few anchors to estimate transferability.
+    mz1_sorted = np.sort(mz1[np.isfinite(mz1) & (mz1 > 0)])
+    mz2_sorted = np.sort(mz2[np.isfinite(mz2) & (mz2 > 0)])
+    if (
+        use_unique_mz_mnn
+        and mz1_sorted.size
+        and mz2_sorted.size
+        and np.isfinite(anchor_ppm)
+        and anchor_ppm > 0
+    ):
+        count2 = np.fromiter(
+            (_count_within_ppm(mz2_sorted, float(mz1[int(ii)]), float(anchor_ppm)) for ii in i),
+            dtype=int,
+            count=int(i.size),
+        )
+        count1 = np.fromiter(
+            (_count_within_ppm(mz1_sorted, float(mz2[int(jj)]), float(anchor_ppm)) for jj in j),
+            dtype=int,
+            count=int(j.size),
+        )
+        unambig = (count2 == 1) & (count1 == 1)
+        out["rt_n_mnn_anchors_unambig"] = int(np.sum(unambig))
+        if int(out["rt_n_mnn_anchors_unambig"]) >= int(min_anchors):
+            i = i[unambig]
+            j = j[unambig]
+            out["rt_mnn_unambig_used"] = True
+            out["rt_note"] = "unique_mz_mnn_anchors"
 
     rt1_a = rt1[i]
     rt2_a = rt2[j]
@@ -701,6 +789,8 @@ def _infer_pair_rt_transferability(
     if best_inliers is None or best_count <= 0:
         out["rt_note"] = "ransac_failed"
         return out
+    out["rt_ransac_scale"] = float(best_scale)
+    out["rt_ransac_offset"] = float(best_offset)
 
     # Refine using least squares on inliers.
     in_mask = best_inliers
@@ -714,8 +804,16 @@ def _infer_pair_rt_transferability(
     scale = float(beta[0])
     offset = float(beta[1])
     if not np.isfinite(scale) or scale <= 0:
-        out["rt_note"] = "invalid_scale_refit"
-        return out
+        # The least-squares refit can become numerically unstable when inlier RTs
+        # have low spread (e.g., many anchors concentrated in a narrow RT window).
+        # Fall back to the best positive-slope RANSAC model instead of returning
+        # "unknown" so we can still compute diagnostics deterministically.
+        scale = float(best_scale)
+        offset = float(best_offset)
+        out["rt_fit_method"] = "ransac"
+        out["rt_note"] = "refit_failed_use_ransac"
+    else:
+        out["rt_fit_method"] = "ols"
     scale = float(np.clip(scale, 1.0 / 120.0, 120.0))
 
     rt2_hat_in = rt2_in * scale + offset
@@ -743,10 +841,10 @@ def _infer_pair_rt_transferability(
     )
     if transferable:
         out["rt_policy"] = "linear"
-        out["rt_note"] = "transferable"
+        out["rt_note"] = f"{out.get('rt_note', '')}|transferable".strip("|")
     else:
         out["rt_policy"] = "ignore"
-        out["rt_note"] = "nontransferable"
+        out["rt_note"] = f"{out.get('rt_note', '')}|nontransferable".strip("|")
     return out
 
 
@@ -755,6 +853,9 @@ def _build_candidate_pairs_shifted(
     study_b: pd.DataFrame,
     cfg: MassSightConfig,
     shifts_da: List[float],
+    *,
+    allow_proton_override: bool = False,
+    max_shift_candidates_per_feature: int = 1,
 ) -> pd.DataFrame:
     mz2 = study_b["MZ"].to_numpy(dtype=float)
     rt2 = study_b["RT"].to_numpy(dtype=float)
@@ -771,14 +872,30 @@ def _build_candidate_pairs_shifted(
 
     rows: List[dict] = []
     use_intensity_gate = bool(getattr(cfg, "use_intensity", False))
+    max_shift_candidates_per_feature = int(max_shift_candidates_per_feature)
+    if max_shift_candidates_per_feature < 0:
+        max_shift_candidates_per_feature = 0
+    proton_shifts = [
+        float(d)
+        for d in (shifts_da or [])
+        if abs(float(d)) > 1e-12 and abs(abs(float(d)) - float(PROTON_MASS)) <= 1e-6
+    ]
     for i1, (mz1, rt1) in enumerate(zip(mz1_all, rt1_all)):
         if not np.isfinite(mz1) or mz1 <= 0:
             continue
         shifts_iter = shifts_da
+        has_tight_unshifted = False
         if per_feature_gate and len(shifts_da) > 1 and np.isfinite(tight_ppm_gate) and tight_ppm_gate > 0:
             js0 = _candidate_neighborhood_indices(mz2_sorted, order, mz_target=float(mz1), ppm=tight_ppm_gate)
-            if js0.size > 0:
-                shifts_iter = [0.0]
+            has_tight_unshifted = js0.size > 0
+            if has_tight_unshifted:
+                if allow_proton_override and proton_shifts:
+                    # Default: if an unshifted tight neighbor exists, avoid shift expansion (controls graph density).
+                    # Exception (optional): if global shift support indicates a systematic protonation mismatch,
+                    # also allow ±H edges for this feature to reduce missing-candidate failures.
+                    shifts_iter = [0.0] + list(proton_shifts)
+                else:
+                    shifts_iter = [0.0]
         best_by_j: Dict[int, Tuple[float, float]] = {}
         for delta in shifts_iter:
             d = float(delta)
@@ -788,7 +905,27 @@ def _build_candidate_pairs_shifted(
             js = _candidate_neighborhood_indices(mz2_sorted, order, mz_target=mz_target, ppm=ppm)
             if js.size == 0:
                 continue
-            for j2 in js.tolist():
+            # Under the per-feature gate, cap nonzero-shift candidates to the single nearest-by-ppm edge
+            # to avoid exploding the graph. This is intentionally conservative because a wrong shift hypothesis
+            # can add many spurious edges.
+            js_iter = js
+            if (
+                has_tight_unshifted
+                and abs(d) > 1e-12
+                and max_shift_candidates_per_feature > 0
+                and js.size > max_shift_candidates_per_feature
+            ):
+                mz2_vals = study_b.loc[js, "MZ"].to_numpy(dtype=float, copy=False)
+                if mz2_vals.size:
+                    denom = np.maximum(0.5 * (float(mz_target) + mz2_vals), 1e-12)
+                    abs_ppm = np.abs((mz2_vals - float(mz_target)) / denom * 1e6)
+                    abs_ppm[~np.isfinite(abs_ppm)] = np.inf
+                    # Keep the top-K closest-by-ppm candidates. K=1 recovers the legacy behavior.
+                    order_k = np.argsort(abs_ppm, kind="mergesort")
+                    k = int(min(int(max_shift_candidates_per_feature), int(js.size)))
+                    js_iter = js[order_k[:k]]
+
+            for j2 in js_iter.tolist():
                 if rt_gate > 0:
                     rt2_val = float(study_b.at[int(j2), "RT"])
                     if abs(rt2_val - float(rt1)) > rt_gate:
@@ -844,6 +981,8 @@ def _build_tight_matches_shifted(
     study_b: pd.DataFrame,
     cfg: MassSightConfig,
     shifts_da: List[float],
+    *,
+    allow_proton_override: bool = False,
 ) -> pd.DataFrame:
     study_a = study_a.reset_index(drop=True)
     study_b = study_b.reset_index(drop=True)
@@ -909,6 +1048,11 @@ def _build_tight_matches_shifted(
 
     shifts_da = [float(d) for d in shifts_da] if shifts_da else [0.0]
     per_feature_gate = bool(getattr(cfg, "mz_shift_per_feature_tight_ppm_gate", False))
+    proton_shifts = [
+        float(d)
+        for d in (shifts_da or [])
+        if abs(float(d)) > 1e-12 and abs(abs(float(d)) - float(PROTON_MASS)) <= 1e-6
+    ]
 
     def _passes_gates(i: int, j: int) -> bool:
         if tight_rt > 0 and abs(float(rt2[j]) - float(rt1[i])) > tight_rt:
@@ -932,8 +1076,12 @@ def _build_tight_matches_shifted(
                 span0 = mz1_val * tight_ppm / 1e6
                 left0 = int(np.searchsorted(mz2_sorted, mz1_val - span0, side="left"))
                 right0 = int(np.searchsorted(mz2_sorted, mz1_val + span0, side="right"))
-                if left0 < right0:
-                    shifts_iter = [0.0]
+                has_tight_unshifted = left0 < right0
+                if has_tight_unshifted:
+                    if allow_proton_override and proton_shifts:
+                        shifts_iter = [0.0] + list(proton_shifts)
+                    else:
+                        shifts_iter = [0.0]
 
             best_by_j: Dict[int, Tuple[float, float]] = {}
             for d in shifts_iter:
@@ -1004,8 +1152,12 @@ def _build_tight_matches_shifted(
                 span0 = mz1_val * tight_ppm / 1e6
                 left0 = int(np.searchsorted(mz2_sorted, mz1_val - span0, side="left"))
                 right0 = int(np.searchsorted(mz2_sorted, mz1_val + span0, side="right"))
-                if left0 < right0:
-                    shifts_iter = [0.0]
+                has_tight_unshifted = left0 < right0
+                if has_tight_unshifted:
+                    if allow_proton_override and proton_shifts:
+                        shifts_iter = [0.0] + list(proton_shifts)
+                    else:
+                        shifts_iter = [0.0]
 
             for d in shifts_iter:
                 mz_target = mz1_val + float(d)
@@ -1723,6 +1875,28 @@ def _assignment_top1(cand: pd.DataFrame, score_col: str) -> pd.DataFrame:
     return top.reset_index(drop=True)
 
 
+def _prune_candidates_per_id1(
+    cand: pd.DataFrame,
+    *,
+    score_col: str,
+    top_k: int,
+) -> pd.DataFrame:
+    """
+    Deterministically keep the top-K candidates per id1 by `score_col` (descending).
+
+    This is a coarse graph-sparsification tool to reduce ambiguity; it is NOT enabled by default.
+    """
+    k = int(top_k)
+    if k <= 0 or cand.empty:
+        return cand
+    # Ensure at least 1 edge is kept for any id1 that has candidates.
+    k = max(k, 1)
+    if score_col not in cand.columns:
+        raise KeyError(f"Missing score_col={score_col!r} for candidate pruning.")
+    d = cand.sort_values(["id1", score_col], ascending=[True, False], kind="mergesort")
+    return d.groupby("id1", sort=False).head(k).copy()
+
+
 def _solve_ot(
     cand: pd.DataFrame,
     loglik: np.ndarray,
@@ -2133,7 +2307,7 @@ def _prepare_match(
             offset = float(rt_pair.get("rt_offset", 0.0) or 0.0)
             study_b["RT"] = study_b["RT"].to_numpy(dtype=float) * scale + offset
             rt_gate_diag["rt_applied"] = True
-        elif str(rt_pair.get("rt_policy")) == "ignore" and retention_mode_req == "auto":
+        elif str(rt_pair.get("rt_policy")) in {"ignore", "unknown"} and retention_mode_req == "auto":
             # In auto mode, treat non-transferable retention as uninformative and disable RT/ROI terms.
             cfg_eff = replace(
                 cfg_eff,
@@ -2174,8 +2348,38 @@ def _prepare_match(
 
     shifts_da, mz_shift_diag = _select_mz_shifts(study_a, study_b, cfg_eff)
     mz_shift_diag.update(rt_gate_diag)
-    cand = _build_candidate_pairs_shifted(study_a, study_b, cfg_eff, shifts_da)
-    tight = _build_tight_matches_shifted(study_a, study_b, cfg_eff, shifts_da)
+
+    allow_proton_override = False
+    thr = float(getattr(cfg_eff, "mz_shift_proton_override_min_support_ratio_vs_zero", 0.0) or 0.0)
+    ratio = mz_shift_diag.get("mz_shift_support_proton_ratio_vs_zero", None)
+    ratio_val = float("nan")
+    if ratio is not None:
+        try:
+            ratio_val = float(ratio)
+        except Exception:
+            ratio_val = float("nan")
+    if thr > 0.0 and np.isfinite(ratio_val) and ratio_val >= float(thr):
+        allow_proton_override = True
+    mz_shift_diag["mz_shift_proton_override_min_support_ratio_vs_zero"] = float(thr)
+    mz_shift_diag["mz_shift_allow_proton_override"] = bool(allow_proton_override)
+
+    shifted_cap_k = 1
+    if allow_proton_override:
+        rt_policy = str(mz_shift_diag.get("rt_policy", "") or "").strip().lower()
+        # When RT is non-transferable, we cannot use it to disambiguate multiple peaks with identical m/z.
+        # Keep a few shifted candidates per feature and let downstream scoring/structure/OT resolve them.
+        shifted_cap_k = 3 if rt_policy in {"ignore", "unknown"} else 1
+    mz_shift_diag["mz_shift_proton_override_shifted_candidate_cap_k"] = int(shifted_cap_k)
+
+    cand = _build_candidate_pairs_shifted(
+        study_a,
+        study_b,
+        cfg_eff,
+        shifts_da,
+        allow_proton_override=allow_proton_override,
+        max_shift_candidates_per_feature=int(shifted_cap_k),
+    )
+    tight = _build_tight_matches_shifted(study_a, study_b, cfg_eff, shifts_da, allow_proton_override=allow_proton_override)
     if cand.empty:
         return study_a, study_b, cand, pd.DataFrame(), {}, {}, {}, mz_shift_diag
 
@@ -2344,6 +2548,12 @@ def match_features(
             eps_iter = float(cfg_use.ot_epsilon) * (mult_start * (1.0 - t) + 1.0 * t)
             cfg_ot = replace(cfg_use, ot_epsilon=eps_iter)
 
+        # Optional candidate pruning: reduce graph density by keeping only the top-K
+        # candidates per id1 before solving OT. This is most relevant in m/z-only mode.
+        k_prune = int(getattr(cfg_ot, "candidate_top_k_per_id1", 0) or 0)
+        if k_prune > 0:
+            cand = _prune_candidates_per_id1(cand, score_col="loglik_total", top_k=k_prune)
+
         weights_real, p_row_ot, p0, ot_summary, null_loglik = _solve_ot(
             cand,
             cand["loglik_total"].to_numpy(dtype=float),
@@ -2452,7 +2662,74 @@ def match_features(
     else:
         top1["p_null"] = 0.0
 
-    # Final output probability: for matches report OT p1; for no-match report OT p_null.
+    # Local top-1 (row softmax) and local ambiguity margin.
+    ranked_l = (
+        cand.sort_values(["id1", "p_row_local"], ascending=[True, False])
+        .groupby("id1")
+        .head(2)
+        .copy()
+    )
+    ranked_l["rank"] = ranked_l.groupby("id1").cumcount()
+    pivot_l = ranked_l.pivot(index="id1", columns="rank", values="p_row_local")
+    p1_l = pivot_l.get(0, pd.Series(dtype=float)).reindex(range(int(n1))).fillna(0.0).to_numpy(dtype=float)
+    p2_l = pivot_l.get(1, pd.Series(dtype=float)).reindex(range(int(n1))).fillna(0.0).to_numpy(dtype=float)
+    margin_l = np.maximum(p1_l - p2_l, 0.0)
+
+    best_l = ranked_l[ranked_l["rank"] == 0].loc[:, ["id1", "id2", "p_row_local"]].copy()
+    best_l = best_l.rename(columns={"id2": "id2_raw", "p_row_local": "prob_match_raw"})
+    top1_local = pd.DataFrame({"id1": np.arange(int(n1), dtype=int)})
+    top1_local = top1_local.merge(best_l, how="left", on="id1")
+    top1_local["id2_raw"] = top1_local["id2_raw"].fillna(-1).astype(int)
+    top1_local["prob_match_raw"] = top1_local["prob_match_raw"].fillna(0.0)
+    top1_local["margin"] = margin_l.astype(float)
+
+    top1_local["id2"] = top1_local["id2_raw"].to_numpy(dtype=int)
+    top1_local["decision"] = np.where(top1_local["id2"].to_numpy(dtype=int) >= 0, "match", "no_candidate")
+    if cfg_use.allow_unmatched and p0_local is not None:
+        p0l_map = pd.Series(p0_local)
+        top1_local["p_null"] = top1_local["id1"].map(p0l_map).fillna(0.0)
+        use_null_l = (top1_local["id2_raw"].to_numpy(dtype=int) >= 0) & (
+            top1_local["p_null"] >= top1_local["prob_match_raw"]
+        )
+        top1_local.loc[use_null_l, "id2"] = -1
+        top1_local.loc[use_null_l, "decision"] = "null_local"
+    else:
+        top1_local["p_null"] = 0.0
+
+    # Choose top-1 output policy.
+    policy = str(getattr(cfg_use, "top1_policy", "ot") or "ot").strip().lower().replace("-", "_")
+    if policy not in {"ot", "local", "hybrid"}:
+        raise ValueError(f"Unsupported top1_policy: {getattr(cfg_use, 'top1_policy', None)!r}")
+
+    top1_source = np.full(int(n1), "ot", dtype=object)
+    if policy == "local":
+        top1 = top1_local.copy()
+        top1_source[:] = "local"
+    elif policy == "hybrid":
+        # Default: OT. Override with local when local is confident but OT is ambiguous.
+        p_min = float(getattr(cfg_use, "top1_hybrid_local_p_min", 0.5) or 0.5)
+        m_min = float(getattr(cfg_use, "top1_hybrid_local_margin_min", 0.2) or 0.2)
+        ot_m_max = float(getattr(cfg_use, "top1_hybrid_ot_margin_max", 0.1) or 0.1)
+
+        local_match = top1_local["id2"].to_numpy(dtype=int) >= 0
+        local_conf = (top1_local["prob_match_raw"].to_numpy(dtype=float) >= p_min) & (
+            top1_local["margin"].to_numpy(dtype=float) >= m_min
+        )
+
+        ot_is_null = top1["decision"].astype(str).to_numpy() == "null_ot"
+        ot_diff = top1["id2"].to_numpy(dtype=int) != top1_local["id2"].to_numpy(dtype=int)
+        ot_amb = top1["margin"].to_numpy(dtype=float) <= ot_m_max
+
+        override = local_match & local_conf & (ot_is_null | (ot_diff & ot_amb))
+        if np.any(override):
+            top1.loc[override, ["id2_raw", "prob_match_raw", "margin", "id2", "decision", "p_null"]] = top1_local.loc[
+                override, ["id2_raw", "prob_match_raw", "margin", "id2", "decision", "p_null"]
+            ].to_numpy()
+            top1_source[override] = "local_override"
+
+    top1["top1_source"] = top1_source
+
+    # Final output probability: for matches report p1; for no-match report p_null.
     top1["prob_raw"] = top1["prob_match_raw"].to_numpy(dtype=float)
     no_match = top1["id2"].to_numpy(dtype=int) < 0
     if "p_null" in top1.columns:
