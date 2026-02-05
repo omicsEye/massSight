@@ -61,6 +61,12 @@ class MassSightConfig:
     mz_shift_top_k: int = 1
     mz_shift_min_support_count: int = 10
     mz_shift_min_support_frac: float = 0.01
+    # Auto-shift ranking prior: select shifts by support evidence *and* a prior penalty on |delta|.
+    # This is most relevant when using expanded adduct families where large deltas can win under
+    # raw support counts due to dense m/z overlap.
+    mz_shift_auto_score: str = "log_count"  # "count" | "log_count"
+    mz_shift_auto_abs_da_penalty: float = 0.2
+    mz_shift_auto_abs_da_penalty_mode: str = "log1p"  # "linear" | "log1p"
     # Optional (experimental) gate override: allow proton-shift expansion even when an unshifted
     # tight-ppm neighbor exists, but only when the proton-shift support is comparable to the
     # unshifted support (systematic adduct-state mismatch).
@@ -70,6 +76,7 @@ class MassSightConfig:
     mz_shift_max_abs_da: float = 40.0
     mz_shift_manual_deltas_da: List[float] = field(default_factory=list)
     mz_shift_include_isotope: bool = True
+    # Log-likelihood penalty for using any nonzero m/z shift hypothesis.
     mz_shift_penalty: float = 0.5  # set to 0 to disable
     # Auto-shift selection: require a shift to be a strong outlier in support counts.
     # 0 disables this filter (legacy behavior).
@@ -102,6 +109,16 @@ class MassSightConfig:
     top1_hybrid_local_p_min: float = 0.6
     top1_hybrid_local_margin_min: float = 0.2
     top1_hybrid_ot_margin_max: float = 0.1
+
+    # Optional confidence-based abstention *after* top-1 selection.
+    #
+    # These thresholds are applied only to rows where a match was selected.
+    # Any row failing a threshold is converted to a no-match (id2=-1), which
+    # can improve robustness on dense candidate graphs by trading recall for
+    # precision.
+    decision_min_prob_match: float = 0.0
+    decision_min_margin: float = 0.0
+    decision_min_prob_match_minus_null: float = 0.0
 
     # Candidate RT gating: optionally enable gating but disable it automatically when
     # the estimated RT drift (from m/z-tight anchors) is too large.
@@ -209,14 +226,17 @@ class MassSightConfig:
     use_structure: bool = False
     structure_alpha: float = 0.0
     structure_k: int = 20
-    structure_corr: str = "spearman"
+    structure_corr: str = "pearson"
     structure_corr_estimator: str = "sample"  # "sample" | "ledoit_wolf"
     structure_abs: bool = True
     structure_min_samples: int = 25
     # Graph construction strategy
     structure_graph: str = "knn"  # "knn" | "stable" | "local_rt"
+    # Auto-structure fallback uses a separate graph selection so the global default ("knn")
+    # does not accidentally trigger an O(p^2) correlation graph under RT-nontransferable pairs.
+    structure_graph_on_nontransferable_rt: str = "local_rt"  # "local_rt" | "stable" | "knn"
     # RT-local correlation graph parameters (used only when structure_graph="local_rt").
-    structure_rt_window: float = 0.05
+    structure_rt_window: float = 0.1
     structure_max_candidates: int = 200
     structure_n_boot: int = 10
     structure_subsample_frac: float = 0.8
@@ -234,7 +254,7 @@ class MassSightConfig:
     structure_bonus_mode: str = "mass"
     # Optional: when RT is deemed non-transferable (rt_policy="ignore") and expression matrices
     # are provided, automatically enable structure refinement with this alpha (>0).
-    structure_alpha_on_nontransferable_rt: float = 0.0
+    structure_alpha_on_nontransferable_rt: float = 10.0
 
     # Schema columns
     mz_col: str = "MZ"
@@ -522,6 +542,25 @@ def _select_mz_shifts(
         float(support_proton_max) / float(support0) if support0 > 0 else None
     )
 
+    auto_score_mode = str(getattr(cfg, "mz_shift_auto_score", "count") or "count").lower().strip()
+    if auto_score_mode in {"log", "logcount", "log-count"}:
+        auto_score_mode = "log_count"
+    if auto_score_mode not in {"count", "log_count"}:
+        raise ValueError(
+            f"Unsupported mz_shift_auto_score '{getattr(cfg, 'mz_shift_auto_score', None)!r}' "
+            "(expected 'count' or 'log_count')."
+        )
+    abs_da_pen = float(getattr(cfg, "mz_shift_auto_abs_da_penalty", 0.0) or 0.0)
+    abs_da_pen_mode = str(getattr(cfg, "mz_shift_auto_abs_da_penalty_mode", "log1p") or "log1p").lower().strip()
+    if abs_da_pen_mode not in {"linear", "log1p"}:
+        raise ValueError(
+            f"Unsupported mz_shift_auto_abs_da_penalty_mode '{getattr(cfg, 'mz_shift_auto_abs_da_penalty_mode', None)!r}' "
+            "(expected 'linear' or 'log1p')."
+        )
+    diag["mz_shift_auto_score"] = str(auto_score_mode)
+    diag["mz_shift_auto_abs_da_penalty"] = float(abs_da_pen)
+    diag["mz_shift_auto_abs_da_penalty_mode"] = str(abs_da_pen_mode)
+
     nonzero = []
     for d, c in counts.items():
         if abs(float(d)) <= 1e-12:
@@ -532,10 +571,19 @@ def _select_mz_shifts(
                 z = (float(c) - support_med) / float(support_mad)
                 if z < min_robust_z:
                     continue
-            nonzero.append((int(c), float(d)))
-    nonzero.sort(key=lambda x: (-x[0], abs(x[1]), x[1]))
+            base = float(c) if auto_score_mode == "count" else float(math.log1p(float(c)))
+            pen = 0.0
+            if abs_da_pen != 0.0:
+                if abs_da_pen_mode == "linear":
+                    pen = float(abs_da_pen) * abs(float(d))
+                else:
+                    pen = float(abs_da_pen) * float(math.log1p(abs(float(d))))
+            score = float(base - pen)
+            nonzero.append((score, int(c), float(d)))
+    # Sort by posterior-like score, then support count, then prefer smaller |delta| (ties).
+    nonzero.sort(key=lambda x: (-x[0], -x[1], abs(x[2]), x[2]))
 
-    selected_nonzero = [d for _, d in nonzero[:top_k]]
+    selected_nonzero = [d for _, _, d in nonzero[:top_k]]
 
     # If the user enables the proton override gate, ensure the proton shifts are actually available
     # to candidate generation. Otherwise the override has no effect when auto shift selection
@@ -2501,29 +2549,31 @@ def match_features(
     except Exception:
         rt_policy = ""
     auto_alpha = float(getattr(cfg, "structure_alpha_on_nontransferable_rt", 0.0) or 0.0)
+    auto_graph = str(getattr(cfg, "structure_graph_on_nontransferable_rt", "local_rt") or "local_rt").lower().strip()
+    auto_needs_expr = auto_graph in {"knn", "stable", "local_rt"}
     if (
         (not bool(cfg.use_structure))
         and auto_alpha != 0.0
         and rt_policy == "ignore"
-        and expr_a is not None
-        and expr_b is not None
+        and (not auto_needs_expr or (expr_a is not None and expr_b is not None))
     ):
-        cfg_use = replace(cfg, use_structure=True, structure_alpha=float(auto_alpha), structure_graph="local_rt")
+        cfg_use = replace(cfg, use_structure=True, structure_alpha=float(auto_alpha), structure_graph=str(auto_graph))
 
     use_structure = bool(cfg_use.use_structure) and float(cfg_use.structure_alpha) != 0.0 and int(cfg_use.structure_iters) > 0
     graph1 = graph2 = None
     if use_structure:
+        graph_mode = str(cfg_use.structure_graph).lower().strip()
+        if graph_mode not in {"knn", "stable", "local_rt"}:
+            raise ValueError(
+                f"Unsupported structure_graph: {cfg_use.structure_graph!r} "
+                "(expected 'knn', 'stable', or 'local_rt')."
+            )
+
         if expr_a is None or expr_b is None:
-            raise ValueError("expr_a/expr_b are required when use_structure=True.")
+            raise ValueError("expr_a/expr_b are required when structure_graph uses correlations.")
         x1 = coerce_expression(expr_a, n1, "expr_a")
         x2 = coerce_expression(expr_b, n2, "expr_b")
         if x1.shape[0] >= int(cfg_use.structure_min_samples) and x2.shape[0] >= int(cfg_use.structure_min_samples):
-            graph_mode = str(cfg_use.structure_graph).lower().strip()
-            if graph_mode not in {"knn", "stable", "local_rt"}:
-                raise ValueError(
-                    f"Unsupported structure_graph: {cfg_use.structure_graph!r} (expected 'knn', 'stable', or 'local_rt')."
-                )
-
             if graph_mode == "knn":
                 graph1 = build_structure_graph(
                     x1,
@@ -2787,6 +2837,29 @@ def match_features(
             top1_source[override] = "local_override"
 
     top1["top1_source"] = top1_source
+
+    # Optional confidence-based abstention: after selecting a match (via OT/local/hybrid),
+    # convert low-confidence assignments to a no-match. This is intentionally a *decision*
+    # layer (not a scoring layer), so it does not change candidate log-likelihoods or OT.
+    min_p = float(getattr(cfg_use, "decision_min_prob_match", 0.0) or 0.0)
+    min_m = float(getattr(cfg_use, "decision_min_margin", 0.0) or 0.0)
+    min_gap = float(getattr(cfg_use, "decision_min_prob_match_minus_null", 0.0) or 0.0)
+    if (min_p > 0.0 or min_m > 0.0 or min_gap > 0.0) and (top1 is not None) and (not top1.empty):
+        is_match = top1["id2"].to_numpy(dtype=int) >= 0
+        p_match = top1["prob_match_raw"].to_numpy(dtype=float)
+        margin = top1["margin"].to_numpy(dtype=float)
+        if "p_null" in top1.columns:
+            p_null = top1["p_null"].to_numpy(dtype=float)
+        else:
+            p_null = np.zeros_like(p_match)
+        fail = is_match & (
+            (p_match < min_p)
+            | (margin < min_m)
+            | ((p_match - p_null) < min_gap)
+        )
+        if np.any(fail):
+            top1.loc[fail, "id2"] = -1
+            top1.loc[fail, "decision"] = "abstain_confidence"
 
     # Final output probability: for matches report p1; for no-match report p_null.
     top1["prob_raw"] = top1["prob_match_raw"].to_numpy(dtype=float)
