@@ -36,3 +36,36 @@ mass_sight match study_a.csv study_b.csv \
 - `candidates.csv` contains all possible feature matches with their probabilities.
 - `top1.csv` contains the top 1 peak match between the two studies.
 - `--ppm` specifies the mass accuracy tolerance in parts-per-million.
+
+## Quickstart: reuse public Workbench analyses
+
+```bash
+mass_sight reuse \
+  --analysis-id AN000001 \
+  --analysis-id AN000002 \
+  --out-dir reuse_out
+```
+
+`reuse` fetches Workbench `mwtab` + `untarg_data`, summarizes assay metadata (ion mode, chromatography, instrument, value-scale hints), groups compatible studies, and runs clustering per group.
+
+Useful options:
+
+- `--use-intensity off|auto|on` (default `off`)
+- `--min-group-size` (default `2`)
+- `--allow-unknown-strata` (off by default)
+
+## Reproducibility manifests
+
+CLI runs write JSON run manifests by default:
+
+- `match`: `<out-candidates-stem>.run_manifest.json`
+- `cluster`: `<out-dir>/run_manifest.json`
+- `reuse`: `<out-dir>/run_manifest.json`
+
+Each manifest records version, parameters, runtime, and output file paths.
+
+## Reviewer demo
+
+See the runnable reviewer bundle tutorial:
+
+- [`tutorials/reviewer-demo.qmd`](tutorials/reviewer-demo.qmd)

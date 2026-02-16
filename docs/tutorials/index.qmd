@@ -6,6 +6,8 @@ format:
 ---
 
 - [Matching two studies](matching-two-studies.qmd)
+- [Reviewer demo and expected outputs](reviewer-demo.qmd)
+- [Reuse Metabolomics Workbench analyses](reuse-workbench.qmd)
 - [Clustering multiple studies](clustering-multiple-studies.qmd)
 - [Pathway analysis workflow (template)](pathway-workflow.qmd)
 - [Computing per-cluster statistics (examples only)](feature-stats-examples.qmd)

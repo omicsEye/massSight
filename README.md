@@ -79,6 +79,31 @@ mass_sight match study_a.csv study_b.csv \
   --out-top1 top1.csv
 ```
 
+For public-data reuse from Metabolomics Workbench:
+
+```bash
+mass_sight reuse \
+  --analysis-id AN000001 \
+  --analysis-id AN000002 \
+  --out-dir reuse_out
+```
+
+This workflow is designed for end users who want a quick, reproducible cross-study run from public MW IDs.
+It fetches `mwtab` + `untarg_data`, summarizes study metadata, automatically groups compatible assays
+(same ion mode + chromatography), and runs clustering within each group.
+
+Common options:
+
+- `--use-intensity off|auto|on`: control whether intensity is used across studies (default `off`).
+- `--min-group-size N`: require at least `N` studies per assay-compatible group (default `2`).
+- `--allow-unknown-strata`: include analyses with unknown ion mode/chromatography instead of dropping them.
+
+By default, CLI runs also write a machine-readable run manifest capturing software version, parameters, runtime, and outputs:
+
+- `match`: `<out-candidates-stem>.run_manifest.json`
+- `cluster`: `<out-dir>/run_manifest.json`
+- `reuse`: `<out-dir>/run_manifest.json`
+
 ## Citation
 
 - See `CITATION.cff`.

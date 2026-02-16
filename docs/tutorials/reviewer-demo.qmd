@@ -1,0 +1,36 @@
+---
+title: "Reviewer Demo and Expected Outputs"
+format:
+  html:
+    toc: true
+---
+
+This page documents a deterministic smoke test intended for software review.
+
+## Run the demo
+
+```bash
+uv run mass_sight match \
+  examples/reviewer_demo/study_a.csv \
+  examples/reviewer_demo/study_b.csv \
+  --out-candidates examples/reviewer_demo/output/candidates.csv \
+  --out-top1 examples/reviewer_demo/output/top1.csv
+```
+
+Expected outputs:
+
+- `examples/reviewer_demo/output/candidates.csv`
+- `examples/reviewer_demo/output/top1.csv`
+- `examples/reviewer_demo/output/candidates.run_manifest.json`
+
+## Verify outputs
+
+```bash
+uv run python examples/reviewer_demo/verify_outputs.py \
+  --candidates examples/reviewer_demo/output/candidates.csv \
+  --top1 examples/reviewer_demo/output/top1.csv
+```
+
+The verification checks summary counts against:
+
+- `examples/reviewer_demo/expected_summary.json`

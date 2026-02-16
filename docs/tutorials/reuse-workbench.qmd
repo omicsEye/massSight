@@ -1,0 +1,45 @@
+---
+title: "Reuse Metabolomics Workbench analyses"
+format:
+  html:
+    toc: true
+---
+
+`mass_sight reuse` is the one-command workflow for reusing public Metabolomics Workbench LC–MS studies.
+
+## Example
+
+```bash
+mass_sight reuse \
+  --analysis-id AN000001 \
+  --analysis-id AN000002 \
+  --analysis-id AN000003 \
+  --out-dir reuse_out
+```
+
+## What it does
+
+1. Fetches `mwtab` and `untarg_data` for each analysis.
+2. Summarizes per-analysis metadata (`analysis_metadata.tsv`), including:
+   - ion mode (`positive` / `negative` / `unknown`)
+   - chromatography (`hilic` / `reversed_phase` / `gc` / `other` / `unknown`)
+   - instrument metadata
+   - value-scale hints (`raw_like`, `normalized`, `scaled`, `log_transformed`, `unknown`)
+3. Forms compatibility groups by ion mode + chromatography.
+4. Runs clustering separately within each group.
+
+If studies are not assay-compatible, they are not mixed into the same group.
+
+## Key outputs
+
+- `analysis_metadata.tsv`: normalized metadata used to make grouping choices.
+- `reuse_groups.tsv`: one row per processed compatibility group.
+- `groups/<group_key>/...`: clustering outputs for that group.
+- `reuse_summary.json`: run-level summary.
+- `run_manifest.json`: provenance capture (version, args, runtime, outputs).
+
+## `--use-intensity` options
+
+- `--use-intensity off` (default): do not use intensity during cross-study matching.
+- `--use-intensity auto`: use intensity only when metadata suggests comparable raw-like values.
+- `--use-intensity on`: always include intensity as matching evidence.

@@ -40,6 +40,11 @@ class MassSightConfig:
     # Cross-study default: disable intensity-based filtering because intensities are not
     # comparable across instruments and preprocessing pipelines.
     intensity_log_diff_max: float = 5.0
+    # Optional per-study standardization of log10 intensity prior to matching.
+    # This is useful when using intensity residuals across studies where absolute scales differ.
+    #
+    # Supported: "none" | "zscore" | "robust_zscore"
+    intensity_standardize: str = "none"
 
     # Candidate pruning (optional): keep only the top-K candidates per id1 by log-likelihood
     # before OT/softmax. This can reduce ambiguity on dense m/z-only graphs.
@@ -56,6 +61,12 @@ class MassSightConfig:
     top1_hybrid_local_p_min: float = 0.6
     top1_hybrid_local_margin_min: float = 0.2
     top1_hybrid_ot_margin_max: float = 0.1
+    # Hybrid safeguard: when OT already strongly prefers null, do not permit local override.
+    # 1.0 disables this safeguard (legacy behavior).
+    top1_hybrid_ot_null_override_max_p0: float = 1.0
+    # Optional additional safeguard: block OT-null local overrides on highly ambiguous rows.
+    # <=0 disables this safeguard.
+    top1_hybrid_ot_null_override_max_row_neff: float = 0.0
 
     # Optional confidence-based abstention *after* top-1 selection.
     #
@@ -66,6 +77,14 @@ class MassSightConfig:
     decision_min_prob_match: float = 0.0
     decision_min_margin: float = 0.0
     decision_min_prob_match_minus_null: float = 0.0
+    # Optional ambiguity-aware abstention on top of global decision thresholds.
+    # A row is marked ambiguous when either trigger is active and exceeded.
+    decision_ambig_min_n_candidates: int = 0
+    decision_ambig_min_row_neff_ot: float = 0.0
+    # Stricter match requirements applied only on ambiguous rows.
+    decision_ambig_min_prob_match: float = 0.0
+    decision_ambig_min_margin: float = 0.0
+    decision_ambig_min_prob_match_minus_null: float = 0.0
 
     # Candidate RT gating: optionally enable gating but disable it automatically when
     # the estimated RT drift (from m/z-tight anchors) is too large.
@@ -141,6 +160,11 @@ class MassSightConfig:
     w_rt: float = 1.0
     w_roi: float = 1.0
     w_int: float = 0.0
+    # Optional feature-level variability evidence.
+    # If a `CV` column is provided in the input feature tables, we derive `CV_log10`
+    # and use its cross-study difference as an additional likelihood term.
+    use_cv: bool = False
+    w_cv: float = 0.0
 
     # Student-t likelihood parameters
     t_df: float = 3.0
@@ -230,6 +254,57 @@ class MatchResult:
     top1: pd.DataFrame
     ot_summary: Dict[str, float]
     drift_params: Dict[str, object]
+
+
+def _standardize_intensity_log10(
+    x: np.ndarray,
+    *,
+    mode: str,
+    clip: float = 8.0,
+    min_finite: int = 50,
+) -> Tuple[np.ndarray, Dict[str, object]]:
+    """Standardize per-study log10 intensity for cross-study comparability.
+
+    Returns (x_std, diag) where diag includes location/scale used.
+    """
+    x = np.asarray(x, dtype=float)
+    finite = np.isfinite(x)
+    n = int(np.sum(finite))
+    diag: Dict[str, object] = {
+        "n_finite": float(n),
+        "loc": float("nan"),
+        "scale": float("nan"),
+        "clip": float(clip),
+        "note": "",
+    }
+    if n < int(min_finite):
+        diag["note"] = "too_few_finite"
+        return x, diag
+
+    mode = str(mode or "none").lower().strip().replace("-", "_")
+    if mode in {"zscore", "z"}:
+        loc = float(np.mean(x[finite]))
+        scale = float(np.std(x[finite]))
+    elif mode in {"robust_zscore", "robust", "mad"}:
+        loc = float(np.median(x[finite]))
+        mad = float(np.median(np.abs(x[finite] - loc)))
+        scale = float(1.4826 * mad)
+    else:
+        diag["note"] = "mode_off"
+        return x, diag
+
+    if not np.isfinite(scale) or scale <= 1e-12:
+        diag["note"] = "degenerate_scale"
+        return np.zeros_like(x, dtype=float), diag
+
+    diag["loc"] = float(loc)
+    diag["scale"] = float(scale)
+    diag["note"] = "ok"
+    z = (x - float(loc)) / float(scale)
+    if np.isfinite(float(clip)) and float(clip) > 0:
+        z = np.clip(z, -float(clip), float(clip))
+    z[~finite] = 0.0
+    return z, diag
 
 
 def _compute_rt_quality(rt: np.ndarray, cfg: MassSightConfig) -> Dict[str, object]:
@@ -677,6 +752,8 @@ def _build_candidate_pairs(
             ro2 = float(study_b.at[int(j2), "ro"]) if "ro" in study_b.columns else 0.0
             il1 = float(study_a.at[int(i1), "Intensity_log10"]) if "Intensity_log10" in study_a.columns else 0.0
             il2 = float(study_b.at[int(j2), "Intensity_log10"]) if "Intensity_log10" in study_b.columns else 0.0
+            cv1 = float(study_a.at[int(i1), "CV_log10"]) if "CV_log10" in study_a.columns else 0.0
+            cv2 = float(study_b.at[int(j2), "CV_log10"]) if "CV_log10" in study_b.columns else 0.0
 
             feat = {
                 "id1": int(i1),
@@ -690,6 +767,9 @@ def _build_candidate_pairs(
                 "int1": float(il1),
                 "int2": float(il2),
                 "intensity_log_diff": float(il2 - il1),
+                "cv1": float(cv1),
+                "cv2": float(cv2),
+                "cv_log_diff": float(cv2 - cv1),
                 "roi_x": float(ro1),
                 "roi_y": float(ro2),
                 "delta_roi": float(ro2 - ro1),
@@ -720,6 +800,11 @@ def _build_tight_matches(
         if "Intensity_log10" in study_b.columns
         else np.zeros(len(study_b), dtype=float)
     )
+    cv2 = (
+        study_b["CV_log10"].to_numpy(dtype=float)
+        if "CV_log10" in study_b.columns
+        else np.zeros(len(study_b), dtype=float)
+    )
 
     order2 = np.argsort(mz2)
     mz2_sorted = mz2[order2]
@@ -730,6 +815,11 @@ def _build_tight_matches(
     il1 = (
         study_a["Intensity_log10"].to_numpy(dtype=float)
         if "Intensity_log10" in study_a.columns
+        else np.zeros(len(study_a), dtype=float)
+    )
+    cv1 = (
+        study_a["CV_log10"].to_numpy(dtype=float)
+        if "CV_log10" in study_a.columns
         else np.zeros(len(study_a), dtype=float)
     )
 
@@ -763,10 +853,13 @@ def _build_tight_matches(
                 "roi_y",
                 "int_x",
                 "int_y",
+                "cv_x",
+                "cv_y",
                 "delta_ppm",
                 "delta_rt",
                 "delta_roi",
                 "intensity_log_diff",
+                "cv_log_diff",
             ]
         )
 
@@ -814,10 +907,13 @@ def _build_tight_matches(
                         "roi_y": float(ro2[j]),
                         "int_x": float(il1[i]),
                         "int_y": float(il2[j]),
+                        "cv_x": float(cv1[i]),
+                        "cv_y": float(cv2[j]),
                         "delta_ppm": float(delta_ppm),
                         "delta_rt": float(delta_rt),
                         "delta_roi": float(delta_roi),
                         "intensity_log_diff": float(int_diff),
+                        "cv_log_diff": float(cv2[j] - cv1[i]),
                     }
                 )
 
@@ -885,10 +981,13 @@ def _build_tight_matches(
                     "roi_y": float(ro2[j]),
                     "int_x": float(il1[i]),
                     "int_y": float(il2[j]),
+                    "cv_x": float(cv1[i]),
+                    "cv_y": float(cv2[j]),
                     "delta_ppm": float(delta_ppm),
                     "delta_rt": float(delta_rt),
                     "delta_roi": float(delta_roi),
                     "intensity_log_diff": float(int_diff),
+                    "cv_log_diff": float(cv2[j] - cv1[i]),
                 }
             )
         return pd.DataFrame(rows)
@@ -955,10 +1054,13 @@ def _build_tight_matches(
                 "roi_y": float(ro2[j]),
                 "int_x": float(il1[i]),
                 "int_y": float(il2[j]),
+                "cv_x": float(cv1[i]),
+                "cv_y": float(cv2[j]),
                 "delta_ppm": float(delta_ppm),
                 "delta_rt": float(delta_rt),
                 "delta_roi": float(delta_roi),
                 "intensity_log_diff": float(int_diff),
+                "cv_log_diff": float(cv2[j] - cv1[i]),
             }
         )
 
@@ -1109,24 +1211,59 @@ def _fit_linear_model(x: np.ndarray, y: np.ndarray):
 
 
 def _fit_robust_linear_model(x: np.ndarray, y: np.ndarray, *, epsilon: float = 1.35):
-    """Fit y ~ a + b*x using Huber regression and return predictor."""
+    """Fit y ~ a + b*x using a Huber-IRLS robust regression and return predictor.
+
+    Note: We avoid an sklearn dependency here because drift fitting is used in benchmark runners
+    that may not vendor scikit-learn.
+    """
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     mask = np.isfinite(x) & np.isfinite(y)
     if int(mask.sum()) < 2:
         return lambda x_new: np.zeros_like(np.asarray(x_new, dtype=float))
 
-    x_m = x[mask].reshape(-1, 1)
+    x_m = x[mask]
     y_m = y[mask]
-    try:
-        from sklearn.linear_model import HuberRegressor
 
-        model = HuberRegressor(epsilon=float(epsilon), alpha=0.0, fit_intercept=True, max_iter=200)
-        model.fit(x_m, y_m)
-        intercept = float(model.intercept_)
-        slope = float(model.coef_[0]) if getattr(model, "coef_", None) is not None else 0.0
+    # Initial OLS.
+    X = np.vstack([np.ones_like(x_m), x_m]).T
+    try:
+        beta = np.linalg.lstsq(X, y_m, rcond=None)[0]
     except Exception:
         return _fit_linear_model(x, y)
+
+    eps = float(epsilon) if np.isfinite(float(epsilon)) and float(epsilon) > 0 else 1.35
+    max_iter = 25
+    tol = 1e-8
+    for _ in range(max_iter):
+        y_hat = X @ beta
+        resid = y_m - y_hat
+        # Robust scale estimate.
+        med = float(np.median(resid))
+        mad = float(np.median(np.abs(resid - med)))
+        scale = 1.4826 * mad
+        if not np.isfinite(scale) or scale <= 1e-12:
+            break
+
+        u = resid / (scale * eps)
+        w = np.ones_like(u, dtype=float)
+        big = np.abs(u) > 1.0
+        w[big] = 1.0 / np.maximum(np.abs(u[big]), 1e-12)
+
+        sw = np.sqrt(w)
+        Xw = X * sw[:, None]
+        yw = y_m * sw
+        try:
+            beta_new = np.linalg.lstsq(Xw, yw, rcond=None)[0]
+        except Exception:
+            break
+        if float(np.max(np.abs(beta_new - beta))) <= tol:
+            beta = beta_new
+            break
+        beta = beta_new
+
+    intercept = float(beta[0])
+    slope = float(beta[1]) if beta.size > 1 else 0.0
 
     def predict(x_new: np.ndarray) -> np.ndarray:
         x_new = np.asarray(x_new, dtype=float)
@@ -1147,6 +1284,7 @@ def _fit_drift_models_core(
             "rt_model_x": "rt",
             "ppm_model": lambda x: np.zeros_like(np.asarray(x, dtype=float)),
             "int_model": lambda x: np.zeros_like(np.asarray(x, dtype=float)),
+            "cv_model": lambda x: np.zeros_like(np.asarray(x, dtype=float)),
             "roi_model": lambda x: np.zeros_like(np.asarray(x, dtype=float)),
         }
 
@@ -1208,6 +1346,7 @@ def _fit_drift_models_core(
         "rt_model_x": rt_x_mode,
         "ppm_model": ppm_model,
         "int_model": int_model,
+        "cv_model": lambda x: np.zeros_like(np.asarray(x, dtype=float)),
         "roi_model": roi_model,
     }
 
@@ -1283,6 +1422,15 @@ def _apply_drift_correction(
     cand["int_fit"] = int_fit
     cand["int_resid"] = cand["intensity_log_diff"].to_numpy(dtype=float) - int_fit
 
+    if "cv_log_diff" in cand.columns:
+        cv_x = cand["cv1"].to_numpy(dtype=float) if "cv1" in cand.columns else np.zeros(len(cand), dtype=float)
+        cv_fit = drift_models.get("cv_model", lambda x: np.zeros_like(np.asarray(x, dtype=float)))(cv_x)
+        cand["cv_fit"] = cv_fit
+        cand["cv_resid"] = cand["cv_log_diff"].to_numpy(dtype=float) - cv_fit
+    else:
+        cand["cv_fit"] = 0.0
+        cand["cv_resid"] = 0.0
+
     roi_x = cand["roi_x"].to_numpy(dtype=float)
     roi_fit = drift_models["roi_model"](roi_x)
     delta_roi = cand["delta_roi"].to_numpy(dtype=float)
@@ -1333,11 +1481,19 @@ def _anchor_residuals(
     int_fit = drift_models["int_model"](int_x)
     roi_fit = drift_models["roi_model"](roi_x)
 
+    if "cv_log_diff" in tight.columns:
+        cv_x = tight["cv_x"].to_numpy(dtype=float) if "cv_x" in tight.columns else np.zeros(len(tight), dtype=float)
+        cv_fit = drift_models.get("cv_model", lambda x: np.zeros_like(np.asarray(x, dtype=float)))(cv_x)
+        cv_resid = tight["cv_log_diff"].to_numpy(dtype=float) - cv_fit
+    else:
+        cv_resid = np.zeros(len(tight), dtype=float)
+
     return {
         "ppm": tight["delta_ppm"].to_numpy(dtype=float) - ppm_fit,
         "rt": tight["delta_rt"].to_numpy(dtype=float) - rt_fit,
         "roi": tight["delta_roi"].to_numpy(dtype=float) - roi_fit,
         "int": tight["intensity_log_diff"].to_numpy(dtype=float) - int_fit,
+        "cv": cv_resid,
     }
 
 
@@ -1356,6 +1512,7 @@ def _compute_anchor_scales(
         "rt": _mad_scale(resid["rt"], cfg.scale_floor),
         "roi": _mad_scale(resid["roi"], cfg.scale_floor),
         "int": _mad_scale(resid["int"], cfg.scale_floor),
+        "cv": _mad_scale(resid["cv"], cfg.scale_floor),
     }
     return scales
 
@@ -1373,6 +1530,7 @@ def _compute_loglik(
     rt_resid = cand["rt_resid"].to_numpy(dtype=float) if "rt_resid" in cand.columns else np.zeros(len(cand))
     roi_resid = cand["roi_resid"].to_numpy(dtype=float) if "roi_resid" in cand.columns else np.zeros(len(cand))
     int_resid = cand["int_resid"].to_numpy(dtype=float) if "int_resid" in cand.columns else np.zeros(len(cand))
+    cv_resid = cand["cv_resid"].to_numpy(dtype=float) if "cv_resid" in cand.columns else np.zeros(len(cand))
 
     if "ppm" not in scales:
         scales["ppm"] = _mad_scale(ppm_resid, cfg.scale_floor)
@@ -1382,6 +1540,8 @@ def _compute_loglik(
         scales["roi"] = _mad_scale(roi_resid, cfg.scale_floor)
     if "int" not in scales:
         scales["int"] = _mad_scale(int_resid, cfg.scale_floor)
+    if "cv" not in scales:
+        scales["cv"] = _mad_scale(cv_resid, cfg.scale_floor)
 
     ll = np.zeros(len(cand), dtype=float)
 
@@ -1393,6 +1553,8 @@ def _compute_loglik(
         ll += float(cfg.w_roi) * _student_t_logpdf(roi_resid, cfg.t_df, float(scales["roi"]))
     if cfg.use_intensity and cfg.w_int != 0:
         ll += float(cfg.w_int) * _student_t_logpdf(int_resid, cfg.t_df, float(scales["int"]))
+    if bool(getattr(cfg, "use_cv", False)) and float(getattr(cfg, "w_cv", 0.0) or 0.0) != 0.0:
+        ll += float(getattr(cfg, "w_cv", 0.0) or 0.0) * _student_t_logpdf(cv_resid, cfg.t_df, float(scales["cv"]))
 
     cand["loglik"] = ll
     return cand, scales
@@ -1899,6 +2061,50 @@ def _prepare_match(
         compound_override=cfg.compound_id_col_study_b,
     )
 
+    # --- Optional CV feature normalization ---
+    # We treat CV as a per-feature scalar (e.g., computed across control/QC samples).
+    # When present, we use a log10 transform for heavy-tailed residual modeling.
+    eps = 1e-9
+    if "CV" in study_a.columns:
+        cv_a = pd.to_numeric(study_a["CV"], errors="coerce").to_numpy(dtype=float, copy=False)
+        cv_a = np.where(np.isfinite(cv_a) & (cv_a > 0), cv_a, 0.0)
+        study_a = study_a.copy()
+        study_a["CV_log10"] = np.log10(cv_a + eps)
+    else:
+        study_a["CV_log10"] = 0.0
+
+    if "CV" in study_b.columns:
+        cv_b = pd.to_numeric(study_b["CV"], errors="coerce").to_numpy(dtype=float, copy=False)
+        cv_b = np.where(np.isfinite(cv_b) & (cv_b > 0), cv_b, 0.0)
+        study_b = study_b.copy()
+        study_b["CV_log10"] = np.log10(cv_b + eps)
+    else:
+        study_b["CV_log10"] = 0.0
+
+    # --- Optional intensity standardization (per study) ---
+    int_std_mode = str(getattr(cfg_eff, "intensity_standardize", "none") or "none").lower().strip()
+    int_std_mode = int_std_mode.replace("-", "_")
+    if bool(getattr(cfg_eff, "use_intensity", False)) and int_std_mode not in {"none", "off", ""}:
+        a_std, a_diag = _standardize_intensity_log10(
+            study_a["Intensity_log10"].to_numpy(dtype=float),
+            mode=int_std_mode,
+        )
+        b_std, b_diag = _standardize_intensity_log10(
+            study_b["Intensity_log10"].to_numpy(dtype=float),
+            mode=int_std_mode,
+        )
+        study_a = study_a.copy()
+        study_b = study_b.copy()
+        study_a["Intensity_log10"] = a_std
+        study_b["Intensity_log10"] = b_std
+        rt_gate_diag["intensity_standardize"] = str(int_std_mode)
+        rt_gate_diag["intensity_standardize_a_loc"] = float(a_diag.get("loc", float("nan")))
+        rt_gate_diag["intensity_standardize_a_scale"] = float(a_diag.get("scale", float("nan")))
+        rt_gate_diag["intensity_standardize_b_loc"] = float(b_diag.get("loc", float("nan")))
+        rt_gate_diag["intensity_standardize_b_scale"] = float(b_diag.get("scale", float("nan")))
+    else:
+        rt_gate_diag["intensity_standardize"] = "none"
+
     # --- RT unit normalization (seconds -> minutes) ---
     if bool(getattr(cfg_eff, "normalize_rt_units", True)):
         scale_a, info_a = infer_rt_unit_scale_to_minutes(study_a["RT"].to_numpy(dtype=float))
@@ -2230,13 +2436,17 @@ def match_features(
 
     # Per-row uncertainty diagnostics (entropy + effective candidate count).
     row_ent_local = _row_entropy_sparse(id1, p_row_local, n1, p0=p0_local if cfg_use.allow_unmatched else None)
+    row_neff_local = np.exp(row_ent_local)
     cand["row_entropy_local"] = cand["id1"].map(pd.Series(row_ent_local))
-    cand["row_neff_local"] = cand["id1"].map(pd.Series(np.exp(row_ent_local)))
+    cand["row_neff_local"] = cand["id1"].map(pd.Series(row_neff_local))
+    row_neff_ot = np.full(int(n1), np.nan, dtype=float)
     if "p_row_ot" in cand.columns:
         p_row_ot = cand["p_row_ot"].to_numpy(dtype=float)
         row_ent_ot = _row_entropy_sparse(id1, p_row_ot, n1, p0=p0 if cfg_use.allow_unmatched else None)
+        row_neff_ot = np.exp(row_ent_ot)
         cand["row_entropy_ot"] = cand["id1"].map(pd.Series(row_ent_ot))
-        cand["row_neff_ot"] = cand["id1"].map(pd.Series(np.exp(row_ent_ot)))
+        cand["row_neff_ot"] = cand["id1"].map(pd.Series(row_neff_ot))
+    cand_count = np.bincount(id1, minlength=int(n1)).astype(float)
 
     # Build per-row top‑1 and OT ambiguity margin (p1-p2).
     ranked = (
@@ -2320,6 +2530,8 @@ def match_features(
         p_min = float(getattr(cfg_use, "top1_hybrid_local_p_min", 0.5) or 0.5)
         m_min = float(getattr(cfg_use, "top1_hybrid_local_margin_min", 0.2) or 0.2)
         ot_m_max = float(getattr(cfg_use, "top1_hybrid_ot_margin_max", 0.1) or 0.1)
+        ot_null_override_max_p0 = float(getattr(cfg_use, "top1_hybrid_ot_null_override_max_p0", 1.0) or 1.0)
+        ot_null_override_max_neff = float(getattr(cfg_use, "top1_hybrid_ot_null_override_max_row_neff", 0.0) or 0.0)
 
         local_match = top1_local["id2"].to_numpy(dtype=int) >= 0
         local_conf = (top1_local["prob_match_raw"].to_numpy(dtype=float) >= p_min) & (
@@ -2329,8 +2541,13 @@ def match_features(
         ot_is_null = top1["decision"].astype(str).to_numpy() == "null_ot"
         ot_diff = top1["id2"].to_numpy(dtype=int) != top1_local["id2"].to_numpy(dtype=int)
         ot_amb = top1["margin"].to_numpy(dtype=float) <= ot_m_max
+        ot_null_override_ok = np.ones(int(n1), dtype=bool)
+        if float(ot_null_override_max_p0) < 1.0:
+            ot_null_override_ok &= top1["p_null"].to_numpy(dtype=float) <= float(ot_null_override_max_p0)
+        if float(ot_null_override_max_neff) > 0.0:
+            ot_null_override_ok &= np.isfinite(row_neff_ot) & (row_neff_ot <= float(ot_null_override_max_neff))
 
-        override = local_match & local_conf & (ot_is_null | (ot_diff & ot_amb))
+        override = local_match & local_conf & ((ot_is_null & ot_null_override_ok) | (ot_diff & ot_amb))
         if np.any(override):
             top1.loc[override, ["id2_raw", "prob_match_raw", "margin", "id2", "decision", "p_null"]] = top1_local.loc[
                 override, ["id2_raw", "prob_match_raw", "margin", "id2", "decision", "p_null"]
@@ -2361,6 +2578,41 @@ def match_features(
         if np.any(fail):
             top1.loc[fail, "id2"] = -1
             top1.loc[fail, "decision"] = "abstain_confidence"
+
+    # Optional ambiguity-aware abstention: apply stricter thresholds only to ambiguous rows.
+    ambig_min_n_cand = int(getattr(cfg_use, "decision_ambig_min_n_candidates", 0) or 0)
+    ambig_min_neff_ot = float(getattr(cfg_use, "decision_ambig_min_row_neff_ot", 0.0) or 0.0)
+    ambig_min_p = float(getattr(cfg_use, "decision_ambig_min_prob_match", 0.0) or 0.0)
+    ambig_min_m = float(getattr(cfg_use, "decision_ambig_min_margin", 0.0) or 0.0)
+    ambig_min_gap = float(getattr(cfg_use, "decision_ambig_min_prob_match_minus_null", 0.0) or 0.0)
+    if (
+        top1 is not None
+        and (not top1.empty)
+        and (ambig_min_n_cand > 0 or ambig_min_neff_ot > 0.0)
+        and (ambig_min_p > 0.0 or ambig_min_m > 0.0 or ambig_min_gap > 0.0)
+    ):
+        is_match = top1["id2"].to_numpy(dtype=int) >= 0
+        p_match = top1["prob_match_raw"].to_numpy(dtype=float)
+        margin = top1["margin"].to_numpy(dtype=float)
+        if "p_null" in top1.columns:
+            p_null = top1["p_null"].to_numpy(dtype=float)
+        else:
+            p_null = np.zeros_like(p_match)
+
+        ambiguous = np.zeros(int(n1), dtype=bool)
+        if ambig_min_n_cand > 0:
+            ambiguous |= cand_count >= float(ambig_min_n_cand)
+        if ambig_min_neff_ot > 0.0:
+            ambiguous |= np.isfinite(row_neff_ot) & (row_neff_ot >= float(ambig_min_neff_ot))
+
+        fail_amb = is_match & ambiguous & (
+            (p_match < ambig_min_p)
+            | (margin < ambig_min_m)
+            | ((p_match - p_null) < ambig_min_gap)
+        )
+        if np.any(fail_amb):
+            top1.loc[fail_amb, "id2"] = -1
+            top1.loc[fail_amb, "decision"] = "abstain_ambiguous"
 
     # Final output probability: for matches report p1; for no-match report p_null.
     top1["prob_raw"] = top1["prob_match_raw"].to_numpy(dtype=float)

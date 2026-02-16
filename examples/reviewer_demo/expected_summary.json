@@ -1,0 +1,8 @@
+{
+  "n_features_study_a": 5,
+  "n_features_study_b": 5,
+  "n_candidates": 4,
+  "n_top1_rows": 5,
+  "n_top1_matches": 4,
+  "n_top1_no_candidate": 1
+}
