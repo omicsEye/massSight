@@ -38,7 +38,6 @@ def test_hub_clustering_full_join_keeps_unmatched_features_as_singletons():
         rt=0.0,
         tight_ppm=5.0,
         tight_rt=1.0,
-        mz_shift_mode="none",
         allow_unmatched=True,
         rt_drift_model="none",
         ppm_drift_model="linear",

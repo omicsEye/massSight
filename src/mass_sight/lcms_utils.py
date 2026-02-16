@@ -16,13 +16,12 @@ ADDUCT_MASS_POS = {
     "K": 38.963158,
 }
 
-# Common negative-mode adduct masses (Da) used for discrete shift expansion.
+# Common negative-mode adduct masses (Da) used by within-study adduct utilities.
 # Values are monoisotopic masses and follow the convention:
 #   observed_mz ≈ neutral_mass + adduct_mass
 # where for deprotonation [M-H]- we treat the adduct mass as -H.
 #
-# Note: We keep the conservative NEG default in massSight (±H only) and expose these
-# as an optional expansion (see `MassSightConfig.mz_shift_neg_adducts`).
+# These constants are used by adduct-grouping helpers.
 ADDUCT_MASS_NEG = {
     # Chloride adduct: [M+Cl]-
     "CL": 34.968852682,

@@ -8,7 +8,7 @@ row-normalized probabilities for top-1 selection.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -22,9 +22,6 @@ from .structure_graph import (
     coerce_expression,
 )
 from .lcms_utils import (
-    ADDUCT_MASS_POS,
-    ADDUCT_MASS_NEG,
-    PROTON_MASS,
     SchemaConfig,
     infer_rt_unit_scale_to_minutes,
     normalize_schema,
@@ -43,56 +40,6 @@ class MassSightConfig:
     # Cross-study default: disable intensity-based filtering because intensities are not
     # comparable across instruments and preprocessing pipelines.
     intensity_log_diff_max: float = 5.0
-
-    # Candidate expansion via discrete m/z shift hypotheses (experimental).
-    #
-    # We currently disable this by default because it degrades performance on the
-    # canonical MW NEW_V1 benchmark. The functionality remains available for
-    # targeted stress tests / future work.
-    mz_shift_mode: str = "none"  # "none" | "auto" | "manual"
-    # Positive-mode shift family selection (used only when polarity="positive").
-    # - "conservative": ±H only
-    # - "expanded": include common POS adducts (H/NH4/Na/K) in addition to ±H
-    mz_shift_pos_adducts: str = "conservative"  # "conservative" | "expanded"
-    # Negative-mode shift family selection (used only when polarity="negative").
-    # - "conservative": ±H only
-    # - "expanded": include common NEG adducts (Cl/formate/acetate) in addition to ±H
-    mz_shift_neg_adducts: str = "conservative"  # "conservative" | "expanded"
-    mz_shift_top_k: int = 1
-    mz_shift_min_support_count: int = 10
-    mz_shift_min_support_frac: float = 0.01
-    # Auto-shift ranking prior: select shifts by support evidence *and* a prior penalty on |delta|.
-    # This is most relevant when using expanded adduct families where large deltas can win under
-    # raw support counts due to dense m/z overlap.
-    mz_shift_auto_score: str = "log_count"  # "count" | "log_count"
-    mz_shift_auto_abs_da_penalty: float = 0.2
-    mz_shift_auto_abs_da_penalty_mode: str = "log1p"  # "linear" | "log1p"
-    # Optional (experimental) gate override: allow proton-shift expansion even when an unshifted
-    # tight-ppm neighbor exists, but only when the proton-shift support is comparable to the
-    # unshifted support (systematic adduct-state mismatch).
-    #
-    # 0 disables the override (legacy behavior). Typical values: ~1.0.
-    mz_shift_proton_override_min_support_ratio_vs_zero: float = 0.0
-    mz_shift_max_abs_da: float = 40.0
-    mz_shift_manual_deltas_da: List[float] = field(default_factory=list)
-    mz_shift_include_isotope: bool = True
-    # Log-likelihood penalty for using any nonzero m/z shift hypothesis.
-    mz_shift_penalty: float = 0.5  # set to 0 to disable
-    # Auto-shift selection: require a shift to be a strong outlier in support counts.
-    # 0 disables this filter (legacy behavior).
-    mz_shift_min_robust_z: float = 0.0
-    # Per-feature gate: only allow nonzero shifts for study_a features with no delta=0
-    # candidate within the tight_ppm window (reduces spurious expansion on dense datasets).
-    mz_shift_per_feature_tight_ppm_gate: bool = True
-    # Optional: only apply m/z shift expansion when the pair is deemed RT non-transferable.
-    # This can improve robustness by avoiding unnecessary graph inflation on RT-transferable
-    # pairs where RT already disambiguates candidates.
-    mz_shift_only_on_nontransferable_rt: bool = False
-    # When using expanded adduct families, applying shift expansion to RT-transferable pairs can
-    # add many spurious candidates (increasing local ambiguity) without improving recall.
-    # If enabled, treat expanded adduct families as active only when the pair is deemed RT
-    # non-transferable (rt_policy in {"ignore","unknown"}).
-    mz_shift_expanded_adducts_only_on_nontransferable_rt: bool = False
 
     # Candidate pruning (optional): keep only the top-K candidates per id1 by log-likelihood
     # before OT/softmax. This can reduce ambiguity on dense m/z-only graphs.
@@ -285,9 +232,6 @@ class MatchResult:
     drift_params: Dict[str, object]
 
 
-_C13_SHIFT_DA = 1.00335483507
-
-
 def _compute_rt_quality(rt: np.ndarray, cfg: MassSightConfig) -> Dict[str, object]:
     rt = np.asarray(rt, dtype=float)
     n = int(rt.size)
@@ -387,234 +331,6 @@ def _maybe_disable_retention(
         "rt_ok_study_b": bool(rt_ok_b),
     }
     return cfg_eff, diag
-
-
-def _dedupe_deltas(deltas: List[float], *, tol: float = 1e-9) -> List[float]:
-    out: List[float] = []
-    for d in sorted([float(x) for x in deltas if np.isfinite(x)]):
-        if out and abs(d - out[-1]) <= tol:
-            continue
-        out.append(d)
-    return out
-
-
-def _mz_shift_family(cfg: MassSightConfig) -> List[float]:
-    polarity = str(cfg.polarity).lower().strip()
-    if polarity == "positive":
-        pos_mode = str(getattr(cfg, "mz_shift_pos_adducts", "conservative") or "conservative").lower().strip()
-        if pos_mode not in {"conservative", "expanded"}:
-            raise ValueError(f"Unsupported mz_shift_pos_adducts '{pos_mode}'.")
-        if pos_mode == "conservative":
-            adduct_masses = [0.0, float(PROTON_MASS)]
-        else:
-            adduct_masses = [0.0] + [float(x) for x in ADDUCT_MASS_POS.values()]
-    elif polarity == "negative":
-        neg_mode = str(getattr(cfg, "mz_shift_neg_adducts", "conservative") or "conservative").lower().strip()
-        if neg_mode not in {"conservative", "expanded"}:
-            raise ValueError(f"Unsupported mz_shift_neg_adducts '{neg_mode}'.")
-        # Conservative NEG family: allow ±H to handle neutral vs [M-H]- mismatches.
-        adduct_masses = [0.0, -float(PROTON_MASS)]
-        if neg_mode == "expanded":
-            # Expanded NEG family: include common adducts that drive large, discrete offsets.
-            # This enables matching across studies that report different NEG adduct forms:
-            #   [M-H]- ↔ [M+Cl]-   (Δ ≈ Cl+H)
-            #   [M-H]- ↔ [M+FA-H]- (Δ ≈ formic acid)
-            #   [M-H]- ↔ [M+Ac-H]- (Δ ≈ acetic acid)
-            adduct_masses.extend(float(x) for x in ADDUCT_MASS_NEG.values())
-    else:
-        raise ValueError(f"Unsupported polarity '{cfg.polarity}'.")
-
-    deltas = [a2 - a1 for a1 in adduct_masses for a2 in adduct_masses]
-    if bool(cfg.mz_shift_include_isotope):
-        deltas.extend([_C13_SHIFT_DA, -_C13_SHIFT_DA])
-
-    max_abs = float(cfg.mz_shift_max_abs_da)
-    # Expanded NEG deltas can exceed 40 Da (e.g., acetate), so ensure a usable cap.
-    if polarity == "negative":
-        neg_mode = str(getattr(cfg, "mz_shift_neg_adducts", "conservative") or "conservative").lower().strip()
-        if neg_mode == "expanded" and (not np.isfinite(max_abs) or max_abs < 65.0):
-            max_abs = 70.0
-    if not np.isfinite(max_abs) or max_abs <= 0:
-        max_abs = 40.0
-    deltas = [d for d in deltas if np.isfinite(d) and abs(d) <= max_abs]
-
-    deduped = _dedupe_deltas(deltas, tol=1e-9)
-    if not deduped or abs(deduped[0]) > 1e-12:
-        deduped = _dedupe_deltas([0.0] + deduped, tol=1e-9)
-    return deduped
-
-
-def _mz_shift_support_counts(
-    mz1: np.ndarray,
-    mz2_sorted: np.ndarray,
-    *,
-    ppm: float,
-    deltas: List[float],
-) -> Dict[float, int]:
-    mz1 = np.asarray(mz1, dtype=float)
-    mz2_sorted = np.asarray(mz2_sorted, dtype=float)
-
-    ppm = float(ppm)
-    if not np.isfinite(ppm) or ppm <= 0:
-        ppm = 20.0
-
-    counts: Dict[float, int] = {}
-    for delta in deltas:
-        d = float(delta)
-        if not np.isfinite(d):
-            continue
-        support = 0
-        for mz in mz1:
-            target = float(mz) + d
-            if not np.isfinite(target) or target <= 0:
-                continue
-            span = target * ppm / 1e6
-            left = int(np.searchsorted(mz2_sorted, target - span, side="left"))
-            right = int(np.searchsorted(mz2_sorted, target + span, side="right"))
-            if left < right:
-                support += 1
-        counts[d] = int(support)
-    return counts
-
-
-def _select_mz_shifts(
-    study_a: pd.DataFrame,
-    study_b: pd.DataFrame,
-    cfg: MassSightConfig,
-) -> Tuple[List[float], Dict[str, object]]:
-    mode = str(getattr(cfg, "mz_shift_mode", "none") or "none").lower().strip()
-    if mode not in {"none", "auto", "manual"}:
-        raise ValueError(f"Unsupported mz_shift_mode: {cfg.mz_shift_mode!r}")
-
-    diag: Dict[str, object] = {"mz_shift_mode": mode}
-    if mode == "none":
-        return [0.0], diag
-
-    mz_b = study_b["MZ"].to_numpy(dtype=float)
-    mz_b_sorted = np.sort(mz_b[np.isfinite(mz_b)])
-    if mz_b_sorted.size == 0:
-        return [0.0], diag
-
-    if mode == "manual":
-        manual = [float(x) for x in (cfg.mz_shift_manual_deltas_da or []) if np.isfinite(x)]
-        deltas = _dedupe_deltas([0.0] + manual, tol=1e-9)
-        diag["mz_shift_selected_deltas_da"] = deltas
-        return deltas, diag
-
-    family = _mz_shift_family(cfg)
-    counts = _mz_shift_support_counts(
-        study_a["MZ"].to_numpy(dtype=float),
-        mz_b_sorted,
-        ppm=float(cfg.ppm),
-        deltas=family,
-    )
-
-    n1 = int(len(study_a))
-    min_count = int(cfg.mz_shift_min_support_count)
-    min_frac = float(cfg.mz_shift_min_support_frac)
-    top_k = int(cfg.mz_shift_top_k)
-    if top_k < 0:
-        top_k = 0
-    if not np.isfinite(min_frac) or min_frac < 0:
-        min_frac = 0.0
-
-    min_robust_z = float(getattr(cfg, "mz_shift_min_robust_z", 0.0) or 0.0)
-    support_med = support_mad = float("nan")
-    if min_robust_z > 0:
-        nonzero_counts = np.array([int(v) for d, v in counts.items() if abs(float(d)) > 1e-12], dtype=float)
-        if nonzero_counts.size > 0:
-            support_med = float(np.median(nonzero_counts))
-            support_mad = float(np.median(np.abs(nonzero_counts - support_med)))
-            if not np.isfinite(support_mad) or support_mad <= 1e-12:
-                support_mad = 1.0
-    diag["mz_shift_min_robust_z"] = float(min_robust_z)
-    diag["mz_shift_support_median_nonzero"] = float(support_med) if np.isfinite(support_med) else None
-    diag["mz_shift_support_mad_nonzero"] = float(support_mad) if np.isfinite(support_mad) else None
-
-    support0 = int(counts.get(0.0, 0) or 0)
-    diag["mz_shift_support_zero"] = int(support0)
-    support_proton_max = 0
-    for d, c in counts.items():
-        if abs(abs(float(d)) - float(PROTON_MASS)) <= 1e-6:
-            support_proton_max = max(support_proton_max, int(c))
-    diag["mz_shift_support_proton_max"] = int(support_proton_max)
-    diag["mz_shift_support_proton_ratio_vs_zero"] = (
-        float(support_proton_max) / float(support0) if support0 > 0 else None
-    )
-
-    auto_score_mode = str(getattr(cfg, "mz_shift_auto_score", "count") or "count").lower().strip()
-    if auto_score_mode in {"log", "logcount", "log-count"}:
-        auto_score_mode = "log_count"
-    if auto_score_mode not in {"count", "log_count"}:
-        raise ValueError(
-            f"Unsupported mz_shift_auto_score '{getattr(cfg, 'mz_shift_auto_score', None)!r}' "
-            "(expected 'count' or 'log_count')."
-        )
-    abs_da_pen = float(getattr(cfg, "mz_shift_auto_abs_da_penalty", 0.0) or 0.0)
-    abs_da_pen_mode = str(getattr(cfg, "mz_shift_auto_abs_da_penalty_mode", "log1p") or "log1p").lower().strip()
-    if abs_da_pen_mode not in {"linear", "log1p"}:
-        raise ValueError(
-            f"Unsupported mz_shift_auto_abs_da_penalty_mode '{getattr(cfg, 'mz_shift_auto_abs_da_penalty_mode', None)!r}' "
-            "(expected 'linear' or 'log1p')."
-        )
-    diag["mz_shift_auto_score"] = str(auto_score_mode)
-    diag["mz_shift_auto_abs_da_penalty"] = float(abs_da_pen)
-    diag["mz_shift_auto_abs_da_penalty_mode"] = str(abs_da_pen_mode)
-
-    nonzero = []
-    for d, c in counts.items():
-        if abs(float(d)) <= 1e-12:
-            continue
-        frac = float(c) / float(n1) if n1 else 0.0
-        if c >= min_count and frac >= min_frac:
-            if min_robust_z > 0 and np.isfinite(support_med) and np.isfinite(support_mad):
-                z = (float(c) - support_med) / float(support_mad)
-                if z < min_robust_z:
-                    continue
-            base = float(c) if auto_score_mode == "count" else float(math.log1p(float(c)))
-            pen = 0.0
-            if abs_da_pen != 0.0:
-                if abs_da_pen_mode == "linear":
-                    pen = float(abs_da_pen) * abs(float(d))
-                else:
-                    pen = float(abs_da_pen) * float(math.log1p(abs(float(d))))
-            score = float(base - pen)
-            nonzero.append((score, int(c), float(d)))
-    # Sort by posterior-like score, then support count, then prefer smaller |delta| (ties).
-    nonzero.sort(key=lambda x: (-x[0], -x[1], abs(x[2]), x[2]))
-
-    selected_nonzero = [d for _, _, d in nonzero[:top_k]]
-
-    # If the user enables the proton override gate, ensure the proton shifts are actually available
-    # to candidate generation. Otherwise the override has no effect when auto shift selection
-    # happens to prefer other deltas (common under dense m/z-only overlap).
-    thr_proton_override = float(getattr(cfg, "mz_shift_proton_override_min_support_ratio_vs_zero", 0.0) or 0.0)
-    if thr_proton_override > 0.0:
-        proton_deltas: List[float] = []
-        for d in family:
-            dd = float(d)
-            if abs(dd) <= 1e-12:
-                continue
-            if abs(abs(dd) - float(PROTON_MASS)) <= 1e-6:
-                c = int(counts.get(dd, 0) or 0)
-                frac = float(c) / float(n1) if n1 else 0.0
-                if c >= min_count and frac >= min_frac:
-                    proton_deltas.append(dd)
-        # Deterministic order: smaller |delta| first, then sign.
-        proton_deltas.sort(key=lambda x: (abs(x), x))
-        for d in proton_deltas:
-            if any(abs(float(d) - float(x)) <= 1e-9 for x in selected_nonzero):
-                continue
-            selected_nonzero.append(float(d))
-
-    selected = [0.0] + selected_nonzero
-
-    diag["mz_shift_selected_deltas_da"] = selected
-    diag["mz_shift_top_k"] = int(cfg.mz_shift_top_k)
-    diag["mz_shift_min_support_count"] = int(cfg.mz_shift_min_support_count)
-    diag["mz_shift_min_support_frac"] = float(cfg.mz_shift_min_support_frac)
-    diag["mz_shift_support_counts"] = {f"{float(d):+.12f}": int(c) for d, c in counts.items()}
-    return selected, diag
 
 
 def _candidate_neighborhood_indices(
@@ -929,106 +645,39 @@ def _infer_pair_rt_transferability(
     return out
 
 
-def _build_candidate_pairs_shifted(
+def _build_candidate_pairs(
     study_a: pd.DataFrame,
     study_b: pd.DataFrame,
     cfg: MassSightConfig,
-    shifts_da: List[float],
-    *,
-    allow_proton_override: bool = False,
-    max_shift_candidates_per_feature: int = 1,
 ) -> pd.DataFrame:
     mz2 = study_b["MZ"].to_numpy(dtype=float)
-    rt2 = study_b["RT"].to_numpy(dtype=float)
     order = np.argsort(mz2)
     mz2_sorted = mz2[order]
-    rt2_sorted = rt2[order]
     mz1_all = study_a["MZ"].to_numpy(dtype=float)
     rt1_all = study_a["RT"].to_numpy(dtype=float)
 
     rt_gate = float(cfg.rt) if cfg.rt is not None else 0.0
     ppm = float(cfg.ppm)
-    per_feature_gate = bool(getattr(cfg, "mz_shift_per_feature_tight_ppm_gate", False))
-    tight_ppm_gate = float(cfg.tight_ppm)
+    use_intensity_gate = bool(getattr(cfg, "use_intensity", False))
 
     rows: List[dict] = []
-    use_intensity_gate = bool(getattr(cfg, "use_intensity", False))
-    max_shift_candidates_per_feature = int(max_shift_candidates_per_feature)
-    if max_shift_candidates_per_feature < 0:
-        max_shift_candidates_per_feature = 0
-    proton_shifts = [
-        float(d)
-        for d in (shifts_da or [])
-        if abs(float(d)) > 1e-12 and abs(abs(float(d)) - float(PROTON_MASS)) <= 1e-6
-    ]
-    for i1, (mz1, rt1) in enumerate(zip(mz1_all, rt1_all)):
+    for i1, (mz1, rt1) in enumerate(zip(mz1_all, rt1_all, strict=True)):
         if not np.isfinite(mz1) or mz1 <= 0:
             continue
-        shifts_iter = shifts_da
-        has_tight_unshifted = False
-        if per_feature_gate and len(shifts_da) > 1 and np.isfinite(tight_ppm_gate) and tight_ppm_gate > 0:
-            js0 = _candidate_neighborhood_indices(mz2_sorted, order, mz_target=float(mz1), ppm=tight_ppm_gate)
-            has_tight_unshifted = js0.size > 0
-            if has_tight_unshifted:
-                if allow_proton_override and proton_shifts:
-                    # Default: if an unshifted tight neighbor exists, avoid shift expansion (controls graph density).
-                    # Exception (optional): if global shift support indicates a systematic protonation mismatch,
-                    # also allow ±H edges for this feature to reduce missing-candidate failures.
-                    shifts_iter = [0.0] + list(proton_shifts)
-                else:
-                    shifts_iter = [0.0]
-        best_by_j: Dict[int, Tuple[float, float]] = {}
-        for delta in shifts_iter:
-            d = float(delta)
-            mz_target = float(mz1) + d
-            if not np.isfinite(mz_target) or mz_target <= 0:
-                continue
-            js = _candidate_neighborhood_indices(mz2_sorted, order, mz_target=mz_target, ppm=ppm)
-            if js.size == 0:
-                continue
-            # Under the per-feature gate, cap nonzero-shift candidates to the single nearest-by-ppm edge
-            # to avoid exploding the graph. This is intentionally conservative because a wrong shift hypothesis
-            # can add many spurious edges.
-            js_iter = js
-            if (
-                has_tight_unshifted
-                and abs(d) > 1e-12
-                and max_shift_candidates_per_feature > 0
-                and js.size > max_shift_candidates_per_feature
-            ):
-                mz2_vals = study_b.loc[js, "MZ"].to_numpy(dtype=float, copy=False)
-                if mz2_vals.size:
-                    denom = np.maximum(0.5 * (float(mz_target) + mz2_vals), 1e-12)
-                    abs_ppm = np.abs((mz2_vals - float(mz_target)) / denom * 1e6)
-                    abs_ppm[~np.isfinite(abs_ppm)] = np.inf
-                    # Keep the top-K closest-by-ppm candidates. K=1 recovers the legacy behavior.
-                    order_k = np.argsort(abs_ppm, kind="mergesort")
-                    k = int(min(int(max_shift_candidates_per_feature), int(js.size)))
-                    js_iter = js[order_k[:k]]
-
-            for j2 in js_iter.tolist():
-                if rt_gate > 0:
-                    rt2_val = float(study_b.at[int(j2), "RT"])
-                    if abs(rt2_val - float(rt1)) > rt_gate:
-                        continue
-                mz2_val = float(study_b.at[int(j2), "MZ"])
-                abs_ppm = abs(_ppm_signed_over_mean(mz_target, mz2_val))
-                prev = best_by_j.get(int(j2))
-                if prev is None or abs_ppm < prev[0] - 1e-12 or (
-                    abs(abs_ppm - prev[0]) <= 1e-12 and (abs(d), d) < (abs(prev[1]), prev[1])
-                ):
-                    best_by_j[int(j2)] = (float(abs_ppm), d)
-
-        if not best_by_j:
+        js = _candidate_neighborhood_indices(mz2_sorted, order, mz_target=float(mz1), ppm=ppm)
+        if js.size == 0:
             continue
 
-        for j2, (_, d_best) in best_by_j.items():
-            mz2_val = float(study_b.at[int(j2), "MZ"])
+        for j2 in js.tolist():
             rt2_val = float(study_b.at[int(j2), "RT"])
+            if rt_gate > 0 and abs(rt2_val - float(rt1)) > rt_gate:
+                continue
+            mz2_val = float(study_b.at[int(j2), "MZ"])
             ro1 = float(study_a.at[int(i1), "ro"]) if "ro" in study_a.columns else 0.0
             ro2 = float(study_b.at[int(j2), "ro"]) if "ro" in study_b.columns else 0.0
             il1 = float(study_a.at[int(i1), "Intensity_log10"]) if "Intensity_log10" in study_a.columns else 0.0
             il2 = float(study_b.at[int(j2), "Intensity_log10"]) if "Intensity_log10" in study_b.columns else 0.0
+
             feat = {
                 "id1": int(i1),
                 "id2": int(j2),
@@ -1040,16 +689,14 @@ def _build_candidate_pairs_shifted(
                 "ro2": float(ro2),
                 "int1": float(il1),
                 "int2": float(il2),
+                "intensity_log_diff": float(il2 - il1),
+                "roi_x": float(ro1),
+                "roi_y": float(ro2),
+                "delta_roi": float(ro2 - ro1),
             }
-            feat["mz_shift_da"] = float(d_best)
-            feat["intensity_log_diff"] = il2 - il1
-
-            feat["roi_x"] = float(ro1)
-            feat["roi_y"] = float(ro2)
-            feat["delta_roi"] = feat["roi_y"] - feat["roi_x"]
 
             if use_intensity_gate:
-                if abs(feat["intensity_log_diff"]) <= float(cfg.intensity_log_diff_max):
+                if abs(float(feat["intensity_log_diff"])) <= float(cfg.intensity_log_diff_max):
                     rows.append(feat)
             else:
                 rows.append(feat)
@@ -1057,13 +704,10 @@ def _build_candidate_pairs_shifted(
     return pd.DataFrame(rows)
 
 
-def _build_tight_matches_shifted(
+def _build_tight_matches(
     study_a: pd.DataFrame,
     study_b: pd.DataFrame,
     cfg: MassSightConfig,
-    shifts_da: List[float],
-    *,
-    allow_proton_override: bool = False,
 ) -> pd.DataFrame:
     study_a = study_a.reset_index(drop=True)
     study_b = study_b.reset_index(drop=True)
@@ -1123,17 +767,8 @@ def _build_tight_matches_shifted(
                 "delta_rt",
                 "delta_roi",
                 "intensity_log_diff",
-                "mz_shift_da",
             ]
         )
-
-    shifts_da = [float(d) for d in shifts_da] if shifts_da else [0.0]
-    per_feature_gate = bool(getattr(cfg, "mz_shift_per_feature_tight_ppm_gate", False))
-    proton_shifts = [
-        float(d)
-        for d in (shifts_da or [])
-        if abs(float(d)) > 1e-12 and abs(abs(float(d)) - float(PROTON_MASS)) <= 1e-6
-    ]
 
     def _passes_gates(i: int, j: int) -> bool:
         if tight_rt > 0 and abs(float(rt2[j]) - float(rt1[i])) > tight_rt:
@@ -1151,45 +786,18 @@ def _build_tight_matches_shifted(
             mz1_val = float(mz1[i])
             if not np.isfinite(mz1_val) or mz1_val <= 0:
                 continue
+            span = mz1_val * tight_ppm / 1e6
+            left = int(np.searchsorted(mz2_sorted, mz1_val - span, side="left"))
+            right = int(np.searchsorted(mz2_sorted, mz1_val + span, side="right"))
+            if left >= right:
+                continue
 
-            shifts_iter = shifts_da
-            if per_feature_gate and len(shifts_da) > 1:
-                span0 = mz1_val * tight_ppm / 1e6
-                left0 = int(np.searchsorted(mz2_sorted, mz1_val - span0, side="left"))
-                right0 = int(np.searchsorted(mz2_sorted, mz1_val + span0, side="right"))
-                has_tight_unshifted = left0 < right0
-                if has_tight_unshifted:
-                    if allow_proton_override and proton_shifts:
-                        shifts_iter = [0.0] + list(proton_shifts)
-                    else:
-                        shifts_iter = [0.0]
-
-            best_by_j: Dict[int, Tuple[float, float]] = {}
-            for d in shifts_iter:
-                mz_target = mz1_val + float(d)
-                if not np.isfinite(mz_target) or mz_target <= 0:
+            for idx in range(left, right):
+                j = int(order2[idx])
+                if not _passes_gates(i, j):
                     continue
-                span = mz_target * tight_ppm / 1e6
-                left = int(np.searchsorted(mz2_sorted, mz_target - span, side="left"))
-                right = int(np.searchsorted(mz2_sorted, mz_target + span, side="right"))
-                if left >= right:
-                    continue
-                for idx in range(left, right):
-                    j = int(order2[idx])
-                    if not _passes_gates(i, j):
-                        continue
-                    mz2_val = float(mz2[j])
-                    abs_ppm = abs(_ppm_signed_over_mean(mz_target, mz2_val))
-                    prev = best_by_j.get(j)
-                    if prev is None or abs_ppm < prev[0] - 1e-12 or (
-                        abs(abs_ppm - prev[0]) <= 1e-12 and (abs(float(d)), float(d)) < (abs(prev[1]), prev[1])
-                    ):
-                        best_by_j[j] = (float(abs_ppm), float(d))
-
-            for j, (_, d_best) in best_by_j.items():
-                mz_target = mz1_val + float(d_best)
                 mz2_val = float(mz2[j])
-                delta_ppm = _ppm_signed_over_mean(mz_target, mz2_val)
+                delta_ppm = _ppm_signed_over_mean(mz1_val, mz2_val)
                 delta_rt = float(rt2[j]) - float(rt1[i])
                 delta_roi = float(ro2[j]) - float(ro1[i])
                 int_diff = float(il2[j]) - float(il1[i])
@@ -1198,7 +806,7 @@ def _build_tight_matches_shifted(
                     {
                         "id1": int(i),
                         "id2": int(j),
-                        "mz_x": float(mz_target),
+                        "mz_x": float(mz1_val),
                         "mz_y": float(mz2_val),
                         "rt_x": float(rt1[i]),
                         "rt_y": float(rt2[j]),
@@ -1210,17 +818,14 @@ def _build_tight_matches_shifted(
                         "delta_rt": float(delta_rt),
                         "delta_roi": float(delta_roi),
                         "intensity_log_diff": float(int_diff),
-                        "mz_shift_da": float(d_best),
                     }
                 )
 
         return pd.DataFrame(rows)
 
-    def _best_match_a_to_b() -> Tuple[np.ndarray, np.ndarray]:
+    def _best_match_a_to_b() -> np.ndarray:
         best_j = np.full(len(study_a), -1, dtype=int)
-        best_shift = np.zeros(len(study_a), dtype=float)
         best_abs_ppm = np.full(len(study_a), np.inf, dtype=float)
-        best_abs_shift = np.full(len(study_a), np.inf, dtype=float)
         best_abs_drt = np.full(len(study_a), np.inf, dtype=float)
 
         for i in range(len(study_a)):
@@ -1228,61 +833,41 @@ def _build_tight_matches_shifted(
             if not np.isfinite(mz1_val) or mz1_val <= 0:
                 continue
 
-            shifts_iter = shifts_da
-            if per_feature_gate and len(shifts_da) > 1:
-                span0 = mz1_val * tight_ppm / 1e6
-                left0 = int(np.searchsorted(mz2_sorted, mz1_val - span0, side="left"))
-                right0 = int(np.searchsorted(mz2_sorted, mz1_val + span0, side="right"))
-                has_tight_unshifted = left0 < right0
-                if has_tight_unshifted:
-                    if allow_proton_override and proton_shifts:
-                        shifts_iter = [0.0] + list(proton_shifts)
-                    else:
-                        shifts_iter = [0.0]
+            span = mz1_val * tight_ppm / 1e6
+            left = int(np.searchsorted(mz2_sorted, mz1_val - span, side="left"))
+            right = int(np.searchsorted(mz2_sorted, mz1_val + span, side="right"))
+            if left >= right:
+                continue
 
-            for d in shifts_iter:
-                mz_target = mz1_val + float(d)
-                if not np.isfinite(mz_target) or mz_target <= 0:
+            for idx in range(left, right):
+                j = int(order2[idx])
+                if not _passes_gates(i, j):
                     continue
-                span = mz_target * tight_ppm / 1e6
-                left = int(np.searchsorted(mz2_sorted, mz_target - span, side="left"))
-                right = int(np.searchsorted(mz2_sorted, mz_target + span, side="right"))
-                if left >= right:
+                mz2_val = float(mz2[j])
+                abs_ppm = abs(_ppm_signed_over_mean(mz1_val, mz2_val))
+                if not np.isfinite(abs_ppm):
                     continue
+                abs_drt = abs(float(rt2[j]) - float(rt1[i]))
+                if (
+                    abs_ppm < float(best_abs_ppm[i]) - 1e-12
+                    or (
+                        abs(abs_ppm - float(best_abs_ppm[i])) <= 1e-12
+                        and abs_drt < float(best_abs_drt[i])
+                    )
+                ):
+                    best_abs_ppm[i] = float(abs_ppm)
+                    best_abs_drt[i] = float(abs_drt)
+                    best_j[i] = int(j)
 
-                for idx in range(left, right):
-                    j = int(order2[idx])
-                    if not _passes_gates(i, j):
-                        continue
-                    mz2_val = float(mz2[j])
-                    abs_ppm = abs(_ppm_signed_over_mean(mz_target, mz2_val))
-                    if not np.isfinite(abs_ppm):
-                        continue
-                    abs_shift = abs(float(d))
-                    abs_drt = abs(float(rt2[j]) - float(rt1[i]))
-                    if (
-                        abs_ppm < float(best_abs_ppm[i]) - 1e-12
-                        or (
-                            abs(abs_ppm - float(best_abs_ppm[i])) <= 1e-12
-                            and (abs_shift, abs_drt) < (float(best_abs_shift[i]), float(best_abs_drt[i]))
-                        )
-                    ):
-                        best_abs_ppm[i] = float(abs_ppm)
-                        best_abs_shift[i] = float(abs_shift)
-                        best_abs_drt[i] = float(abs_drt)
-                        best_j[i] = int(j)
-                        best_shift[i] = float(d)
-
-        return best_j, best_shift
+        return best_j
 
     if strategy == "nn":
-        best_j, best_shift = _best_match_a_to_b()
+        best_j = _best_match_a_to_b()
         for i in range(len(study_a)):
             j = int(best_j[i])
             if j < 0:
                 continue
-            d_best = float(best_shift[i])
-            mz_target = float(mz1[i]) + d_best
+            mz_target = float(mz1[i])
             mz2_val = float(mz2[j])
             delta_ppm = _ppm_signed_over_mean(mz_target, mz2_val)
             delta_rt = float(rt2[j]) - float(rt1[i])
@@ -1304,26 +889,18 @@ def _build_tight_matches_shifted(
                     "delta_rt": float(delta_rt),
                     "delta_roi": float(delta_roi),
                     "intensity_log_diff": float(int_diff),
-                    "mz_shift_da": float(d_best),
                 }
             )
         return pd.DataFrame(rows)
 
     # mutual nearest neighbors
-    best_j, best_shift = _best_match_a_to_b()
+    best_j = _best_match_a_to_b()
 
-    mz1_shift_sorted: List[np.ndarray] = []
-    order1_by_shift: List[np.ndarray] = []
-    for d in shifts_da:
-        mz1s = mz1 + float(d)
-        order1 = np.argsort(mz1s)
-        mz1_shift_sorted.append(mz1s[order1])
-        order1_by_shift.append(order1)
+    order1 = np.argsort(mz1)
+    mz1_sorted = mz1[order1]
 
     best_i_rev = np.full(len(study_b), -1, dtype=int)
-    best_shift_rev = np.zeros(len(study_b), dtype=float)
     best_abs_ppm_rev = np.full(len(study_b), np.inf, dtype=float)
-    best_abs_shift_rev = np.full(len(study_b), np.inf, dtype=float)
     best_abs_drt_rev = np.full(len(study_b), np.inf, dtype=float)
 
     for j in range(len(study_b)):
@@ -1331,35 +908,28 @@ def _build_tight_matches_shifted(
         if not np.isfinite(mz2_val) or mz2_val <= 0:
             continue
         span2 = mz2_val * tight_ppm / 1e6
-        for k, d in enumerate(shifts_da):
-            mz1s_sorted = mz1_shift_sorted[k]
-            order1 = order1_by_shift[k]
-            left = int(np.searchsorted(mz1s_sorted, mz2_val - span2, side="left"))
-            right = int(np.searchsorted(mz1s_sorted, mz2_val + span2, side="right"))
-            if left >= right:
+        left = int(np.searchsorted(mz1_sorted, mz2_val - span2, side="left"))
+        right = int(np.searchsorted(mz1_sorted, mz2_val + span2, side="right"))
+        if left >= right:
+            continue
+        for idx in range(left, right):
+            i = int(order1[idx])
+            if not _passes_gates(i, j):
                 continue
-            for idx in range(left, right):
-                i = int(order1[idx])
-                if not _passes_gates(i, j):
-                    continue
-                mz_target = float(mz1[i]) + float(d)
-                abs_ppm = abs(_ppm_signed_over_mean(mz_target, mz2_val))
-                if not np.isfinite(abs_ppm):
-                    continue
-                abs_shift = abs(float(d))
-                abs_drt = abs(float(rt2[j]) - float(rt1[i]))
-                if (
-                    abs_ppm < float(best_abs_ppm_rev[j]) - 1e-12
-                    or (
-                        abs(abs_ppm - float(best_abs_ppm_rev[j])) <= 1e-12
-                        and (abs_shift, abs_drt) < (float(best_abs_shift_rev[j]), float(best_abs_drt_rev[j]))
-                    )
-                ):
-                    best_abs_ppm_rev[j] = float(abs_ppm)
-                    best_abs_shift_rev[j] = float(abs_shift)
-                    best_abs_drt_rev[j] = float(abs_drt)
-                    best_i_rev[j] = int(i)
-                    best_shift_rev[j] = float(d)
+            abs_ppm = abs(_ppm_signed_over_mean(float(mz1[i]), mz2_val))
+            if not np.isfinite(abs_ppm):
+                continue
+            abs_drt = abs(float(rt2[j]) - float(rt1[i]))
+            if (
+                abs_ppm < float(best_abs_ppm_rev[j]) - 1e-12
+                or (
+                    abs(abs_ppm - float(best_abs_ppm_rev[j])) <= 1e-12
+                    and abs_drt < float(best_abs_drt_rev[j])
+                )
+            ):
+                best_abs_ppm_rev[j] = float(abs_ppm)
+                best_abs_drt_rev[j] = float(abs_drt)
+                best_i_rev[j] = int(i)
 
     for i in range(len(study_a)):
         j = int(best_j[i])
@@ -1367,8 +937,7 @@ def _build_tight_matches_shifted(
             continue
         if int(best_i_rev[j]) != int(i):
             continue
-        d_best = float(best_shift[i])
-        mz_target = float(mz1[i]) + d_best
+        mz_target = float(mz1[i])
         mz2_val = float(mz2[j])
         delta_ppm = _ppm_signed_over_mean(mz_target, mz2_val)
         delta_rt = float(rt2[j]) - float(rt1[i])
@@ -1390,7 +959,6 @@ def _build_tight_matches_shifted(
                 "delta_rt": float(delta_rt),
                 "delta_roi": float(delta_roi),
                 "intensity_log_diff": float(int_diff),
-                "mz_shift_da": float(d_best),
             }
         )
 
@@ -1701,12 +1269,7 @@ def _apply_drift_correction(
 
     mz_x = cand["mz1"].to_numpy(dtype=float)
     mz_y = cand["mz2"].to_numpy(dtype=float)
-    if "mz_shift_da" in cand.columns:
-        shift = cand["mz_shift_da"].to_numpy(dtype=float)
-        shift = np.where(np.isfinite(shift), shift, 0.0)
-    else:
-        shift = np.zeros(len(cand), dtype=float)
-    mz_x_eff = mz_x + shift
+    mz_x_eff = mz_x
     cand["mz1_eff"] = mz_x_eff
     denom = np.maximum(0.5 * (mz_x_eff + mz_y), 1e-12)
     delta_ppm = (mz_y - mz_x_eff) / denom * 1e6
@@ -1830,11 +1393,6 @@ def _compute_loglik(
         ll += float(cfg.w_roi) * _student_t_logpdf(roi_resid, cfg.t_df, float(scales["roi"]))
     if cfg.use_intensity and cfg.w_int != 0:
         ll += float(cfg.w_int) * _student_t_logpdf(int_resid, cfg.t_df, float(scales["int"]))
-
-    shift_penalty = float(getattr(cfg, "mz_shift_penalty", 0.0) or 0.0)
-    if shift_penalty != 0.0 and "mz_shift_da" in cand.columns:
-        shift = cand["mz_shift_da"].to_numpy(dtype=float)
-        ll = ll - shift_penalty * (np.abs(shift) > 1e-12).astype(float)
 
     cand["loglik"] = ll
     return cand, scales
@@ -2427,68 +1985,11 @@ def _prepare_match(
         rt_gate_diag["rt_gate_disabled"] = False
         rt_gate_diag["rt_gate_rt_final"] = float(cfg_eff.rt) if cfg_eff.rt is not None else 0.0
 
-    # Optional: only apply expanded adduct families when RT is non-transferable. This keeps shift
-    # expansion available for RT-fail regimes (where it can fix missing-candidate errors) without
-    # degrading RT-transferable pairs by inflating the candidate graph.
-    try:
-        rt_policy_eff = str(rt_gate_diag.get("rt_policy", "") or "").strip().lower()
-    except Exception:
-        rt_policy_eff = ""
-    shift_only_on_rtfail = bool(getattr(cfg_eff, "mz_shift_only_on_nontransferable_rt", False))
-    rt_gate_diag["mz_shift_only_on_nontransferable_rt"] = bool(shift_only_on_rtfail)
-    if shift_only_on_rtfail and rt_policy_eff not in {"ignore", "unknown"}:
-        cfg_eff = replace(cfg_eff, mz_shift_mode="none")
-
-    expanded_only_on_rtfail = bool(
-        getattr(cfg_eff, "mz_shift_expanded_adducts_only_on_nontransferable_rt", False)
-    )
-    rt_gate_diag["mz_shift_expanded_adducts_only_on_nontransferable_rt"] = bool(expanded_only_on_rtfail)
-    if expanded_only_on_rtfail and rt_policy_eff not in {"ignore", "unknown"}:
-        pol = str(getattr(cfg_eff, "polarity", "") or "").strip().lower()
-        if pol == "positive" and str(getattr(cfg_eff, "mz_shift_pos_adducts", "conservative")).strip().lower() == "expanded":
-            cfg_eff = replace(cfg_eff, mz_shift_pos_adducts="conservative")
-        if pol == "negative" and str(getattr(cfg_eff, "mz_shift_neg_adducts", "conservative")).strip().lower() == "expanded":
-            cfg_eff = replace(cfg_eff, mz_shift_neg_adducts="conservative")
-    rt_gate_diag["mz_shift_pos_adducts_effective"] = str(getattr(cfg_eff, "mz_shift_pos_adducts", "conservative"))
-    rt_gate_diag["mz_shift_neg_adducts_effective"] = str(getattr(cfg_eff, "mz_shift_neg_adducts", "conservative"))
-    rt_gate_diag["mz_shift_mode_effective"] = str(getattr(cfg_eff, "mz_shift_mode", "none"))
-
-    shifts_da, mz_shift_diag = _select_mz_shifts(study_a, study_b, cfg_eff)
-    mz_shift_diag.update(rt_gate_diag)
-
-    allow_proton_override = False
-    thr = float(getattr(cfg_eff, "mz_shift_proton_override_min_support_ratio_vs_zero", 0.0) or 0.0)
-    ratio = mz_shift_diag.get("mz_shift_support_proton_ratio_vs_zero", None)
-    ratio_val = float("nan")
-    if ratio is not None:
-        try:
-            ratio_val = float(ratio)
-        except Exception:
-            ratio_val = float("nan")
-    if thr > 0.0 and np.isfinite(ratio_val) and ratio_val >= float(thr):
-        allow_proton_override = True
-    mz_shift_diag["mz_shift_proton_override_min_support_ratio_vs_zero"] = float(thr)
-    mz_shift_diag["mz_shift_allow_proton_override"] = bool(allow_proton_override)
-
-    shifted_cap_k = 1
-    if allow_proton_override:
-        rt_policy = str(mz_shift_diag.get("rt_policy", "") or "").strip().lower()
-        # When RT is non-transferable, we cannot use it to disambiguate multiple peaks with identical m/z.
-        # Keep a few shifted candidates per feature and let downstream scoring/structure/OT resolve them.
-        shifted_cap_k = 3 if rt_policy in {"ignore", "unknown"} else 1
-    mz_shift_diag["mz_shift_proton_override_shifted_candidate_cap_k"] = int(shifted_cap_k)
-
-    cand = _build_candidate_pairs_shifted(
-        study_a,
-        study_b,
-        cfg_eff,
-        shifts_da,
-        allow_proton_override=allow_proton_override,
-        max_shift_candidates_per_feature=int(shifted_cap_k),
-    )
-    tight = _build_tight_matches_shifted(study_a, study_b, cfg_eff, shifts_da, allow_proton_override=allow_proton_override)
+    prep_diag = dict(rt_gate_diag)
+    cand = _build_candidate_pairs(study_a, study_b, cfg_eff)
+    tight = _build_tight_matches(study_a, study_b, cfg_eff)
     if cand.empty:
-        return study_a, study_b, cand, pd.DataFrame(), {}, {}, {}, mz_shift_diag
+        return study_a, study_b, cand, pd.DataFrame(), {}, {}, {}, prep_diag
 
     drift_models = _fit_drift_models(tight, cfg_eff)
     cand = _apply_drift_correction(cand, drift_models)
@@ -2496,7 +1997,7 @@ def _prepare_match(
     anchor_scales = _compute_anchor_scales(tight, drift_models, cfg_eff) if cfg_eff.use_anchor_scales else {}
     cand, scales = _compute_loglik(cand, cfg_eff, scales_override=anchor_scales or None)
 
-    return study_a, study_b, cand, tight, drift_models, scales, anchor_scales, mz_shift_diag
+    return study_a, study_b, cand, tight, drift_models, scales, anchor_scales, prep_diag
 
 
 def match_features(
@@ -2509,7 +2010,7 @@ def match_features(
 ) -> MatchResult:
     cfg = config or MassSightConfig()
 
-    study_a, study_b, cand, tight, drift_models, scales, anchor_scales, mz_shift_diag = _prepare_match(
+    study_a, study_b, cand, tight, drift_models, scales, anchor_scales, prep_diag = _prepare_match(
         study_a, study_b, cfg
     )
     if cand.empty:
@@ -2529,7 +2030,7 @@ def match_features(
             candidates=cand,
             top1=empty,
             ot_summary={"n_candidates": 0.0},
-            drift_params=mz_shift_diag,
+            drift_params=prep_diag,
         )
 
     cand = cand.copy()
@@ -2545,7 +2046,7 @@ def match_features(
     # Optional auto-structure fallback: when RT is deemed non-transferable across the pair,
     # within-study correlation structure can provide the missing disambiguation signal.
     try:
-        rt_policy = str(mz_shift_diag.get("rt_policy", "") or "")
+        rt_policy = str(prep_diag.get("rt_policy", "") or "")
     except Exception:
         rt_policy = ""
     auto_alpha = float(getattr(cfg, "structure_alpha_on_nontransferable_rt", 0.0) or 0.0)
@@ -2887,7 +2388,7 @@ def match_features(
         "tight_matches": len(tight),
         "drift_models": drift_models,
     }
-    drift_params.update(mz_shift_diag)
+    drift_params.update(prep_diag)
 
     return MatchResult(
         candidates=cand,

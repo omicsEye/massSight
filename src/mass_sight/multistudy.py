@@ -757,7 +757,7 @@ def cluster_hub_consensus_template_ot(
     - Repeat for a small number of iterations.
 
     Notes:
-    - Template m/z updates use `mz1_eff` from candidate edges when available (feature m/z adjusted into template space).
+    - Template m/z updates use `mz1_eff` from candidate edges.
     - RT/intensity are not updated in V1 (hub values are retained).
     """
     if not studies:
@@ -791,7 +791,7 @@ def cluster_hub_consensus_template_ot(
             if mutual_pairs.empty:
                 continue
 
-            # Attach diagnostics from the forward candidate table (mz1_eff, mz_shift_da).
+            # Attach diagnostics from the forward candidate table.
             cand = res_s2t.candidates
             cand_sub = cand.merge(mutual_pairs, on=["id1", "id2"], how="inner")
             if not cand_sub.empty and "loglik" in cand_sub.columns:
@@ -807,7 +807,7 @@ def cluster_hub_consensus_template_ot(
             out["feature_id"] = out["id1"].map(lambda i: str(ids_s[int(i)]))
 
             if not cand_sub.empty:
-                out = out.merge(cand_sub.loc[:, ["id1", "id2", "mz1_eff", "mz_shift_da"]], on=["id1", "id2"], how="left")
+                out = out.merge(cand_sub.loc[:, ["id1", "id2", "mz1_eff"]], on=["id1", "id2"], how="left")
 
             cluster_map_rows.append(out.loc[:, ["cluster_id", "study_id", "feature_id"]].copy())
 
@@ -939,8 +939,7 @@ def cluster_hub_barycenter_ot(
     This differs from `cluster_hub_consensus_template_ot` by updating the template m/z
     using *soft OT couplings* (`ot_weight`) rather than only mutual top‑1 matches.
 
-    Template updates use `mz1_eff` from the study→template direction so discrete shift
-    expansion is handled in template space.
+    Template updates use `mz1_eff` from the study→template direction.
     """
     if not studies:
         raise ValueError("No studies provided.")
