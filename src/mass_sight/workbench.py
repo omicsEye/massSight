@@ -10,10 +10,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 from urllib import error, request
 
+import pandas as pd
+
 from .multistudy import StudySpec
 
 
 WORKBENCH_BASE = "https://www.metabolomicsworkbench.org/rest/study/analysis_id/{analysis_id}"
+WORKBENCH_STUDY_BASE = "https://www.metabolomicsworkbench.org/rest/study/study_id/{study_id}"
 
 _FLOAT_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
 _FEATURELIKE_RE = re.compile(
@@ -82,6 +85,18 @@ def _canonical_analysis_id(raw: object) -> str:
     if not m:
         return s
     return f"AN{int(m.group(1)):06d}"
+
+
+def _canonical_study_id(raw: object) -> str:
+    s = _normalize_str(raw).upper()
+    if not s:
+        return ""
+    if s.startswith("ST"):
+        return s
+    m = re.search(r"(\d+)", s)
+    if not m:
+        return s
+    return f"ST{int(m.group(1)):06d}"
 
 
 def _get_ci(row: dict, key: str) -> Any:
@@ -355,6 +370,354 @@ def _http_get_json(url: str, *, timeout_s: float, retries: int, delay_s: float) 
     if isinstance(obj, dict):
         return obj
     return None
+
+
+def _http_get_text_limited(
+    url: str,
+    *,
+    timeout_s: float,
+    retries: int,
+    delay_s: float,
+    max_bytes: int,
+) -> Optional[str]:
+    headers = {"User-Agent": "mass-sight/0.1"}
+    max_bytes = int(max(max_bytes, 0))
+    for attempt in range(int(retries)):
+        if delay_s:
+            time.sleep(float(delay_s))
+        try:
+            req = request.Request(url, headers=headers)
+            with request.urlopen(req, timeout=float(timeout_s)) as resp:  # noqa: S310
+                cl_raw = resp.headers.get("Content-Length")
+                if cl_raw:
+                    try:
+                        cl = int(str(cl_raw).strip())
+                    except Exception:
+                        cl = -1
+                    if cl >= 0 and max_bytes > 0 and cl > max_bytes:
+                        return None
+                chunks: List[bytes] = []
+                total = 0
+                while True:
+                    b = resp.read(1024 * 128)
+                    if not b:
+                        break
+                    chunks.append(b)
+                    total += len(b)
+                    if max_bytes > 0 and total > max_bytes:
+                        return None
+            body = b"".join(chunks)
+            return body.decode("utf-8", errors="replace")
+        except error.HTTPError as exc:
+            if exc.code == 404:
+                return None
+            if attempt == int(retries) - 1:
+                return None
+        except Exception:
+            if attempt == int(retries) - 1:
+                return None
+    return None
+
+
+def _http_get_json_limited(
+    url: str,
+    *,
+    timeout_s: float,
+    retries: int,
+    delay_s: float,
+    max_bytes: int,
+) -> Optional[Dict[str, Any]]:
+    text = _http_get_text_limited(
+        url,
+        timeout_s=timeout_s,
+        retries=retries,
+        delay_s=delay_s,
+        max_bytes=int(max_bytes),
+    )
+    if not text:
+        return None
+    try:
+        obj = json.loads(text)
+    except Exception:
+        return None
+    if isinstance(obj, dict):
+        return obj
+    return None
+
+
+def fetch_workbench_all_study_diseases(
+    *,
+    cache_root: Path,
+    timeout_s: float = 60.0,
+    retries: int = 3,
+    delay_s: float = 0.25,
+    refresh: bool = False,
+    max_bytes: int = 25 * 1024 * 1024,
+) -> Optional[Dict[str, Any]]:
+    """Fetch the Workbench global (study_id -> disease) index from `/study_id/ST/disease` with caching."""
+    cache_root = Path(cache_root)
+    out_dir = cache_root / "index"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "study_disease_index.json"
+
+    if path.exists() and path.stat().st_size > 0 and not refresh:
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            obj = None
+        if isinstance(obj, dict):
+            return obj
+
+    url = f"{WORKBENCH_STUDY_BASE.format(study_id='ST')}/disease"
+    obj = _http_get_json_limited(url, timeout_s=timeout_s, retries=retries, delay_s=delay_s, max_bytes=int(max_bytes))
+    if not obj:
+        return None
+    path.write_text(json.dumps(obj), encoding="utf-8")
+    return obj
+
+
+def fetch_workbench_all_study_summaries(
+    *,
+    cache_root: Path,
+    timeout_s: float = 60.0,
+    retries: int = 3,
+    delay_s: float = 0.25,
+    refresh: bool = False,
+    max_bytes: int = 50 * 1024 * 1024,
+) -> Optional[Dict[str, Any]]:
+    """Fetch the Workbench global study summary index from `/study_id/ST/summary` with caching."""
+    cache_root = Path(cache_root)
+    out_dir = cache_root / "index"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "study_summary_index.json"
+
+    if path.exists() and path.stat().st_size > 0 and not refresh:
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            obj = None
+        if isinstance(obj, dict):
+            return obj
+
+    url = f"{WORKBENCH_STUDY_BASE.format(study_id='ST')}/summary"
+    obj = _http_get_json_limited(url, timeout_s=timeout_s, retries=retries, delay_s=delay_s, max_bytes=int(max_bytes))
+    if not obj:
+        return None
+    path.write_text(json.dumps(obj), encoding="utf-8")
+    return obj
+
+
+def fetch_workbench_study_analyses(
+    study_id: str,
+    *,
+    cache_root: Optional[Path] = None,
+    timeout_s: float = 60.0,
+    retries: int = 3,
+    delay_s: float = 0.25,
+    refresh: bool = False,
+    max_bytes: int = 5 * 1024 * 1024,
+) -> Optional[Dict[str, Any]]:
+    """Fetch per-study analysis listing from `/study_id/{STxxxxxx}/analysis` with optional caching."""
+    sid = _canonical_study_id(study_id)
+    if not sid:
+        return None
+
+    path: Optional[Path] = None
+    if cache_root is not None:
+        cache_root = Path(cache_root)
+        out_dir = cache_root / "study_analyses"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"{sid}_analysis_index.json"
+        if path.exists() and path.stat().st_size > 0 and not refresh:
+            try:
+                obj = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                obj = None
+            if isinstance(obj, dict):
+                return obj
+
+    url = f"{WORKBENCH_STUDY_BASE.format(study_id=sid)}/analysis"
+    obj = _http_get_json_limited(url, timeout_s=timeout_s, retries=retries, delay_s=delay_s, max_bytes=int(max_bytes))
+    if not obj:
+        return None
+    if path is not None:
+        path.write_text(json.dumps(obj), encoding="utf-8")
+    return obj
+
+
+def normalize_metabolite_name(raw: object) -> str:
+    s = _normalize_str(raw)
+    if not s:
+        return ""
+    s = s.strip()
+    s = re.sub(r"\s+", " ", s)
+    s = s.upper()
+    return s
+
+
+def _coerce_str_or_empty(x: object) -> str:
+    s = _normalize_str(x)
+    return s
+
+
+def _get_ci_from_dict(row: dict, key: str) -> Any:
+    """Case-insensitive-ish dict getter used for heterogeneous mwTab rows."""
+    if key in row:
+        return row[key]
+    want = _normalize_key(key)
+    for k, v in row.items():
+        if _normalize_key(str(k)) == want:
+            return v
+    return None
+
+
+def extract_mwtab_labeled_metabolites(mwtab: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Extract mwTab MS_METABOLITE_DATA metabolite rows (named metabolites + identifiers when present)."""
+    msmd = mwtab.get("MS_METABOLITE_DATA") or {}
+    mets = msmd.get("Metabolites") if isinstance(msmd, dict) else None
+    if not isinstance(mets, list):
+        return []
+
+    out: List[Dict[str, Any]] = []
+    for row in mets:
+        if not isinstance(row, dict):
+            continue
+        name = _coerce_str_or_empty(
+            _get_ci_from_dict(row, "Metabolite")
+            or _get_ci_from_dict(row, "metabolite_name")
+            or _get_ci_from_dict(row, "compound_name")
+            or _get_ci_from_dict(row, "name")
+        )
+        if not name:
+            continue
+        rec = {
+            "source": "mwtab_ms_metabolite_data",
+            "metabolite_name": name,
+            "metabolite_norm": normalize_metabolite_name(name),
+            "pubchem_id": _coerce_str_or_empty(_get_ci_from_dict(row, "pubchem_id") or _get_ci_from_dict(row, "PubChem ID")),
+            "kegg_id": _coerce_str_or_empty(_get_ci_from_dict(row, "kegg_id") or _get_ci_from_dict(row, "KEGG ID")),
+            "hmdb_id": _coerce_str_or_empty(_get_ci_from_dict(row, "hmdb_id") or _get_ci_from_dict(row, "HMDB ID")),
+            "chebi_id": _coerce_str_or_empty(_get_ci_from_dict(row, "chebi_id") or _get_ci_from_dict(row, "ChEBI ID")),
+            "inchikey": _coerce_str_or_empty(_get_ci_from_dict(row, "inchikey") or _get_ci_from_dict(row, "InChIKey")),
+            "lipidmaps_id": _coerce_str_or_empty(_get_ci_from_dict(row, "lipidmaps_id") or _get_ci_from_dict(row, "LipidMaps ID")),
+            "other_id": _coerce_str_or_empty(_get_ci_from_dict(row, "other_id")),
+            "other_id_type": _coerce_str_or_empty(_get_ci_from_dict(row, "other_id_type")),
+        }
+        out.append(rec)
+    return out
+
+
+def parse_workbench_study_data_json(obj: Dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Parse Workbench /study_id/.../data JSON into (metabolite_meta, sample_x_metabolite_expr)."""
+    meta_rows: List[Dict[str, Any]] = []
+    data_by_met: Dict[str, Dict[str, object]] = {}
+
+    for _, rec in (obj or {}).items():
+        if not isinstance(rec, dict):
+            continue
+        study_id = _coerce_str_or_empty(rec.get("study_id"))
+        analysis_id = _canonical_analysis_id(rec.get("analysis_id"))
+        met_name = _coerce_str_or_empty(rec.get("metabolite_name"))
+        refmet_name = _coerce_str_or_empty(rec.get("refmet_name"))
+        met_id = _coerce_str_or_empty(rec.get("metabolite_id"))
+        units = _coerce_str_or_empty(rec.get("units"))
+        summary = _coerce_str_or_empty(rec.get("analysis_summary"))
+        name_for_overlap = refmet_name or met_name
+        met_norm = normalize_metabolite_name(name_for_overlap)
+        if not met_norm:
+            continue
+
+        # Key used for matrix columns. Prefer stable MW metabolite_id when present, but always include met_norm.
+        col_key = met_id or f"NAME:{met_norm}"
+
+        meta_rows.append(
+            {
+                "source": "workbench_study_data",
+                "study_id": study_id,
+                "analysis_id": analysis_id,
+                "metabolite_id": met_id,
+                "metabolite_name": met_name,
+                "refmet_name": refmet_name,
+                "metabolite_norm": met_norm,
+                "units": units,
+                "analysis_summary": summary,
+                "matrix_col": col_key,
+            }
+        )
+
+        data = rec.get("DATA") or {}
+        if isinstance(data, dict):
+            data_by_met[col_key] = dict(data)
+
+    meta_df = pd.DataFrame(meta_rows)
+    if meta_df.empty or not data_by_met:
+        return meta_df, pd.DataFrame()
+
+    # Build sample x metabolite matrix (string->float coercion, null/empty->NA).
+    sample_ids: set[str] = set()
+    for d in data_by_met.values():
+        sample_ids.update(str(k) for k in d.keys() if str(k))
+    samples = sorted(sample_ids)
+    cols = sorted(data_by_met.keys())
+    expr = pd.DataFrame(index=samples, columns=cols, dtype=float)
+    for col in cols:
+        d = data_by_met.get(col) or {}
+        for sid, val in d.items():
+            s = str(sid)
+            if s not in expr.index:
+                continue
+            if val is None:
+                continue
+            raw = str(val).strip()
+            if not raw:
+                continue
+            try:
+                expr.at[s, col] = float(raw)
+            except Exception:
+                continue
+    return meta_df, expr
+
+
+def fetch_workbench_study_data(
+    study_id: str,
+    *,
+    cache_root: Path,
+    timeout_s: float = 60.0,
+    retries: int = 3,
+    delay_s: float = 0.25,
+    refresh: bool = False,
+    max_bytes: int = 50 * 1024 * 1024,
+) -> Optional[Path]:
+    """Fetch one MW study-level named-metabolite data matrix (/study_id/.../data) with on-disk caching."""
+    sid = _normalize_str(study_id).upper()
+    if not sid.startswith("ST"):
+        return None
+    cache_root = Path(cache_root)
+    data_dir = cache_root / "study_data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    out_path = data_dir / f"{sid}_data.json"
+
+    if out_path.exists() and out_path.stat().st_size > 0 and not refresh:
+        return out_path
+
+    url = f"{WORKBENCH_STUDY_BASE.format(study_id=sid)}/data"
+    text = _http_get_text_limited(
+        url,
+        timeout_s=timeout_s,
+        retries=retries,
+        delay_s=delay_s,
+        max_bytes=int(max_bytes),
+    )
+    if not text:
+        return None
+    try:
+        obj = json.loads(text)
+    except Exception:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    out_path.write_text(json.dumps(obj), encoding="utf-8")
+    return out_path
 
 
 @dataclass(frozen=True)

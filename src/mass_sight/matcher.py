@@ -23,6 +23,9 @@ from .structure_graph import (
 )
 from .lcms_utils import (
     SchemaConfig,
+    ADDUCT_MASS_NEG,
+    ADDUCT_MASS_POS,
+    PROTON_MASS,
     infer_rt_unit_scale_to_minutes,
     normalize_schema,
 )
@@ -92,6 +95,22 @@ class MassSightConfig:
     rt_gate_disable_p95: float = 1.0
     rt_gate_anchor_ppm: Optional[float] = None
     rt_gate_min_count: int = 25
+
+    # m/z semantics + global shift alignment
+    #
+    # Some public feature tables (including some MW `untarg_data`) encode neutral masses in a field
+    # labeled like m/z. When one dataset uses neutral masses and another uses ion m/z, naive ppm
+    # neighborhoods fail. We support a lightweight *global* alignment step that can apply a
+    # constant shift to each study's mass axis prior to candidate generation.
+    #
+    # These are per-pair settings; multi-study workflows should set mz_semantics_* per study pair.
+    mz_semantics_study_a: str = "auto"  # "auto" | "ion_mz" | "neutral_mass"
+    mz_semantics_study_b: str = "auto"  # "auto" | "ion_mz" | "neutral_mass"
+    mz_global_shift_model: str = "auto"  # "auto" | "none" | "proton_only" | "common_adducts"
+    mz_global_shift_anchor_ppm: float = 5.0
+    mz_global_shift_min_anchors: int = 25
+    mz_global_shift_min_gain: int = 5
+    mz_global_shift_max_eval: int = 5000
 
     # Retention handling under missing/degenerate RT.
     # Some untargeted datasets (e.g., certain MW `untarg_data` exports) have no meaningful RT
@@ -174,10 +193,11 @@ class MassSightConfig:
 
     # OT parameters
     # OT mode:
-    # - "balanced": (default) entropic OT with row + column marginals (and optional null column)
+    # - "balanced": entropic OT with row + column marginals (and optional null column)
     # - "unbalanced": entropic OT with relaxed KL-penalized marginals (better supports many-to-one)
     # - "semi_relaxed": constrain rows only (columns have infinite capacity; effectively a per-row softmax at temperature `ot_epsilon`)
-    ot_mode: str = "balanced"  # "balanced" | "unbalanced" | "semi_relaxed"
+    # Cross-study default: unbalanced OT reduces "swap" errors on dense candidate graphs by relaxing column competition.
+    ot_mode: str = "unbalanced"  # "balanced" | "unbalanced" | "semi_relaxed"
     ot_epsilon: float = 0.5
     ot_max_iter: int = 200
     ot_tol: float = 1e-4
@@ -185,7 +205,7 @@ class MassSightConfig:
     # Unbalanced OT (KL-relaxed marginals) parameters. Larger values enforce marginals more strongly.
     # Effective exponent: tau = lambda / (lambda + ot_epsilon), so lambda >> epsilon approximates balanced OT.
     ot_unbalanced_lambda_row: float = 10.0
-    ot_unbalanced_lambda_col: float = 1.0
+    ot_unbalanced_lambda_col: float = 0.5
     # Cross-study default: permit explicit no-match via a null OT column.
     allow_unmatched: bool = True
     null_mass: float = 0.1
@@ -485,6 +505,236 @@ def _nearest_neighbor_mz_matches(
     best_idx[q_idx[ok]] = cand[ok]
     delta_ppm[q_idx[ok]] = dppm[ok]
     return best_idx, delta_ppm
+
+
+def _canonical_mz_semantics(x: object) -> str:
+    """
+    Canonicalize m/z semantics hints into {'auto','ion_mz','neutral_mass'}.
+
+    External metadata is frequently missing or inconsistent, so this function is permissive.
+    """
+    s = str(x or "").strip().lower().replace("-", "_")
+    if not s or s in {"auto", "unknown", "na", "nan"}:
+        return "auto"
+    if s in {"ion", "mz", "ion_mz", "yes", "measured_mz", "measured"}:
+        return "ion_mz"
+    if s in {"neutral", "neutral_mass", "neutral_masses", "neutralmasses"}:
+        return "neutral_mass"
+    return "auto"
+
+
+def _canonical_mz_shift_model(x: object) -> str:
+    s = str(x or "").strip().lower().replace("-", "_")
+    if not s:
+        return "auto"
+    if s in {"off", "none", "false", "0"}:
+        return "none"
+    if s in {"auto"}:
+        return "auto"
+    if s in {"proton", "proton_only", "protononly", "h_only", "h"}:
+        return "proton_only"
+    if s in {"common", "common_adducts", "adducts"}:
+        return "common_adducts"
+    raise ValueError(f"Unsupported mz_global_shift_model: {x!r} (expected auto/none/proton_only/common_adducts).")
+
+
+def _mz_shift_candidates(model: str, *, polarity: str) -> List[float]:
+    """
+    Candidate constant shifts (Da) to apply to a study's MZ column before matching.
+
+    We include both +/- variants so we can handle either direction (neutral->ion or ion->neutral)
+    depending on which dataset is shifted. We keep the set small by default.
+    """
+    model = _canonical_mz_shift_model(model)
+    if model in {"none"}:
+        return [0.0]
+
+    shifts: List[float] = [0.0, float(PROTON_MASS), -float(PROTON_MASS)]
+    if model == "proton_only":
+        return sorted(set(float(s) for s in shifts), key=lambda v: (0 if abs(v) < 1e-12 else 1, abs(v), v))
+
+    pol = str(polarity or "").lower().strip()
+    if pol not in {"positive", "negative"}:
+        pol = "positive"
+
+    if pol == "positive":
+        extra = [float(ADDUCT_MASS_POS[k]) for k in ["NH4", "NA", "K"] if k in ADDUCT_MASS_POS]
+    else:
+        extra = [float(ADDUCT_MASS_NEG[k]) for k in ["CL", "FA_H", "AC_H"] if k in ADDUCT_MASS_NEG]
+
+    for m in extra:
+        shifts.append(float(m))
+        shifts.append(-float(m))
+
+    return sorted(set(float(s) for s in shifts), key=lambda v: (0 if abs(v) < 1e-12 else 1, abs(v), v))
+
+
+def _best_nn_idx_within_ppm_presorted(
+    mz_query: np.ndarray,
+    mz_target_sorted: np.ndarray,
+    order_target: np.ndarray,
+    *,
+    mz_ppm: float,
+) -> np.ndarray:
+    """
+    Nearest-neighbor match indices against a pre-sorted target array.
+
+    Returns indices into the *unsorted* target (i.e. original positions), or -1 for no match.
+    """
+    mz_query = np.asarray(mz_query, dtype=float)
+    mz_target_sorted = np.asarray(mz_target_sorted, dtype=float)
+    order_target = np.asarray(order_target, dtype=int)
+
+    n_q = int(mz_query.size)
+    n_t = int(mz_target_sorted.size)
+    out = np.full(n_q, -1, dtype=int)
+    if n_q == 0 or n_t == 0:
+        return out
+
+    pos = np.searchsorted(mz_target_sorted, mz_query)
+    pos0 = np.clip(pos, 0, n_t - 1)
+    pos1 = np.clip(pos - 1, 0, n_t - 1)
+
+    t0 = mz_target_sorted[pos0]
+    t1 = mz_target_sorted[pos1]
+    diff0 = np.abs(t0 - mz_query)
+    diff1 = np.abs(t1 - mz_query)
+    use0 = diff0 <= diff1
+    pos_best = np.where(use0, pos0, pos1).astype(int)
+    t_best = mz_target_sorted[pos_best]
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dppm = (t_best - mz_query) / mz_query * 1e6
+        ok = np.isfinite(dppm) & (np.abs(dppm) <= float(mz_ppm))
+    out[ok] = order_target[pos_best[ok]]
+    return out
+
+
+def _infer_pair_mz_global_shift(
+    study_a: pd.DataFrame,
+    study_b: pd.DataFrame,
+    cfg: MassSightConfig,
+) -> Dict[str, object]:
+    """
+    Infer a constant per-study MZ shift for a dataset pair using m/z-tight MNN anchors.
+
+    This is a robustness feature for public data with inconsistent reporting conventions
+    (ion m/z vs neutral masses). The goal is to salvage candidate generation, not to model
+    per-feature adduct chemistry.
+    """
+    pol = str(getattr(cfg, "polarity", "positive") or "positive").lower().strip()
+    model_req = _canonical_mz_shift_model(getattr(cfg, "mz_global_shift_model", "auto"))
+    sem_a = _canonical_mz_semantics(getattr(cfg, "mz_semantics_study_a", "auto"))
+    sem_b = _canonical_mz_semantics(getattr(cfg, "mz_semantics_study_b", "auto"))
+
+    out: Dict[str, object] = {
+        "mz_semantics_study_a": sem_a,
+        "mz_semantics_study_b": sem_b,
+        "mz_global_shift_model_requested": model_req,
+        "mz_global_shift_model_effective": model_req,
+        "mz_global_shift_anchor_ppm": float(getattr(cfg, "mz_global_shift_anchor_ppm", 5.0) or 5.0),
+        "mz_global_shift_min_anchors": int(getattr(cfg, "mz_global_shift_min_anchors", 25) or 25),
+        "mz_global_shift_min_gain": int(getattr(cfg, "mz_global_shift_min_gain", 5) or 5),
+        "mz_global_shift_max_eval": int(getattr(cfg, "mz_global_shift_max_eval", 5000) or 5000),
+        "mz_shift_da_study_a": 0.0,
+        "mz_shift_da_study_b": 0.0,
+        "mz_shift_mnn_best": 0,
+        "mz_shift_mnn_zero": 0,
+        "mz_shift_note": "",
+        "mz_shift_applied": False,
+    }
+
+    if model_req == "none":
+        out["mz_shift_note"] = "disabled"
+        return out
+
+    # Auto policy: avoid extra work when both studies are explicitly ion-m/z-like.
+    if model_req == "auto" and sem_a == "ion_mz" and sem_b == "ion_mz":
+        out["mz_global_shift_model_effective"] = "none"
+        out["mz_shift_note"] = "auto_skip_both_ion_mz"
+        return out
+
+    # Use a conservative shift family by default.
+    model_eff = "proton_only" if model_req == "auto" else model_req
+    out["mz_global_shift_model_effective"] = model_eff
+
+    anchor_ppm = float(out["mz_global_shift_anchor_ppm"])
+    if not np.isfinite(anchor_ppm) or anchor_ppm <= 0:
+        anchor_ppm = float(getattr(cfg, "tight_ppm", 7.0) or 7.0)
+        out["mz_global_shift_anchor_ppm"] = float(anchor_ppm)
+
+    mz1 = pd.to_numeric(study_a.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
+    mz2 = pd.to_numeric(study_b.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
+    mz1 = mz1[np.isfinite(mz1) & (mz1 > 0)]
+    mz2 = mz2[np.isfinite(mz2) & (mz2 > 0)]
+    if mz1.size == 0 or mz2.size == 0:
+        out["mz_shift_note"] = "empty_mz"
+        return out
+
+    # Subsample to keep repeated NN passes predictable.
+    max_eval = int(out["mz_global_shift_max_eval"])
+    if max_eval > 0 and (mz1.size > max_eval or mz2.size > max_eval):
+        rng = np.random.default_rng(0)
+        if mz1.size > max_eval:
+            mz1 = mz1[rng.choice(mz1.size, size=max_eval, replace=False)]
+        if mz2.size > max_eval:
+            mz2 = mz2[rng.choice(mz2.size, size=max_eval, replace=False)]
+        out["mz_shift_note"] = "subsampled"
+
+    order1 = np.argsort(mz1)
+    order2 = np.argsort(mz2)
+    mz1_sorted0 = mz1[order1]
+    mz2_sorted0 = mz2[order2]
+
+    shifts = _mz_shift_candidates(model_eff, polarity=pol)
+    best_sa = 0.0
+    best_sb = 0.0
+    best_count = -1
+    zero_count = 0
+    best_key: Optional[Tuple[int, int, float, float, float]] = None
+    for sa in shifts:
+        mz1_sorted = mz1_sorted0 + float(sa)
+        for sb in shifts:
+            mz2_sorted = mz2_sorted0 + float(sb)
+            best2_for_1 = _best_nn_idx_within_ppm_presorted(mz1_sorted, mz2_sorted, order2, mz_ppm=anchor_ppm)
+            best1_for_2 = _best_nn_idx_within_ppm_presorted(mz2_sorted, mz1_sorted, order1, mz_ppm=anchor_ppm)
+            i = np.arange(best2_for_1.size, dtype=int)
+            j = best2_for_1
+            mnn = (j >= 0) & (best1_for_2[j] == i)
+            count = int(np.sum(mnn))
+
+            if abs(float(sa)) <= 1e-12 and abs(float(sb)) <= 1e-12:
+                zero_count = int(count)
+
+            n_nonzero = int(abs(float(sa)) > 1e-12) + int(abs(float(sb)) > 1e-12)
+            key = (int(-count), int(n_nonzero), float(abs(sa) + abs(sb)), float(sa), float(sb))
+            if best_key is None or key < best_key:
+                best_key = key
+                best_sa, best_sb, best_count = float(sa), float(sb), int(count)
+
+    out["mz_shift_mnn_best"] = int(best_count if best_count >= 0 else 0)
+    out["mz_shift_mnn_zero"] = int(zero_count)
+
+    min_anchors = int(out["mz_global_shift_min_anchors"])
+    min_gain = int(out["mz_global_shift_min_gain"])
+    # When neither side is explicitly marked as neutral masses, be conservative:
+    # only apply a shift when it produces a substantial increase in MNN anchors.
+    if sem_a != "neutral_mass" and sem_b != "neutral_mass" and model_req in {"auto"}:
+        min_gain = max(int(min_gain), 25)
+    out["mz_global_shift_min_gain_effective"] = int(min_gain)
+    apply = (
+        (abs(float(best_sa)) > 1e-12 or abs(float(best_sb)) > 1e-12)
+        and (int(best_count) >= int(min_anchors))
+        and (int(best_count) >= int(zero_count + min_gain))
+    )
+    if apply:
+        out["mz_shift_da_study_a"] = float(best_sa)
+        out["mz_shift_da_study_b"] = float(best_sb)
+        out["mz_shift_applied"] = True
+        out["mz_shift_note"] = (str(out.get("mz_shift_note") or "") + "|applied").strip("|")
+    else:
+        out["mz_shift_note"] = (str(out.get("mz_shift_note") or "") + "|not_applied").strip("|")
+    return out
 
 
 def _infer_pair_rt_transferability(
@@ -2060,6 +2310,30 @@ def _prepare_match(
         annotation_override=cfg.annotation_col_study_b,
         compound_override=cfg.compound_id_col_study_b,
     )
+
+    # --- Optional MZ semantics alignment (neutral mass vs ion m/z) ---
+    # Apply before RT transferability inference so m/z-tight anchors are meaningful.
+    mz_shift_diag = _infer_pair_mz_global_shift(study_a, study_b, cfg_eff)
+    try:
+        sa = float(mz_shift_diag.get("mz_shift_da_study_a", 0.0) or 0.0)
+        sb = float(mz_shift_diag.get("mz_shift_da_study_b", 0.0) or 0.0)
+    except Exception:
+        sa, sb = 0.0, 0.0
+    if abs(sa) > 1e-12 or abs(sb) > 1e-12:
+        # Preserve raw MZ for diagnostics.
+        if "MZ_raw" not in study_a.columns:
+            study_a = study_a.copy()
+            study_a["MZ_raw"] = study_a["MZ"].to_numpy(dtype=float)
+        if "MZ_raw" not in study_b.columns:
+            study_b = study_b.copy()
+            study_b["MZ_raw"] = study_b["MZ"].to_numpy(dtype=float)
+        if abs(sa) > 1e-12:
+            study_a["MZ"] = study_a["MZ"].to_numpy(dtype=float) + float(sa)
+        if abs(sb) > 1e-12:
+            study_b["MZ"] = study_b["MZ"].to_numpy(dtype=float) + float(sb)
+    # Record under stable keys for downstream run manifests.
+    for k, v in mz_shift_diag.items():
+        rt_gate_diag[str(k)] = v
 
     # --- Optional CV feature normalization ---
     # We treat CV as a per-feature scalar (e.g., computed across control/QC samples).

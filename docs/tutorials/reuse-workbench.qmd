@@ -10,6 +10,8 @@ format:
 ## Example
 
 ```bash
+mass_sight find --out selection.json
+
 mass_sight reuse \
   --analysis-id AN000001 \
   --analysis-id AN000002 \
@@ -33,13 +35,27 @@ If studies are not assay-compatible, they are not mixed into the same group.
 ## Key outputs
 
 - `analysis_metadata.tsv`: normalized metadata used to make grouping choices.
+- `analysis_labeled_metabolites.tsv`: per-analysis labeled metabolite names/IDs (from mwTab; optionally enriched by targeted data).
 - `reuse_groups.tsv`: one row per processed compatibility group.
 - `groups/<group_key>/...`: clustering outputs for that group.
+- `groups/<group_key>/shared_labeled_metabolites/`: shared labeled metabolite overlaps (pairwise and shared-all).
 - `reuse_summary.json`: run-level summary.
 - `run_manifest.json`: provenance capture (version, args, runtime, outputs).
+  - If enabled: `targeted_data/<study_id>/named_metabolites.tsv` and `targeted_data/<study_id>/named_metabolite_expr.tsv.gz`.
 
 ## `--use-intensity` options
 
 - `--use-intensity off` (default): do not use intensity during cross-study matching.
 - `--use-intensity auto`: use intensity only when metadata suggests comparable raw-like values.
 - `--use-intensity on`: always include intensity as matching evidence.
+
+## Fetching targeted metabolite matrices
+
+If you also want to reuse **named-metabolite** data (targeted or “identified metabolite” matrices), enable:
+
+```bash
+mass_sight reuse ... --fetch-targeted-data
+```
+
+massSight will fetch the Workbench `/study_id/.../data` endpoint (cached under `<out-dir>/cache/`) and export per-study
+matrices under `targeted_data/<study_id>/`.

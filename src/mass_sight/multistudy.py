@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -155,10 +155,25 @@ def load_mw_untarg_matrix(path: Path, *, na_as_zero: bool = True) -> Tuple[pd.Da
         )
         features = pd.DataFrame({"feature_id": feature_cols, "MZ": mz.to_numpy(float), "RT": rt.to_numpy(float)})
     else:
-        first = np.zeros(len(feature_cols), dtype=float)
-        second = np.zeros(len(feature_cols), dtype=float)
-        for idx, name in enumerate(feature_cols):
-            first[idx], second[idx] = _parse_feature_name(name)
+        # Some MW "untarg_data" exports include extra non-feature columns with names rather than MZ_RT encodings.
+        # Drop anything we can't parse as two floats.
+        parseable_cols: List[str] = []
+        first_vals: List[float] = []
+        second_vals: List[float] = []
+        for name in feature_cols:
+            try:
+                a, b = _parse_feature_name(str(name))
+            except Exception:
+                continue
+            parseable_cols.append(str(name))
+            first_vals.append(float(a))
+            second_vals.append(float(b))
+        if not parseable_cols:
+            raise ValueError(f"No parseable feature columns found in {path}")
+
+        feature_cols = parseable_cols
+        first = np.asarray(first_vals, dtype=float)
+        second = np.asarray(second_vals, dtype=float)
 
         def score_assignment(mz_v: np.ndarray, rt_v: np.ndarray) -> float:
             mz_ok = np.mean((mz_v >= 50.0) & (mz_v <= 5000.0))
@@ -264,12 +279,45 @@ def _prep_match_df(features: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray]:
     return ds, feature_ids
 
 
+def _mz_semantics_from_loaded(study: LoadedStudy) -> str:
+    """
+    Best-effort per-study mass-axis semantics hint.
+
+    Workbench metadata uses `ms_results_has_mz_semantics` in {'yes','neutral_masses','no','other','unknown'}.
+    We map this into massSight config semantics {'ion_mz','neutral_mass','auto'}.
+    """
+    spec = study.spec
+    meta = dict(spec.metadata) if spec is not None else {}
+    raw = str(meta.get("ms_results_has_mz_semantics") or meta.get("ms_results_mz_semantics") or "").strip().lower()
+    if raw == "neutral_masses":
+        return "neutral_mass"
+    if raw == "yes":
+        return "ion_mz"
+    return "auto"
+
+
+def _cfg_for_loaded_pair(cfg: MassSightConfig, a: LoadedStudy, b: LoadedStudy) -> MassSightConfig:
+    def _is_auto(x: object) -> bool:
+        s = str(x or "").strip().lower().replace("-", "_")
+        return (not s) or s in {"auto", "unknown", "na", "nan"}
+
+    sem_a = str(getattr(cfg, "mz_semantics_study_a", "auto") or "auto")
+    sem_b = str(getattr(cfg, "mz_semantics_study_b", "auto") or "auto")
+    if _is_auto(sem_a):
+        sem_a = _mz_semantics_from_loaded(a)
+    if _is_auto(sem_b):
+        sem_b = _mz_semantics_from_loaded(b)
+    return replace(cfg, mz_semantics_study_a=str(sem_a), mz_semantics_study_b=str(sem_b))
+
+
 def mutual_top1_map(study: LoadedStudy, hub: LoadedStudy, cfg: MassSightConfig) -> pd.DataFrame:
     ds_s, ids_s = _prep_match_df(study.features)
     ds_h, ids_h = _prep_match_df(hub.features)
 
-    res_s2h = match_features(ds_s, ds_h, cfg)
-    res_h2s = match_features(ds_h, ds_s, cfg)
+    cfg_s2h = _cfg_for_loaded_pair(cfg, study, hub)
+    cfg_h2s = _cfg_for_loaded_pair(cfg, hub, study)
+    res_s2h = match_features(ds_s, ds_h, cfg_s2h)
+    res_h2s = match_features(ds_h, ds_s, cfg_h2s)
 
     t_s2h = res_s2h.top1.copy()
     t_h2s = res_h2s.top1.copy()
@@ -492,8 +540,10 @@ def cluster_symmetric_mutual_graph(
         for s2 in studies[i + 1 :]:
             study_a_df, ids_a = _prep_match_df(s1.features)
             study_b_df, ids_b = _prep_match_df(s2.features)
-            res_12 = match_features(study_a_df, study_b_df, cfg)
-            res_21 = match_features(study_b_df, study_a_df, cfg)
+            cfg_12 = _cfg_for_loaded_pair(cfg, s1, s2)
+            cfg_21 = _cfg_for_loaded_pair(cfg, s2, s1)
+            res_12 = match_features(study_a_df, study_b_df, cfg_12)
+            res_21 = match_features(study_b_df, study_a_df, cfg_21)
 
             t12 = res_12.top1.copy()
             t21 = res_21.top1.copy()
@@ -618,8 +668,16 @@ def _mutual_top1_pairs(
     cfg: MassSightConfig,
 ) -> Tuple[pd.DataFrame, MatchResult, MatchResult]:
     """Return mutual top-1 pairs between study_a and study_b plus both match results."""
-    res_12 = match_features(study_a, study_b, cfg)
-    res_21 = match_features(study_b, study_a, cfg)
+    # Important: per-study mass-axis semantics are direction-dependent (study_a vs study_b).
+    # When running the reverse call, swap the semantics hints so global m/z alignment stays consistent.
+    cfg_12 = cfg
+    cfg_21 = replace(
+        cfg,
+        mz_semantics_study_a=str(getattr(cfg, "mz_semantics_study_b", "auto") or "auto"),
+        mz_semantics_study_b=str(getattr(cfg, "mz_semantics_study_a", "auto") or "auto"),
+    )
+    res_12 = match_features(study_a, study_b, cfg_12)
+    res_21 = match_features(study_b, study_a, cfg_21)
 
     t12 = res_12.top1.copy()
     t21 = res_21.top1.copy()
@@ -782,11 +840,12 @@ def cluster_hub_consensus_template_ot(
             if study.analysis_id == hub.analysis_id:
                 continue
             ds_s, ids_s = _prep_match_df(study.features)
+            cfg_s2t = _cfg_for_loaded_pair(cfg, study, hub)
 
             if use_reverse_call:
-                mutual_pairs, res_s2t, res_t2s = _mutual_top1_pairs(ds_s, template_ds, cfg)
+                mutual_pairs, res_s2t, res_t2s = _mutual_top1_pairs(ds_s, template_ds, cfg_s2t)
             else:
-                mutual_pairs, res_s2t = _mutual_top1_pairs_one_direction(ds_s, template_ds, cfg)
+                mutual_pairs, res_s2t = _mutual_top1_pairs_one_direction(ds_s, template_ds, cfg_s2t)
                 res_t2s = None
             if mutual_pairs.empty:
                 continue
@@ -967,7 +1026,8 @@ def cluster_hub_barycenter_ot(
             if study.analysis_id == hub.analysis_id:
                 continue
             ds_s, _ids_s = _prep_match_df(study.features)
-            res = match_features(ds_s, template_ds, cfg)
+            cfg_s2t = _cfg_for_loaded_pair(cfg, study, hub)
+            res = match_features(ds_s, template_ds, cfg_s2t)
             cand = res.candidates
             if cand.empty:
                 continue
@@ -1044,10 +1104,11 @@ def cluster_hub_barycenter_ot(
         if study.analysis_id == hub.analysis_id:
             continue
         ds_s, ids_s = _prep_match_df(study.features)
+        cfg_s2t = _cfg_for_loaded_pair(cfg, study, hub)
         if use_reverse_call:
-            mutual_pairs, res_s2t, res_t2s = _mutual_top1_pairs(ds_s, template_ds, cfg)
+            mutual_pairs, res_s2t, res_t2s = _mutual_top1_pairs(ds_s, template_ds, cfg_s2t)
         else:
-            mutual_pairs, res_s2t = _mutual_top1_pairs_one_direction(ds_s, template_ds, cfg)
+            mutual_pairs, res_s2t = _mutual_top1_pairs_one_direction(ds_s, template_ds, cfg_s2t)
             res_t2s = None
         if mutual_pairs.empty:
             continue

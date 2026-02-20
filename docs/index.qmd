@@ -40,11 +40,15 @@ mass_sight match study_a.csv study_b.csv \
 ## Quickstart: reuse public Workbench analyses
 
 ```bash
+mass_sight find --out selection.json
+
 mass_sight reuse \
   --analysis-id AN000001 \
   --analysis-id AN000002 \
   --out-dir reuse_out
 ```
+
+`find` launches an interactive terminal UI to browse Workbench by disease and export a selection manifest of `analysis_id`s.
 
 `reuse` fetches Workbench `mwtab` + `untarg_data`, summarizes assay metadata (ion mode, chromatography, instrument, value-scale hints), groups compatible studies, and runs clustering per group.
 
@@ -53,6 +57,7 @@ Useful options:
 - `--use-intensity off|auto|on` (default `off`)
 - `--min-group-size` (default `2`)
 - `--allow-unknown-strata` (off by default)
+- `--fetch-targeted-data` (off by default; fetches study-level named-metabolite matrices for targeted/meta-analysis)
 
 ## Reproducibility manifests
 

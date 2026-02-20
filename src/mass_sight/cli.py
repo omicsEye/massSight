@@ -21,7 +21,11 @@ from .multistudy import (
 from .workbench import (
     bundle_to_study_spec,
     fetch_workbench_analysis,
+    fetch_workbench_study_data,
     group_workbench_analyses,
+    extract_mwtab_labeled_metabolites,
+    normalize_metabolite_name,
+    parse_workbench_study_data_json,
     resolve_use_intensity_mode,
 )
 
@@ -110,6 +114,28 @@ def _add_match_parser(sub):
     p.add_argument("--intensity-col", type=str, default="Intensity")
     p.add_argument("--polarity", choices=["positive", "negative"], default="positive")
     p.add_argument(
+        "--mz-semantics-a",
+        choices=["auto", "ion_mz", "neutral_mass"],
+        default="auto",
+        help="Interpretation of study_a MZ column (default: auto).",
+    )
+    p.add_argument(
+        "--mz-semantics-b",
+        choices=["auto", "ion_mz", "neutral_mass"],
+        default="auto",
+        help="Interpretation of study_b MZ column (default: auto).",
+    )
+    p.add_argument(
+        "--mz-global-shift-model",
+        choices=["auto", "none", "proton_only", "common_adducts"],
+        default="auto",
+        help="Global mass-axis alignment to handle neutral-mass feature tables (default: auto).",
+    )
+    p.add_argument("--mz-global-shift-anchor-ppm", type=float, default=5.0, help="Anchor ppm for m/z shift inference.")
+    p.add_argument("--mz-global-shift-min-anchors", type=int, default=25, help="Min MNN anchors to apply a global shift.")
+    p.add_argument("--mz-global-shift-min-gain", type=int, default=5, help="Min anchor-count gain over 0-shift to apply.")
+    p.add_argument("--mz-global-shift-max-eval", type=int, default=5000, help="Max m/z values to use per study for shift inference.")
+    p.add_argument(
         "--capture-manifest",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -159,6 +185,16 @@ def _add_cluster_parser(sub):
     p.add_argument("--tight-rt", type=float, default=0.0, help="Tight RT window for drift fitting")
     p.add_argument("--polarity", choices=["positive", "negative"], default=None,
                    help="Override polarity (default: infer/validate from manifest).")
+    p.add_argument(
+        "--mz-global-shift-model",
+        choices=["auto", "none", "proton_only", "common_adducts"],
+        default="auto",
+        help="Global mass-axis alignment to handle neutral-mass feature tables (default: auto).",
+    )
+    p.add_argument("--mz-global-shift-anchor-ppm", type=float, default=5.0, help="Anchor ppm for m/z shift inference.")
+    p.add_argument("--mz-global-shift-min-anchors", type=int, default=25, help="Min MNN anchors to apply a global shift.")
+    p.add_argument("--mz-global-shift-min-gain", type=int, default=5, help="Min anchor-count gain over 0-shift to apply.")
+    p.add_argument("--mz-global-shift-max-eval", type=int, default=5000, help="Max m/z values to use per study for shift inference.")
 
     p.add_argument(
         "--drift-fit-bootstrap",
@@ -198,7 +234,7 @@ def _add_reuse_parser(sub):
         "--analysis-file",
         type=str,
         default=None,
-        help="Optional text file with one analysis ID per line.",
+        help="Optional text file with one analysis ID per line, or a JSON selection manifest from `mass_sight find`.",
     )
     p.add_argument("--out-dir", required=True, type=str, help="Output directory")
     p.add_argument(
@@ -223,6 +259,24 @@ def _add_reuse_parser(sub):
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Allow groups with unknown polarity/chromatography (default: disabled).",
+    )
+    p.add_argument(
+        "--export-labeled-metabolites",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Export per-analysis labeled metabolite tables and shared-labeled-metabolite overlaps (default: enabled).",
+    )
+    p.add_argument(
+        "--fetch-targeted-data",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Fetch Workbench study-level named-metabolite matrices (/study_id/.../data) for targeted/meta-analysis (default: disabled).",
+    )
+    p.add_argument(
+        "--targeted-max-mib",
+        type=float,
+        default=50.0,
+        help="Max MiB to download per study_id targeted data payload when --fetch-targeted-data is enabled.",
     )
     p.add_argument(
         "--use-intensity",
@@ -267,6 +321,16 @@ def _add_reuse_parser(sub):
         default=None,
         help="Force polarity for all groups (otherwise inferred from Workbench ion mode metadata).",
     )
+    p.add_argument(
+        "--mz-global-shift-model",
+        choices=["auto", "none", "proton_only", "common_adducts"],
+        default="auto",
+        help="Global mass-axis alignment to handle neutral-mass feature tables (default: auto).",
+    )
+    p.add_argument("--mz-global-shift-anchor-ppm", type=float, default=5.0, help="Anchor ppm for m/z shift inference.")
+    p.add_argument("--mz-global-shift-min-anchors", type=int, default=25, help="Min MNN anchors to apply a global shift.")
+    p.add_argument("--mz-global-shift-min-gain", type=int, default=5, help="Min anchor-count gain over 0-shift to apply.")
+    p.add_argument("--mz-global-shift-max-eval", type=int, default=5000, help="Max m/z values to use per study for shift inference.")
 
     p.add_argument(
         "--drift-fit-bootstrap",
@@ -291,6 +355,27 @@ def _add_reuse_parser(sub):
     return p
 
 
+def _add_find_parser(sub):
+    p = sub.add_parser("find", help="Interactive TUI to find Workbench studies/analyses (start from disease)")
+    p.add_argument("--out", required=True, type=str, help="Output selection manifest JSON path.")
+    p.add_argument(
+        "--cache-dir",
+        type=str,
+        default=None,
+        help="Optional cache directory for fetched Workbench indices (default: <out-dir>/cache).",
+    )
+    p.add_argument(
+        "--refresh-fetch",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Re-fetch Workbench indices even when cached locally (default: disabled).",
+    )
+    p.add_argument("--fetch-timeout-s", type=float, default=60.0, help="HTTP timeout in seconds for MW fetches.")
+    p.add_argument("--fetch-retries", type=int, default=3, help="Retries per MW endpoint request.")
+    p.add_argument("--fetch-delay-s", type=float, default=0.25, help="Delay between MW requests in seconds.")
+    return p
+
+
 def _collect_analysis_ids(args: argparse.Namespace) -> list[str]:
     values: list[str] = []
     values.extend([str(x).strip() for x in (args.analysis_ids or []) if str(x).strip()])
@@ -298,11 +383,32 @@ def _collect_analysis_ids(args: argparse.Namespace) -> list[str]:
         path = Path(str(args.analysis_file))
         if not path.exists():
             raise FileNotFoundError(path)
-        for line in path.read_text(encoding="utf-8").splitlines():
-            raw = str(line).strip()
-            if not raw or raw.startswith("#"):
-                continue
-            values.append(raw)
+        raw_text = path.read_text(encoding="utf-8")
+
+        # Support selection manifests from `mass_sight find` in addition to plain text lists.
+        # If parsing fails, fall back to line-based extraction.
+        parsed_json = None
+        try:
+            parsed_json = json.loads(raw_text)
+        except Exception:
+            parsed_json = None
+
+        if isinstance(parsed_json, dict) and isinstance(parsed_json.get("analysis_ids"), list):
+            for item in parsed_json.get("analysis_ids") or []:
+                s = str(item).strip()
+                if s:
+                    values.append(s)
+        elif isinstance(parsed_json, list):
+            for item in parsed_json:
+                s = str(item).strip()
+                if s:
+                    values.append(s)
+        else:
+            for line in raw_text.splitlines():
+                raw = str(line).strip()
+                if not raw or raw.startswith("#"):
+                    continue
+                values.append(raw)
     deduped: list[str] = []
     seen: set[str] = set()
     for raw in values:
@@ -384,6 +490,7 @@ def main(argv=None) -> int:
     _add_match_parser(sub)
     _add_cluster_parser(sub)
     _add_reuse_parser(sub)
+    _add_find_parser(sub)
     args = ap.parse_args(argv)
     started_at = _utc_now_iso()
     t0 = time.perf_counter()
@@ -403,6 +510,13 @@ def main(argv=None) -> int:
             rt_col=str(args.rt_col),
             intensity_col=str(args.intensity_col) if args.intensity_col else None,
             polarity=str(args.polarity),
+            mz_semantics_study_a=str(getattr(args, "mz_semantics_a", "auto")),
+            mz_semantics_study_b=str(getattr(args, "mz_semantics_b", "auto")),
+            mz_global_shift_model=str(getattr(args, "mz_global_shift_model", "auto")),
+            mz_global_shift_anchor_ppm=float(getattr(args, "mz_global_shift_anchor_ppm", 5.0)),
+            mz_global_shift_min_anchors=int(getattr(args, "mz_global_shift_min_anchors", 25)),
+            mz_global_shift_min_gain=int(getattr(args, "mz_global_shift_min_gain", 5)),
+            mz_global_shift_max_eval=int(getattr(args, "mz_global_shift_max_eval", 5000)),
         )
         res = match_features(study_a, study_b, cfg)
         res.candidates.to_csv(args.out_candidates, index=False)
@@ -458,6 +572,11 @@ def main(argv=None) -> int:
             w_int=0.0,
             use_structure=False,
             polarity=polarity,
+            mz_global_shift_model=str(getattr(args, "mz_global_shift_model", "auto")),
+            mz_global_shift_anchor_ppm=float(getattr(args, "mz_global_shift_anchor_ppm", 5.0)),
+            mz_global_shift_min_anchors=int(getattr(args, "mz_global_shift_min_anchors", 25)),
+            mz_global_shift_min_gain=int(getattr(args, "mz_global_shift_min_gain", 5)),
+            mz_global_shift_max_eval=int(getattr(args, "mz_global_shift_max_eval", 5000)),
             drift_fit_bootstrap=bool(args.drift_fit_bootstrap),
             drift_bootstrap_seed=int(args.drift_bootstrap_seed),
         )
@@ -544,6 +663,108 @@ def main(argv=None) -> int:
         groups_dir = out_dir / "groups"
         groups_dir.mkdir(parents=True, exist_ok=True)
 
+        # Optional: export labeled metabolites (mwTab MS_METABOLITE_DATA, plus optional study_id targeted data).
+        labeled_rows: list[dict[str, Any]] = []
+        targeted_meta_by_study: dict[str, pd.DataFrame] = {}
+        if bool(getattr(args, "export_labeled_metabolites", True)):
+            # 1) mwTab MS_METABOLITE_DATA metabolites (always available when mwTab has MS_METABOLITE_DATA/Metabolites).
+            for b in bundles:
+                try:
+                    mwtab_obj = json.loads(Path(str(b.mwtab_path)).read_text(encoding="utf-8"))
+                except Exception:
+                    mwtab_obj = None
+                if not isinstance(mwtab_obj, dict):
+                    continue
+                rows = extract_mwtab_labeled_metabolites(mwtab_obj)
+                for r in rows:
+                    r2 = dict(r)
+                    r2["analysis_id"] = str(b.analysis_id)
+                    r2["study_id"] = str(b.metadata.get("study_id") or "")
+                    labeled_rows.append(r2)
+
+            # 2) Workbench study_id/.../data targeted matrices (optional fetch).
+            if bool(getattr(args, "fetch_targeted_data", False)):
+                max_bytes = int(float(getattr(args, "targeted_max_mib", 50.0)) * 1024 * 1024)
+                study_ids = sorted(
+                    {
+                        str(b.metadata.get("study_id") or "").strip()
+                        for b in bundles
+                        if str(b.metadata.get("study_id") or "").strip()
+                    }
+                )
+                for sid in study_ids:
+                    path = fetch_workbench_study_data(
+                        sid,
+                        cache_root=cache_dir,
+                        timeout_s=float(args.fetch_timeout_s),
+                        retries=int(args.fetch_retries),
+                        delay_s=float(args.fetch_delay_s),
+                        refresh=bool(args.refresh_fetch),
+                        max_bytes=max_bytes,
+                    )
+                    if path is None:
+                        continue
+                    try:
+                        obj = json.loads(Path(str(path)).read_text(encoding="utf-8"))
+                    except Exception:
+                        continue
+                    if not isinstance(obj, dict):
+                        continue
+                    meta_df, expr_df = parse_workbench_study_data_json(obj)
+                    if meta_df.empty:
+                        continue
+                    targeted_meta_by_study[str(sid)] = meta_df
+
+                    # Export per-study targeted matrices for downstream meta-analysis.
+                    targeted_dir = out_dir / "targeted_data" / str(sid)
+                    targeted_dir.mkdir(parents=True, exist_ok=True)
+                    meta_path = targeted_dir / "named_metabolites.tsv"
+                    meta_df.to_csv(meta_path, sep="\t", index=False)
+                    outputs.append(str(meta_path))
+                    if not expr_df.empty:
+                        expr_path = targeted_dir / "named_metabolite_expr.tsv.gz"
+                        expr_df.to_csv(expr_path, sep="\t", compression="gzip")
+                        outputs.append(str(expr_path))
+
+                    # Also record these as "labeled rows" keyed by metabolite_norm for overlap reporting.
+                    for rec in meta_df.to_dict(orient="records"):
+                        labeled_rows.append(dict(rec))
+
+            # Write combined labeled metabolite table.
+            labeled_tsv = out_dir / "analysis_labeled_metabolites.tsv"
+            if labeled_rows:
+                df = pd.DataFrame(labeled_rows)
+                # Ensure consistent columns for consumers; leave unknown columns empty.
+                want_cols = [
+                    "analysis_id",
+                    "study_id",
+                    "source",
+                    "metabolite_norm",
+                    "metabolite_name",
+                    "refmet_name",
+                    "metabolite_id",
+                    "pubchem_id",
+                    "kegg_id",
+                    "hmdb_id",
+                    "chebi_id",
+                    "inchikey",
+                    "lipidmaps_id",
+                    "other_id",
+                    "other_id_type",
+                    "units",
+                    "analysis_summary",
+                    "matrix_col",
+                ]
+                cols = [c for c in want_cols if c in df.columns] + [c for c in df.columns if c not in want_cols]
+                df = df.loc[:, cols].copy()
+                if "analysis_id" in df.columns:
+                    df["analysis_id"] = df["analysis_id"].astype(str).map(lambda x: x.upper().strip())
+                if "metabolite_norm" in df.columns:
+                    df["metabolite_norm"] = df["metabolite_norm"].astype(str).map(normalize_metabolite_name)
+                df = df.sort_values([c for c in ["analysis_id", "source", "metabolite_norm"] if c in df.columns]).reset_index(drop=True)
+                df.to_csv(labeled_tsv, sep="\t", index=False)
+                outputs.append(str(labeled_tsv))
+
         group_rows: list[dict[str, Any]] = []
         total_clustered = 0
         for group_key, members in sorted(grouped.items()):
@@ -586,6 +807,97 @@ def main(argv=None) -> int:
             group_manifest_path.write_text(json.dumps(group_manifest_obj, indent=2, sort_keys=True) + "\n")
             outputs.append(str(group_manifest_path))
 
+            # Shared labeled metabolites (within-group) for downstream targeted/meta-analysis.
+            if bool(getattr(args, "export_labeled_metabolites", True)) and labeled_rows:
+                analysis_ids_in_group = [str(m.analysis_id) for m in members]
+                # Build per-analysis best row per metabolite_norm with a simple source priority.
+                pri = {"workbench_study_data": 0, "mwtab_ms_metabolite_data": 1}
+                rows_by_an_norm: dict[tuple[str, str], dict[str, Any]] = {}
+                for rec in labeled_rows:
+                    an = str(rec.get("analysis_id") or "").upper().strip()
+                    if an not in analysis_ids_in_group:
+                        continue
+                    norms = {
+                        normalize_metabolite_name(rec.get("metabolite_norm") or ""),
+                        normalize_metabolite_name(rec.get("refmet_name") or ""),
+                        normalize_metabolite_name(rec.get("metabolite_name") or ""),
+                    }
+                    norms = {n for n in norms if n}
+                    if not norms:
+                        continue
+                    for norm in sorted(norms):
+                        key = (an, norm)
+                        prev = rows_by_an_norm.get(key)
+                        if prev is None:
+                            rows_by_an_norm[key] = dict(rec)
+                            continue
+                        p_prev = pri.get(str(prev.get("source") or ""), 99)
+                        p_new = pri.get(str(rec.get("source") or ""), 99)
+                        if p_new < p_prev:
+                            rows_by_an_norm[key] = dict(rec)
+
+                norms_by_an: dict[str, set[str]] = {}
+                for an in analysis_ids_in_group:
+                    norms_by_an[an] = {norm for (a, norm) in rows_by_an_norm.keys() if a == an}
+
+                shared_dir = group_out / "shared_labeled_metabolites"
+                shared_dir.mkdir(parents=True, exist_ok=True)
+
+                # Intersection across all studies in the group.
+                all_shared = set.intersection(*[norms_by_an[an] for an in analysis_ids_in_group]) if analysis_ids_in_group else set()
+                if all_shared:
+                    out_all = []
+                    for norm in sorted(all_shared):
+                        # Use the first study's row as representative.
+                        rec0 = rows_by_an_norm.get((analysis_ids_in_group[0], norm), {})
+                        out_all.append(
+                            {
+                                "metabolite_norm": norm,
+                                "metabolite_name": str(rec0.get("refmet_name") or rec0.get("metabolite_name") or ""),
+                            }
+                        )
+                    all_path = shared_dir / "shared_all.tsv"
+                    pd.DataFrame(out_all).to_csv(all_path, sep="\t", index=False)
+                    outputs.append(str(all_path))
+
+                # Pairwise shared metabolite lists (one file per pair) + summary counts.
+                pair_rows = []
+                for i, an1 in enumerate(sorted(analysis_ids_in_group)):
+                    for an2 in sorted(analysis_ids_in_group)[i + 1 :]:
+                        shared = sorted(norms_by_an.get(an1, set()) & norms_by_an.get(an2, set()))
+                        pair_rows.append({"analysis_id_a": an1, "analysis_id_b": an2, "n_shared": int(len(shared))})
+                        if not shared:
+                            continue
+                        out = []
+                        for norm in shared:
+                            r1 = rows_by_an_norm.get((an1, norm), {})
+                            r2 = rows_by_an_norm.get((an2, norm), {})
+                            out.append(
+                                {
+                                    "metabolite_norm": norm,
+                                    "name_a": str(r1.get("refmet_name") or r1.get("metabolite_name") or ""),
+                                    "name_b": str(r2.get("refmet_name") or r2.get("metabolite_name") or ""),
+                                    "source_a": str(r1.get("source") or ""),
+                                    "source_b": str(r2.get("source") or ""),
+                                    "metabolite_id_a": str(r1.get("metabolite_id") or ""),
+                                    "metabolite_id_b": str(r2.get("metabolite_id") or ""),
+                                    "pubchem_id_a": str(r1.get("pubchem_id") or ""),
+                                    "pubchem_id_b": str(r2.get("pubchem_id") or ""),
+                                    "kegg_id_a": str(r1.get("kegg_id") or ""),
+                                    "kegg_id_b": str(r2.get("kegg_id") or ""),
+                                    "inchikey_a": str(r1.get("inchikey") or ""),
+                                    "inchikey_b": str(r2.get("inchikey") or ""),
+                                }
+                            )
+                        pair_path = shared_dir / f"{an1}__{an2}.tsv"
+                        pd.DataFrame(out).to_csv(pair_path, sep="\t", index=False)
+                        outputs.append(str(pair_path))
+
+                if pair_rows:
+                    pairs_path = shared_dir / "shared_pair_counts.tsv"
+                    pd.DataFrame(pair_rows).sort_values(["analysis_id_a", "analysis_id_b"]).to_csv(pairs_path, sep="\t", index=False)
+                    outputs.append(str(pairs_path))
+
             try:
                 studies = [load_study(s) for s in specs]
                 use_intensity, intensity_standardize, intensity_reason = resolve_use_intensity_mode(
@@ -603,6 +915,11 @@ def main(argv=None) -> int:
                     intensity_standardize=str(intensity_standardize),
                     use_structure=False,
                     polarity=str(polarity),
+                    mz_global_shift_model=str(getattr(args, "mz_global_shift_model", "auto")),
+                    mz_global_shift_anchor_ppm=float(getattr(args, "mz_global_shift_anchor_ppm", 5.0)),
+                    mz_global_shift_min_anchors=int(getattr(args, "mz_global_shift_min_anchors", 25)),
+                    mz_global_shift_min_gain=int(getattr(args, "mz_global_shift_min_gain", 5)),
+                    mz_global_shift_max_eval=int(getattr(args, "mz_global_shift_max_eval", 5000)),
                     drift_fit_bootstrap=bool(args.drift_fit_bootstrap),
                     drift_bootstrap_seed=int(args.drift_bootstrap_seed),
                 )
@@ -700,6 +1017,35 @@ def main(argv=None) -> int:
             outputs.append(str(manifest_out))
 
         print(f"Wrote reuse outputs to {out_dir}")
+        return 0
+
+    if args.cmd == "find":
+        out_path = Path(str(args.out))
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_dir = Path(args.cache_dir) if args.cache_dir else (out_path.parent / "cache")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Lazy import so that the rest of the CLI stays usable even if TUI deps are missing.
+        try:
+            from .workbench_finder_tui import run_workbench_finder_tui
+        except Exception as exc:  # pragma: no cover
+            raise RuntimeError(
+                "Textual TUI dependencies are missing or failed to import. "
+                "Install the `textual` package to use `mass_sight find`."
+            ) from exc
+
+        saved_path = run_workbench_finder_tui(
+            out_path=out_path,
+            cache_dir=cache_dir,
+            refresh=bool(args.refresh_fetch),
+            timeout_s=float(args.fetch_timeout_s),
+            retries=int(args.fetch_retries),
+            delay_s=float(args.fetch_delay_s),
+        )
+        if saved_path is not None:
+            print(f"Wrote Workbench selection manifest to {saved_path}")
+        else:
+            print("Exited without saving selection manifest (press 's' from an analyses screen to save).")
         return 0
 
     return 1
