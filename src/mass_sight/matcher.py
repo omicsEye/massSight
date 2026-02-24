@@ -136,11 +136,23 @@ class MassSightConfig:
     rt_transfer_p95_abs_resid_max: float = 2.0
     rt_transfer_max_anchors: int = 5000
     rt_transfer_ransac_iters: int = 2000
+    # Even when anchors are noisy (dense m/z neighborhoods), a small-but-consistent inlier subset
+    # can still yield a useful RT transfer. The inlier fraction threshold is therefore configurable
+    # and intentionally permissive by default for public-data robustness.
+    rt_transfer_min_inlier_frac: float = 0.02
     # Optional precision boost for RT-transfer anchors:
     # require that m/z mutual-NN anchors are locally unique within the anchor_ppm window
     # in both studies. Disabled by default because it can reduce anchor count and does
     # not consistently improve benchmark performance.
     rt_transfer_use_unique_mz_mnn: bool = False
+
+    # Retention handling when RT is deemed non-transferable across a pair.
+    #
+    # - "disable": legacy behavior, drop RT/ROI terms entirely.
+    # - "soft": apply the best-fit linear RT transform anyway, but downweight RT/ROI terms to
+    #   use retention as a weak tie-breaker under m/z collisions.
+    retention_nontransferable_policy: str = "soft"  # "disable" | "soft"
+    retention_nontransferable_weight: float = 0.25
 
     # Tight windows for drift estimation
     tight_ppm: float = 7.0
@@ -542,16 +554,27 @@ def _mz_shift_candidates(model: str, *, polarity: str) -> List[float]:
     """
     Candidate constant shifts (Da) to apply to a study's MZ column before matching.
 
-    We include both +/- variants so we can handle either direction (neutral->ion or ion->neutral)
-    depending on which dataset is shifted. We keep the set small by default.
+    In `proton_only` mode, we return only the polarity-consistent neutral->ion shift:
+      - positive: +H (neutral + H -> [M+H]+)
+      - negative: -H (neutral - H -> [M-H]-)
+
+    Because `_infer_pair_mz_global_shift` already tests one-sided shifts (shift either study),
+    we do not need both +/-H variants in this mode. This reduces false-positive global shifts
+    that move ion m/z into a neutral-mass frame (catastrophic for candidate generation).
     """
     model = _canonical_mz_shift_model(model)
     if model in {"none"}:
         return [0.0]
 
-    shifts: List[float] = [0.0, float(PROTON_MASS), -float(PROTON_MASS)]
     if model == "proton_only":
-        return sorted(set(float(s) for s in shifts), key=lambda v: (0 if abs(v) < 1e-12 else 1, abs(v), v))
+        pol = str(polarity or "").lower().strip()
+        if pol not in {"positive", "negative"}:
+            pol = "positive"
+        h = float(PROTON_MASS)
+        s = float(h if pol == "positive" else -h)
+        return [0.0, s]
+
+    shifts: List[float] = [0.0, float(PROTON_MASS), -float(PROTON_MASS)]
 
     pol = str(polarity or "").lower().strip()
     if pol not in {"positive", "negative"}:
@@ -673,6 +696,7 @@ def _infer_pair_mz_global_shift(
 
     # Subsample to keep repeated NN passes predictable.
     max_eval = int(out["mz_global_shift_max_eval"])
+    subsampled = False
     if max_eval > 0 and (mz1.size > max_eval or mz2.size > max_eval):
         rng = np.random.default_rng(0)
         if mz1.size > max_eval:
@@ -680,6 +704,7 @@ def _infer_pair_mz_global_shift(
         if mz2.size > max_eval:
             mz2 = mz2[rng.choice(mz2.size, size=max_eval, replace=False)]
         out["mz_shift_note"] = "subsampled"
+        subsampled = True
 
     order1 = np.argsort(mz1)
     order2 = np.argsort(mz2)
@@ -687,30 +712,64 @@ def _infer_pair_mz_global_shift(
     mz2_sorted0 = mz2[order2]
 
     shifts = _mz_shift_candidates(model_eff, polarity=pol)
+
+    # Only consider one-sided shifts. Allowing nonzero shifts on both studies can spuriously
+    # increase anchor counts (dense m/z lists) and can place the studies on inconsistent mass
+    # semantics. One-sided conversion is the intended public-data rescue (shift one dataset
+    # into the other's frame).
+    shift_pairs: List[Tuple[float, float]] = [(0.0, 0.0)]
+    # Auto policy: if one side is explicitly ion-m/z-like, treat that as the canonical frame and
+    # only shift the *other* side. This avoids false shifts that move an ion-m/z study into a
+    # neutral-mass frame (catastrophic for candidate generation on some MW pairs).
+    force_side: Optional[str] = None
+    if model_req == "auto":
+        if sem_a == "ion_mz" and sem_b != "ion_mz":
+            force_side = "b"
+        elif sem_b == "ion_mz" and sem_a != "ion_mz":
+            force_side = "a"
+    for s in shifts:
+        s = float(s)
+        if abs(s) <= 1e-12:
+            continue
+        if force_side == "a":
+            shift_pairs.append((s, 0.0))
+        elif force_side == "b":
+            shift_pairs.append((0.0, s))
+        else:
+            shift_pairs.append((s, 0.0))
+            shift_pairs.append((0.0, s))
+    shift_pairs = list(dict.fromkeys(shift_pairs))
     best_sa = 0.0
     best_sb = 0.0
     best_count = -1
     zero_count = 0
     best_key: Optional[Tuple[int, int, float, float, float]] = None
-    for sa in shifts:
-        mz1_sorted = mz1_sorted0 + float(sa)
-        for sb in shifts:
-            mz2_sorted = mz2_sorted0 + float(sb)
-            best2_for_1 = _best_nn_idx_within_ppm_presorted(mz1_sorted, mz2_sorted, order2, mz_ppm=anchor_ppm)
-            best1_for_2 = _best_nn_idx_within_ppm_presorted(mz2_sorted, mz1_sorted, order1, mz_ppm=anchor_ppm)
-            i = np.arange(best2_for_1.size, dtype=int)
-            j = best2_for_1
-            mnn = (j >= 0) & (best1_for_2[j] == i)
-            count = int(np.sum(mnn))
+    for sa, sb in shift_pairs:
+        mz1_q = mz1 + float(sa)
+        mz1_t = mz1_sorted0 + float(sa)
+        mz2_q = mz2 + float(sb)
+        mz2_t = mz2_sorted0 + float(sb)
 
-            if abs(float(sa)) <= 1e-12 and abs(float(sb)) <= 1e-12:
-                zero_count = int(count)
+        # IMPORTANT: `_best_nn_idx_within_ppm_presorted` returns indices into the *unsorted* target.
+        # For a mutual-nearest-neighbor (MNN) test we must keep both best-NN arrays aligned to
+        # their respective *unsorted* query index spaces; otherwise indexing is inconsistent and
+        # can incorrectly yield zero anchors.
+        best2_for_1 = _best_nn_idx_within_ppm_presorted(mz1_q, mz2_t, order2, mz_ppm=anchor_ppm)  # a -> b
+        best1_for_2 = _best_nn_idx_within_ppm_presorted(mz2_q, mz1_t, order1, mz_ppm=anchor_ppm)  # b -> a
 
-            n_nonzero = int(abs(float(sa)) > 1e-12) + int(abs(float(sb)) > 1e-12)
-            key = (int(-count), int(n_nonzero), float(abs(sa) + abs(sb)), float(sa), float(sb))
-            if best_key is None or key < best_key:
-                best_key = key
-                best_sa, best_sb, best_count = float(sa), float(sb), int(count)
+        i = np.arange(best2_for_1.size, dtype=int)  # unsorted indices into study A
+        j = best2_for_1
+        mnn = (j >= 0) & (best1_for_2[j] == i)
+        count = int(np.sum(mnn))
+
+        if abs(float(sa)) <= 1e-12 and abs(float(sb)) <= 1e-12:
+            zero_count = int(count)
+
+        n_nonzero = int(abs(float(sa)) > 1e-12) + int(abs(float(sb)) > 1e-12)
+        key = (int(-count), int(n_nonzero), float(abs(sa) + abs(sb)), float(sa), float(sb))
+        if best_key is None or key < best_key:
+            best_key = key
+            best_sa, best_sb, best_count = float(sa), float(sb), int(count)
 
     out["mz_shift_mnn_best"] = int(best_count if best_count >= 0 else 0)
     out["mz_shift_mnn_zero"] = int(zero_count)
@@ -727,6 +786,90 @@ def _infer_pair_mz_global_shift(
         and (int(best_count) >= int(min_anchors))
         and (int(best_count) >= int(zero_count + min_gain))
     )
+
+    # If we subsampled and came up short, try once more without subsampling for the small shift family.
+    # This helps when true overlap is modest relative to feature-table size (public MW studies).
+    if (not apply) and subsampled and model_eff == "proton_only":
+        try:
+            mz1_full = pd.to_numeric(study_a.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
+            mz2_full = pd.to_numeric(study_b.get("MZ"), errors="coerce").to_numpy(dtype=float, copy=False)
+            mz1_full = mz1_full[np.isfinite(mz1_full) & (mz1_full > 0)]
+            mz2_full = mz2_full[np.isfinite(mz2_full) & (mz2_full > 0)]
+            if mz1_full.size and mz2_full.size:
+                order1 = np.argsort(mz1_full)
+                order2 = np.argsort(mz2_full)
+                mz1_sorted0 = mz1_full[order1]
+                mz2_sorted0 = mz2_full[order2]
+                best_sa2 = 0.0
+                best_sb2 = 0.0
+                best_count2 = -1
+                zero_count2 = 0
+                best_key2 = None
+                shifts2 = _mz_shift_candidates(model_eff, polarity=pol)
+                shift_pairs2: List[Tuple[float, float]] = [(0.0, 0.0)]
+                # Mirror the one-sided + canonical-frame restriction from the subsampled pass.
+                force_side2: Optional[str] = None
+                if model_req == "auto":
+                    if sem_a == "ion_mz" and sem_b != "ion_mz":
+                        force_side2 = "b"
+                    elif sem_b == "ion_mz" and sem_a != "ion_mz":
+                        force_side2 = "a"
+                for s in shifts2:
+                    s = float(s)
+                    if abs(s) <= 1e-12:
+                        continue
+                    if force_side2 == "a":
+                        shift_pairs2.append((s, 0.0))
+                    elif force_side2 == "b":
+                        shift_pairs2.append((0.0, s))
+                    else:
+                        shift_pairs2.append((s, 0.0))
+                        shift_pairs2.append((0.0, s))
+                shift_pairs2 = list(dict.fromkeys(shift_pairs2))
+
+                for sa, sb in shift_pairs2:
+                    mz1_q = mz1_full + float(sa)
+                    mz1_t = mz1_sorted0 + float(sa)
+                    mz2_q = mz2_full + float(sb)
+                    mz2_t = mz2_sorted0 + float(sb)
+
+                    best2_for_1 = _best_nn_idx_within_ppm_presorted(mz1_q, mz2_t, order2, mz_ppm=anchor_ppm)
+                    best1_for_2 = _best_nn_idx_within_ppm_presorted(mz2_q, mz1_t, order1, mz_ppm=anchor_ppm)
+                    i = np.arange(best2_for_1.size, dtype=int)
+                    j = best2_for_1
+                    mnn = (j >= 0) & (best1_for_2[j] == i)
+                    count = int(np.sum(mnn))
+
+                    if abs(float(sa)) <= 1e-12 and abs(float(sb)) <= 1e-12:
+                        zero_count2 = int(count)
+
+                    n_nonzero = int(abs(float(sa)) > 1e-12) + int(abs(float(sb)) > 1e-12)
+                    key = (int(-count), int(n_nonzero), float(abs(sa) + abs(sb)), float(sa), float(sb))
+                    if best_key2 is None or key < best_key2:
+                        best_key2 = key
+                        best_sa2, best_sb2, best_count2 = float(sa), float(sb), int(count)
+
+                out["mz_shift_mnn_best_full"] = int(best_count2 if best_count2 >= 0 else 0)
+                out["mz_shift_mnn_zero_full"] = int(zero_count2)
+                # Re-evaluate gate on full data.
+                apply = (
+                    (abs(float(best_sa2)) > 1e-12 or abs(float(best_sb2)) > 1e-12)
+                    and (int(best_count2) >= int(min_anchors))
+                    and (int(best_count2) >= int(zero_count2 + min_gain))
+                )
+                if apply:
+                    best_sa, best_sb, best_count, zero_count = best_sa2, best_sb2, best_count2, zero_count2
+                    out["mz_shift_note"] = (str(out.get("mz_shift_note") or "") + "|full_eval").strip("|")
+        except Exception:
+            pass
+
+    # Low-anchor fallback: when zero-shift produces essentially no anchors, permit applying a proton shift
+    # even when overlap is small. This is a pragmatic public-data rescue for small shared-metabolite sets.
+    if (not apply) and model_eff == "proton_only":
+        if int(zero_count) <= 1 and int(best_count) >= 5:
+            apply = True
+            out["mz_shift_note"] = (str(out.get("mz_shift_note") or "") + "|low_anchor_apply").strip("|")
+
     if apply:
         out["mz_shift_da_study_a"] = float(best_sa)
         out["mz_shift_da_study_b"] = float(best_sb)
@@ -776,6 +919,7 @@ def _infer_pair_rt_transferability(
     max_anchors = max(max_anchors, 0)
     ransac_cap = int(getattr(cfg, "rt_transfer_ransac_iters", 2000) or 2000)
     use_unique_mz_mnn = bool(getattr(cfg, "rt_transfer_use_unique_mz_mnn", False))
+    min_inlier_frac = float(getattr(cfg, "rt_transfer_min_inlier_frac", 0.1) or 0.1)
 
     out: Dict[str, object] = {
         "rt_policy": "unknown",
@@ -953,7 +1097,6 @@ def _infer_pair_rt_transferability(
             out["rt_spearman"] = float(np.corrcoef(r1, r2)[0, 1])
 
     # Decision rule: trust RT when there is a substantial inlier population supporting a monotone linear map.
-    min_inlier_frac = 0.1
     transferable = (
         (out["rt_n_inliers"] >= int(min_anchors))
         and np.isfinite(out["rt_spearman"])
@@ -2427,19 +2570,60 @@ def _prepare_match(
             study_b["RT"] = study_b["RT"].to_numpy(dtype=float) * scale + offset
             rt_gate_diag["rt_applied"] = True
         elif str(rt_pair.get("rt_policy")) in {"ignore", "unknown"} and retention_mode_req == "auto":
-            # In auto mode, treat non-transferable retention as uninformative and disable RT/ROI terms.
-            cfg_eff = replace(
-                cfg_eff,
-                w_rt=0.0,
-                w_roi=0.0,
-                rt=0.0,
-                tight_rt=0.0,
-                tight_roi=0.0,
-                rt_drift_model="none",
-                roi_drift_model="none",
-            )
-            rt_gate_diag["retention_mode_effective"] = "mz_only"
-            rt_gate_diag["retention_disable_reason"] = "rt_nontransferable_pair"
+            # In auto mode, default to using retention as a *weak tie-breaker* rather than dropping it entirely.
+            # This is important on public data where dense m/z neighborhoods create many candidates within ppm,
+            # but a small consistent subset can still support a usable RT map.
+            policy = str(getattr(cfg_eff, "retention_nontransferable_policy", "disable") or "disable").lower().strip()
+            if policy not in {"disable", "soft"}:
+                raise ValueError(
+                    f"Unsupported retention_nontransferable_policy: {getattr(cfg_eff, 'retention_nontransferable_policy', None)!r} "
+                    "(expected 'disable' or 'soft')."
+                )
+            if policy == "soft":
+                # Apply the best-fit transform anyway, but downweight retention terms.
+                scale = float(rt_pair.get("rt_scale", 1.0) or 1.0)
+                offset = float(rt_pair.get("rt_offset", 0.0) or 0.0)
+                study_b["RT"] = study_b["RT"].to_numpy(dtype=float) * scale + offset
+                rt_gate_diag["rt_applied"] = True
+
+                # Compute a conservative soft weight based on diagnostics.
+                spearman = float(rt_pair.get("rt_spearman", float("nan")))
+                p95 = float(rt_pair.get("rt_p95_abs_resid", float("nan")))
+                inlier_frac = float(rt_pair.get("rt_inlier_frac", float("nan")))
+                base = float(getattr(cfg_eff, "retention_nontransferable_weight", 0.25) or 0.25)
+                w = base
+                spearman_min_eff = float(getattr(cfg_eff, "rt_transfer_spearman_min", 0.8) or 0.8)
+                p95_max_eff = float(getattr(cfg_eff, "rt_transfer_p95_abs_resid_max", 2.0) or 2.0)
+                if np.isfinite(spearman) and spearman_min_eff > 0:
+                    w *= float(np.clip(spearman / float(spearman_min_eff), 0.0, 1.0))
+                if np.isfinite(p95) and p95_max_eff > 0:
+                    w *= float(np.clip(float(p95_max_eff) / max(float(p95), 1e-12), 0.0, 1.0))
+                if np.isfinite(inlier_frac) and inlier_frac > 0:
+                    # Penalize extremely small inlier fractions, but do not make this binary.
+                    w *= float(np.clip(np.sqrt(inlier_frac / 0.1), 0.0, 1.0))
+
+                cfg_eff = replace(
+                    cfg_eff,
+                    w_rt=float(cfg_eff.w_rt) * float(w),
+                    w_roi=float(cfg_eff.w_roi) * float(w),
+                )
+                rt_gate_diag["retention_mode_effective"] = "soft"
+                rt_gate_diag["retention_disable_reason"] = "rt_nontransferable_pair_soft"
+                rt_gate_diag["retention_soft_weight"] = float(w)
+            else:
+                # Legacy behavior: treat non-transferable retention as uninformative and disable RT/ROI terms.
+                cfg_eff = replace(
+                    cfg_eff,
+                    w_rt=0.0,
+                    w_roi=0.0,
+                    rt=0.0,
+                    tight_rt=0.0,
+                    tight_roi=0.0,
+                    rt_drift_model="none",
+                    roi_drift_model="none",
+                )
+                rt_gate_diag["retention_mode_effective"] = "mz_only"
+                rt_gate_diag["retention_disable_reason"] = "rt_nontransferable_pair"
 
     if rt_gate_mode == "adaptive-disable" and float(cfg_eff.rt or 0.0) > 0:
         anchor_ppm = cfg_eff.rt_gate_anchor_ppm

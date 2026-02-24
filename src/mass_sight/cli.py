@@ -136,6 +136,24 @@ def _add_match_parser(sub):
     p.add_argument("--mz-global-shift-min-gain", type=int, default=5, help="Min anchor-count gain over 0-shift to apply.")
     p.add_argument("--mz-global-shift-max-eval", type=int, default=5000, help="Max m/z values to use per study for shift inference.")
     p.add_argument(
+        "--rt-transfer-min-inlier-frac",
+        type=float,
+        default=0.02,
+        help="RT transferability: minimum inlier fraction for declaring RT transferable (default: 0.02).",
+    )
+    p.add_argument(
+        "--retention-nontransferable-policy",
+        choices=["disable", "soft"],
+        default="soft",
+        help="When RT is non-transferable, either disable retention or use it as a weak tie-breaker (default: soft).",
+    )
+    p.add_argument(
+        "--retention-nontransferable-weight",
+        type=float,
+        default=0.25,
+        help="Base weight multiplier for retention under non-transferable RT when policy=soft (default: 0.25).",
+    )
+    p.add_argument(
         "--capture-manifest",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -517,6 +535,9 @@ def main(argv=None) -> int:
             mz_global_shift_min_anchors=int(getattr(args, "mz_global_shift_min_anchors", 25)),
             mz_global_shift_min_gain=int(getattr(args, "mz_global_shift_min_gain", 5)),
             mz_global_shift_max_eval=int(getattr(args, "mz_global_shift_max_eval", 5000)),
+            rt_transfer_min_inlier_frac=float(getattr(args, "rt_transfer_min_inlier_frac", 0.02)),
+            retention_nontransferable_policy=str(getattr(args, "retention_nontransferable_policy", "soft")),
+            retention_nontransferable_weight=float(getattr(args, "retention_nontransferable_weight", 0.25)),
         )
         res = match_features(study_a, study_b, cfg)
         res.candidates.to_csv(args.out_candidates, index=False)
@@ -579,6 +600,9 @@ def main(argv=None) -> int:
             mz_global_shift_max_eval=int(getattr(args, "mz_global_shift_max_eval", 5000)),
             drift_fit_bootstrap=bool(args.drift_fit_bootstrap),
             drift_bootstrap_seed=int(args.drift_bootstrap_seed),
+            rt_transfer_min_inlier_frac=float(getattr(args, "rt_transfer_min_inlier_frac", 0.02)),
+            retention_nontransferable_policy=str(getattr(args, "retention_nontransferable_policy", "soft")),
+            retention_nontransferable_weight=float(getattr(args, "retention_nontransferable_weight", 0.25)),
         )
 
         outputs, strategies = _run_cluster_strategies(
